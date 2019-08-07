@@ -56,8 +56,6 @@ Given a diagnosis are assessment of the domain, does this improve the predictive
 
 Machine learning may provide a different way to test, and to determine if despair really related to these behaviors.
 
-## One research assistant. Katrina. 
-
 ## Data Security Protocols
 
 Data protocols are strict. Confidentiality and security must be ensured. IT department has set up server, and users must be approved before being added. Security protocols and agreements can be found here.  
