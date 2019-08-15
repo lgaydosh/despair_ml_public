@@ -1,9 +1,9 @@
 # despair
 Prediction of behaviors associated with despair, hypothesized to be responsible for decline of life expectancy in the US
 
-## Backround
+## Background
 
-Prediction of behaviors associated with despair, including suicidal ideation, drug abuse, ilicit drup use, opoid use, problematic drinking. The behaviors are associated with despair, which may be responsible for the drop in life expectancy in the US over the last few years. 
+Prediction of behaviors associated with despair, including suicidal ideation, drug abuse, illicit drug use, opioid use, problematic drinking. The behaviors are associated with despair, which may be responsible for the drop in life expectancy in the US over the last few years. 
 
 ## Data
 
@@ -22,7 +22,7 @@ Problematic drinking ~50%
 
 Opoid use ~10%-12%
 
-Ilicit drug use ~6%
+Illicit drug use ~6%
 
 Suicidal ideation ~10%
 
@@ -32,8 +32,8 @@ Build predictive models for each of the predictors:
 
 1. suicidal ideation
 2. drug abuse
-3. ilicit drup use
-4. opoid use
+3. illicit drup use
+4. opioid use
 5. problematic drinking
 
 Engineer features as necessary, explore possible embeddings. 
@@ -72,3 +72,26 @@ Note: the data has been reviewed, and has passed through a first round of examin
 Subset of data is publicly available. We'll want to consider, for later application of software to the public data. 
 
 A longer-term goal is to provide interactive data and reproducible code.
+
+## Project Logistics
+**Sprint planning**: TBD  
+**Demos**: Fridays at 2:30pm
+
+**Slack Channel**: TBD  
+**Zoom Link**: TBD
+
+**Contact Info**:  
+Lauren Gaydosh (PI) 
+  + Office: 321 Calhoun Hall
+  + Phone: 615-343-7683
+  + Email: [lauren.m.gaydosh@vanderbilt.edu](lauren.m.gaydosh@vanderbilt.edu)
+  
+Jesse Spencer-Smith  
+  + Office: Vanderbilt Data Science Institute, Engineering Science Building, Office 315
+  + Phone: 615-343-4793 o | 217-377-2867 m
+  + Email: [jesse.spencer-smith@vanderbilt.edu](jesse.spencer-smith@vanderbilt.edu)
+
+Charreau Bell  
+   + Office: Vanderbilt Data Science Institute, Engineering Science Building, Office 314
+   + Phone: 615-343-6626
+   + Email: [c.bell@vanderbilt.edu](c.bell@vanderbilt.edu)
