@@ -1,6 +1,6 @@
 # Data Access through ACCRE
 
-The data to be used in this project is restricted-access, and we will be accessing the data through ACCRE.  Make sure you heed the guidelines here about practices and requirements for responsibly using the data.
+The data to be used in this project is restricted-access, and we will be accessing the data through ACCRE.  Make sure you heed the guidelines [here](https://github.com/vanderbilt-data-science/despair/blob/master/data-access-guidelines.md) about practices and requirements for responsibly using the data.
 
 The final procedure used to access the data is still under construction by ACCRE, but they have provided a set of steps that we can use in the meantime.  The procedure is as follows:
 
