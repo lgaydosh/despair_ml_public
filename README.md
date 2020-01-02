@@ -20,7 +20,7 @@ There are approximately 12,000 cases total.
 
 Problematic drinking ~50%
 
-Opoid use ~10%-12%
+Opioid use ~10%-12%
 
 Illicit drug use ~6%
 
@@ -74,10 +74,10 @@ Subset of data is publicly available. We'll want to consider, for later applicat
 A longer-term goal is to provide interactive data and reproducible code.
 
 ## Project Logistics
-**Sprint planning**: TBD  
+**Sprint planning and updates**: Thursdays, from 3-4:30pm; January through April  
 **Demos**: Fridays at 2:30pm
 
-**Slack Channel**: TBD  
+**Slack Channel**: Data Science TIP/despair-project  
 **Zoom Link**: TBD
 
 **Contact Info**:  
