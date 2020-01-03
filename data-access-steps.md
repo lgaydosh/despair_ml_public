@@ -7,9 +7,9 @@ The final procedure used to access the data is still under construction by ACCRE
 ## Pre-requisites: Modify your .bashrc for directory mount
 Your .bashrc file gives the operating system information about your computing environment.  We need to modify this so that we're able to mount the remote smb filesystem.  Once this is set up the first time, you never need to modify this again.
 
-You can do this through the command line, but you can also do this through ACCRE's [portal](portal.accre.vanderbilt.edu).  This latter method is what I will describe here.
+You can do this through the command line, but you can also do this through ACCRE's [portal](https://portal.accre.vanderbilt.edu).  This latter method is what I will describe here.
 
-Log into [portal](portal.accre.vanderbilt.edu) using your ACCRE credentials.  Click the `Files` drop-down menu at the top of the screen and choose `Home Directory`.  If not already selected, click the checkbox at the top right to `Show Dotfiles`.  
+Log into [portal](https://portal.accre.vanderbilt.edu) using your ACCRE credentials.  Click the `Files` drop-down menu at the top of the screen and choose `Home Directory`.  If not already selected, click the checkbox at the top right to `Show Dotfiles`.  
 
 Find your .bashrc file and click on it.  Then, at the top of the screen, click `Edit`.  Copy and paste the following lines at the end of your .bashrc file:
 
