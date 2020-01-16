@@ -1,0 +1,20 @@
+---
+title: "10-import-data"
+output: html_notebook
+---
+
+# Data
+
+All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
+
+## Libraries
+
+
+
+
+## Read data
+
+
+
+
+## Data Description/ Fields

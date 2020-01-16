@@ -1,0 +1,8 @@
+---
+title: "30-feature-engineering"
+output: html_notebook
+---
+
+# Predictive Features
+
+Which feature/attribute we are more interested in: probably a one that shared by all of the independent units on which prediction is to be done. Choosing the right features is important. Better features can produce simpler and more flexible models, and they often yield better results.

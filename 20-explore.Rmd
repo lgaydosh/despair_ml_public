@@ -1,0 +1,8 @@
+---
+title: "20-explore"
+output: html_notebook
+---
+
+# Basic Exploration
+
+Exploratory data analysis (an approach to analyzing data sets to summarize their main characteristics, often with visual methods) can be performed here.
