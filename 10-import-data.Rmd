@@ -18,3 +18,34 @@ All data is structured. Source files are all SAS export files. This is a large d
 
 
 ## Data Description/ Fields
+
+Measures used:
+
+Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
+*	Suicidal ideation at Wave IV
+    +	Thoughts of suicide in the last 12 months
+*	Alcohol use at Wave IV
+    +	Days drank alcohol in last 12 months
+    +	Drinks each time in last 12 months
+    +	Days drank alcohol in last 3 months
+    +	Drinks each time in last 3 months
+    +	Occasions of more than 4/5 drinks in a row in last 12 months
+    +	DSM4 lifetime diagnosis of alcohol abuse or dependence
+*	Marijuana use at Wave IV
+    +	Times used in last 30 days
+    +	DSM4 lifetime diagnosis of cannabis abuse or dependence
+*	Illegal drug use at Wave IV
+    +	DSM4 lifetime diagnosis of other drug use/dependence
+    +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
+*	Prescription drug abuse at Wave IV
+    +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
+
+Key independent variables: measures of cognitive and emotional despair
+*	Cognitive despair
+    +	Wave III personality measures of self-consciousness, persistence
+*	Emotional despair
+    +	Wave I – III CES-D items
+
+Other variables: 
+*	Demographic controls for age at Wave IV, sex, race/ethnicity
+*	Wave I – III predictors

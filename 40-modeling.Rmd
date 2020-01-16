@@ -21,7 +21,7 @@ Partition the data into training, validation and test sets.
 
 ## Run Models
 
-
+Could do the epicycle process, dropping and adding features for better models.
 
 
 ## Find Top Predictors
