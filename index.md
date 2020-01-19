@@ -2,17 +2,9 @@
 
 ## Motivation 
 
-The average life expectancy in the United states has shown a downwards trend since 2014. According to the CDC Director, Dr. Robert Redfield, this downwards trend is driven by deaths from drug overdose and suicide.
+The average life expectancy in the United States has shown a downwards trend since 2014. This downwards trend is attributed to deaths from diseases of despair. 
 
-![Rates of Suide and Drug Overdose](https://www.washingtonpost.com/wp-apps/imrs.php?src=https://arc-anglerfish-washpost-prod-washpost.s3.amazonaws.com/public/67TKYTHTLYI6RGOCZ7FG7T3BBQ.jpg&w=1023)
-
-Deaths that occur due to diseases of despair due to
-
-1. Suicide, 
-2. Drug and Alcohol poisoning, and 
-3. Alcoholic liver disease and cirrhosis 
-
-are known as [deaths of despair](https://www.jec.senate.gov/public/index.cfm/republicans/2019/9/long-term-trends-in-deaths-of-despair). These behavioral conditions are known to arise in individuals having a bleak long-term socio-economic outlook. 
+Deaths that occur due to diseases of despair are known as [deaths of despair](https://www.jec.senate.gov/public/index.cfm/republicans/2019/9/long-term-trends-in-deaths-of-despair). These can be classified into deaths from suicide,drug and alcohol poisoning, and alcoholic liver disease and cirrhosis.  
 
 ## Objectives
 
@@ -24,6 +16,9 @@ For this project, we use the [Add Health](https://www.cpc.unc.edu/projects/addhe
 
 
 ## References
-[Washington Post: U.S. life expectancy declines again, a dismal trend not seen since World War I](https://www.washingtonpost.com/national/health-science/us-life-expectancy-declines-again-a-dismal-trend-not-seen-since-world-war-i/2018/11/28/ae58bc8c-f28c-11e8-bc79-68604ed88993_story.html?noredirect=on)
+[The Depths of Despair Among US Adults Entering Midlife](https://ajph.aphapublications.org/doi/full/10.2105/AJPH.2019.305002)
 
+[Cohort Profile: The National Longitudinal Study
+of Adolescent to Adult Health (Add Health)](https://academic.oup.com/ije/article-abstract/48/5/1415/5525255?redirectedFrom=fulltext)
 
+[Does Despair Really Kill? A Roadmap for an Evidence-Based Answer](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6506367/)
