@@ -8,12 +8,63 @@ output: html_notebook
 All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
 
 ## Libraries
+```{r}
+library(SASxport)
+library(haven)
+library(vroom)
+```
 
+## Importing The Waves
 
+**INSTRUCTIONS [Please See]**
 
+Change to your username after `/home/username/gvfs.../wave1.xpt` in order to load the file from your file directory on ACCRE
+
+```{r}
+wave1 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave1.xpt")
+
+wave2 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave2.xpt")
+
+wave3 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave3.xpt")
+
+wave4 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave4.xpt")
+
+wave5 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave5.xpt")
+```
+
+# Wave Heads
+
+```{r}
+head(wave1)
+```
+
+```{r}
+head(wave2)
+```
+
+```{r}
+head(wave3)
+```
+
+```{r}
+head(wave4)
+```
+
+```{r}
+head(wave5)
+```
 
 ## Read data
 
+```{r}
+# suiside ideation data import
+
+
+
+
+# marijuana data import
+
+```
 
 
 
