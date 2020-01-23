@@ -32,28 +32,6 @@ wave4 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu
 wave5 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave5.xpt")
 ```
 
-# Wave Heads
-
-```{r}
-head(wave1)
-```
-
-```{r}
-head(wave2)
-```
-
-```{r}
-head(wave3)
-```
-
-```{r}
-head(wave4)
-```
-
-```{r}
-head(wave5)
-```
-
 ## Read data
 
 ```{r}
