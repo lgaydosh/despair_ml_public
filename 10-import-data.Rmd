@@ -9,9 +9,10 @@ All data is structured. Source files are all SAS export files. This is a large d
 
 ## Libraries
 ```{r}
+# install.packages("SASxport")
 library(SASxport)
 library(haven)
-library(vroom)
+# library(vroom)
 ```
 
 ## Importing The Waves
@@ -21,16 +22,25 @@ library(vroom)
 Change to your username after `/home/username/gvfs.../wave1.xpt` in order to load the file from your file directory on ACCRE
 
 ```{r}
-wave1 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave1.xpt")
+wave1 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave1.xpt")
 
-wave2 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave2.xpt")
+wave2 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave2.xpt")
 
-wave3 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave3.xpt")
+wave3 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave3.xpt")
 
-wave4 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave4.xpt")
+wave4 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave4.xpt")
 
-wave5 <- read_xpt("/home/yaqooba/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave5.xpt")
+wave5 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave5.xpt")
 ```
+
+
+## Data Structure
+```{r}
+names(wave1)
+names(wave2)
+```
+
+
 
 ## Read data
 
