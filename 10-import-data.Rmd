@@ -12,6 +12,8 @@ All data is structured. Source files are all SAS export files. This is a large d
 # install.packages("SASxport")
 library(SASxport)
 library(haven)
+library(dplyr)
+library(tidyr)
 # library(vroom)
 ```
 
@@ -34,10 +36,60 @@ wave5 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,sh
 ```
 
 
-## Data Structure
+## Joined Data
 ```{r}
-names(wave1)
-names(wave2)
+joined_waves <- wave1 %>%
+    inner_join(wave2, by = "AID") %>%
+    inner_join(wave3, by = "AID") %>%
+    inner_join(wave4, by = "AID") %>%
+    inner_join(wave5, by = "AID")
+
+```
+
+
+#### Check the exsit of one variable 
+```{r}
+# Such as 
+c("C4VAR010") %in% names(wave4)
+```
+
+
+#### Get Diagnosed anxiety, Anxiety and Optimism
+```{r}
+# c4var009 for anxiety not exist.
+# c4var010 for optimism not exist.
+anxiety_optimism <- joined_waves %>%
+  select("AID", "H4ID5J","H5ID6I",
+"H4PE6",	
+"H4PE14",	
+"H4PE22",	
+"H4PE30",	
+"H4PE7","H5PE1",
+"H4PE15","H5PE2",
+"H4PE23","H5PE3",
+"H4PE31"
+)%>%
+  drop_na()    ## reduce to 7127 observations.
+
+diag_anxiety <- anxiety_optimism %>%
+  select("AID", "H4ID5J","H5ID6I")
+
+anxiety <- anxiety_optimism %>%
+  select("AID",
+"H4PE6",	
+"H4PE14",	
+"H4PE22",	
+"H4PE30")
+
+Optimism <- anxiety_optimism %>%
+  select("AID",
+  "H4PE7","H5PE1",
+"H4PE15","H5PE2",
+"H4PE23","H5PE3",
+"H4PE31")
+
+
+## How to come up with c4var009 and c4var010?
 ```
 
 
