@@ -7,104 +7,154 @@ output: html_notebook
 
 All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
 
-## Libraries
+# Libraries
 ```{r}
 # install.packages("SASxport")
 library(SASxport)
 library(haven)
+library(plyr)
 library(dplyr)
 library(tidyr)
 # library(vroom)
+library(janitor)
+library(naniar)
+library(ggplot2)
+library(Hmisc)
+library(purrr)
+library(scales)
+library(reshape)
+library(HH)
+library(tibble)
+library(likert)
+library(reshape2)
 ```
 
-## Importing The Waves
+# Importing The Waves
 
-**INSTRUCTIONS [Please See]**
-
-Change to your username after `/home/username/gvfs.../wave1.xpt` in order to load the file from your file directory on ACCRE
+Instructions:
+Run below chunk and select all the wave files you wish you import.
 
 ```{r}
-wave1 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave1.xpt")
+files <- choose.files(default = "", caption = "Select files",
+             multi = TRUE, filters = Filters,
+             index = nrow(Filters))
 
-wave2 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave2.xpt")
-
-wave3 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave3.xpt")
-
-wave4 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave4.xpt")
-
-wave5 <- read_xpt("/home/yuex/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave5.xpt")
+for (i in 1:length(files)){
+  assign(paste0('wave',i), read_xpt(files[i]))
+}
 ```
 
 
-## Joined Data
+# Joined Data
+
+Note:
+Skipping wave 2 as it is not needed for analysis
+
 ```{r}
 joined_waves <- wave1 %>%
-    inner_join(wave2, by = "AID") %>%
+    #inner_join(wave2, by = "AID") %>%
     inner_join(wave3, by = "AID") %>%
     inner_join(wave4, by = "AID") %>%
     inner_join(wave5, by = "AID")
 
 ```
 
+9349 observations remaining after inner joining on AID and 6576 variables. 
 
-#### Check the exsit of one variable 
 ```{r}
-# Such as 
-c("C4VAR010") %in% names(wave4)
+joined_waves <- joined_waves %>% 
+  clean_names()
 ```
 
 
-#### Get Diagnosed anxiety, Anxiety and Optimism
+# Check the exsit of one variable 
+```{r}
+# Such as 
+
+c("H2FS1") %in% names(joined_waves)
+
+
+```
+
+
+# Combined Anxiety, Optimism and Depression 
 ```{r}
 # c4var009 for anxiety not exist.
 # c4var010 for optimism not exist.
-anxiety_optimism <- joined_waves %>%
-  select("AID", "H4ID5J","H5ID6I",
-"H4PE6",	
-"H4PE14",	
-"H4PE22",	
-"H4PE30",	
-"H4PE7","H5PE1",
-"H4PE15","H5PE2",
-"H4PE23","H5PE3",
-"H4PE31"
-)%>%
-  drop_na()    ## reduce to 7127 observations.
-
-diag_anxiety <- anxiety_optimism %>%
-  select("AID", "H4ID5J","H5ID6I")
-
-anxiety <- anxiety_optimism %>%
-  select("AID",
-"H4PE6",	
-"H4PE14",	
-"H4PE22",	
-"H4PE30")
-
-Optimism <- anxiety_optimism %>%
-  select("AID",
-  "H4PE7","H5PE1",
-"H4PE15","H5PE2",
-"H4PE23","H5PE3",
-"H4PE31")
+predictor_vars <- joined_waves %>%
+  dplyr::select(aid, 
+         h4id5j,
+         #c4var009,
+         h4pe6,
+         h4pe14,
+         h4pe22,
+         h4pe30,
+         #c4var010,
+         h4pe7,
+         h4pe15,
+         h4pe23,
+         h4pe31,
+         h5id6i,
+         h5pe1,
+         h5pe2,
+         h5pe3,h1fs1,h3sp5,h4mh18,h1fs3,
+         h3sp6,h4mh19,h5ss0a,h1fs4,h3sp7,
+         h4mh20,h1fs5,h3sp8	,h4mh21,h1fs6,
+         h3sp9,h4mh22,h5ss0b,h1fs7,	
+         h3sp10,h4mh23,h1fs11,h4mh24,
+         h5ss0c,h1fs15,h3sp11,h4mh25,
+         h1fs16,h3sp12,h4mh26,h5ss0d,h1fs17,
+         h3sp13,h4mh27,h4id5h,h5id6g
+         #,c4var002
+         ) 
 
 
-## How to come up with c4var009 and c4var010?
+```
+
+# Anxiety Variables
+```{r}
+anxiety <- predictor_vars %>%
+  dplyr::select(aid,h4pe6,h4pe14,h4pe22,h4pe30,h4id5j, h5id6i)
+
 ```
 
 
+# Optimism Variables
+```{r}
+optimism <- predictor_vars %>%
+  dplyr::select(h4pe7,h5pe1,h4pe15,h5pe2,h4pe23,h5pe3,h4pe31)
 
-## Read data
+```
+
+
+# Depression Variables
+Variables for answers to questions of diagnosed depression and CESD measures.
+```{r}
+
+depression <- predictor_vars %>%
+  dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,
+h3sp5,h4mh18,h3sp6,h4mh19,h5ss0a,h3sp7,h4mh20,h3sp8,h4mh21,h3sp9,h4mh22,h5ss0b,h3sp10,h4mh23,h4mh24,h5ss0c,h3sp11,h4mh25,h3sp12,h4mh26,h5ss0d,h3sp13,h4mh27,h4id5h,h5id6g)
+
+```
+
+
+# Suicide Ideation Variables
 
 ```{r}
-# suiside ideation data import
-
-
-
-
-# marijuana data import
+suicide <- joined_waves %>% 
+  select(aid,h1su1,h3to130,h4se1,h5mn8)
 
 ```
+
+
+# Marijuana Use Variables
+
+```{r}
+marijuana <- joined_waves %>% 
+  select(aid,h1to32,h3to110,h4to71,h5to21)
+```
+
+
 
 
 
