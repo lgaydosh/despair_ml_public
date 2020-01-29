@@ -114,9 +114,19 @@ predictor_vars <- joined_waves %>%
 # Anxiety Variables
 ```{r}
 anxiety <- predictor_vars %>%
-  dplyr::select(aid,h4pe6,h4pe14,h4pe22,h4pe30,h4id5j, h5id6i)
+  dplyr::select(aid,h4pe6,h4pe14,h4pe22,h4pe30)
 
 ```
+
+
+# Dia Anxiety Variables
+```{r}
+diag_anxiety <- predictor_vars %>%
+  dplyr::select(aid,h4id5j, h5id6i)
+```
+
+
+
 
 
 # Optimism Variables
@@ -142,7 +152,7 @@ h3sp5,h4mh18,h3sp6,h4mh19,h5ss0a,h3sp7,h4mh20,h3sp8,h4mh21,h3sp9,h4mh22,h5ss0b,h
 
 ```{r}
 suicide <- joined_waves %>% 
-  select(aid,h1su1,h3to130,h4se1,h5mn8)
+  dplyr::select(aid,h1su1,h3to130,h4se1,h5mn8)
 
 ```
 
@@ -151,7 +161,7 @@ suicide <- joined_waves %>%
 
 ```{r}
 marijuana <- joined_waves %>% 
-  select(aid,h1to32,h3to110,h4to71,h5to21)
+  dplyr::select(aid,h1to32,h3to110,h4to71,h5to21)
 ```
 
 

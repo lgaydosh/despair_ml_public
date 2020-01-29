@@ -1,0 +1,163 @@
+---
+title: "21-explore-Optimism"
+output: html_notebook
+---
+
+# Optimism Varible Questions
+
+## Summary of Optimism Subset
+
+```{r}
+summary(optimism)
+```
+
+```{r}
+describe(optimism)
+```
+
+
+## Missing Value Visualization
+
+```{r}
+optimism %>% 
+  vis_miss()
+```
+
+```{r}
+optimism %>% 
+  gg_miss_var(show_pct = T)
+```
+
+
+
+## Histogram of  Variables
+
+```{r}
+hist.data.frame(optimism)
+```
+
+### Optimism Q: I'm always optimistic about my future
+```{r}
+optimism %>%
+  dplyr::select(h4pe7,h5pe1) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+
+### Optimism Q: I hardly ever expect things to go my way
+
+```{r}
+optimism %>%
+  dplyr::select(h4pe15,h5pe2) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+
+### Optimism Q: I expect more good things to happen to me than bad
+
+```{r}
+optimism %>%
+  dplyr::select(h4pe23,h5pe3) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+
+### Optimism Q: I rarely count on good things happening to me
+
+Only exists in Wave 5
+```{r}
+optimism %>%
+  dplyr::select(h4pe31) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+
+```
+
+# Visualization of Wave 4 Variables and Survey Answers for those
+
+```{r}
+optimism_sub <- optimism %>% 
+  dplyr::select(h4pe7,h4pe15,h4pe23,h4pe31)
+
+
+optimism_sub <- data.frame(lapply(optimism_sub, factor, ordered=TRUE, 
+                          levels=1:7, 
+                          labels=c("1","2",
+                                   "3","4","5","6","8")))
+
+likert(optimism_sub)
+
+```
+
+```{r}
+plot(likert(optimism_sub, ))
+```
+
+```{r}
+plot(likert(optimism_sub),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+```{r}
+plot(likert(optimism_sub),
+     type="density",
+           facet = TRUE,
+           bw = 0.5)
+```
+
+
+
+# Visualization of Wave 5 Variables and Survey Answers for those
+```{r}
+optimism_sub_wave5 <- optimism %>% 
+  dplyr::select(h5pe1, h5pe2, h5pe3)
+
+
+optimism_sub_wave5 <- data.frame(lapply(optimism_sub_wave5, factor, ordered=TRUE, 
+                          levels=1:5, 
+                          labels=c("1","2",
+                                   "3","4","5")))
+
+likert(optimism_sub_wave5)
+
+```
+
+```{r}
+plot(likert(optimism_sub_wave5, ))
+```
+
+```{r}
+plot(likert(optimism_sub_wave5),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+```{r}
+plot(likert(optimism_sub_wave5),
+     type="density",
+           facet = TRUE,
+           bw = 0.5)
+```

@@ -1,0 +1,118 @@
+---
+title: "21-explore-Anxiety"
+output: html_notebook
+---
+
+# Anxiety Varible Questions
+
+## Summary of Anxiety Subset
+
+```{r}
+summary(anxiety)
+```
+
+```{r}
+describe(anxiety)
+```
+
+
+## Missing Value Visualization
+
+```{r}
+anxiety %>% 
+  vis_miss()
+```
+
+
+## Histogram of  Variables
+
+```{r}
+hist.data.frame(anxiety)
+```
+
+
+
+# Visualization of Wave 4 Variables and Survey Answers for those
+
+```{r}
+anxiety_sub <- anxiety %>% 
+  dplyr::select(h4pe6,h4pe14,h4pe22,h4pe30)
+
+
+anxiety_sub <- data.frame(lapply(anxiety_sub, factor, ordered=TRUE, 
+                          levels=1:7, 
+                          labels=c("1","2",
+                                   "3","4","5","6","8")))
+
+likert(anxiety_sub)
+
+```
+
+```{r}
+plot(likert(anxiety_sub, ))
+```
+
+```{r}
+plot(likert(anxiety_sub),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+```{r}
+plot(likert(anxiety_sub),
+     type="density",
+           facet = TRUE,
+           bw = 0.5)
+```
+
+
+# Diagnosed Anxiety Varible Questions
+```{r}
+describe(diag_anxiety)
+```
+
+## Missing Value Visualization
+
+
+```{r}
+diag_anxiety %>% 
+  gg_miss_var(show_pct = T)
+```
+
+## Number of observations
+```{r}
+diag_anxiety %>%
+  dplyr::select(h4id5j) %>%
+  summarise_each(funs(sum(.==0)))
+#8241
+
+
+diag_anxiety %>%
+  dplyr::select(h4id5j) %>%
+  summarise_each(funs(sum(.==1)))
+#1107
+
+
+
+```
+
+
+
+## Wave4 Versus Wave5
+```{r}
+diag_anxiety %>%
+  dplyr::select(h4id5j,h5id6i) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+
+
+

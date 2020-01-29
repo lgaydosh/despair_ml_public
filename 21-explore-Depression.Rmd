@@ -1,5 +1,5 @@
 ---
-title: "21-explore-1"
+title: "21-explore-Depression"
 output: html_notebook
 ---
 
@@ -8,11 +8,11 @@ output: html_notebook
 ## Summary of Optimism Subset
 
 ```{r}
-summary(optimism)
+summary(depression)
 ```
 
 ```{r}
-describe(optimism)
+describe(depression)
 ```
 
 
@@ -39,7 +39,7 @@ hist.data.frame(optimism)
 ### Optimism Q: I'm always optimistic about my future
 ```{r}
 optimism %>%
-  select(h4pe7,h5pe1) %>% 
+  dplyr::select(h4pe7,h5pe1) %>% 
   keep(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) +
@@ -51,7 +51,7 @@ optimism %>%
 
 ```{r}
 optimism %>%
-  select(h4pe15,h5pe2) %>% 
+  dplyr::select(h4pe15,h5pe2) %>% 
   keep(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) +
@@ -63,7 +63,7 @@ optimism %>%
 
 ```{r}
 optimism %>%
-  select(h4pe23,h5pe3) %>% 
+  dplyr::select(h4pe23,h5pe3) %>% 
   keep(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) +
@@ -76,7 +76,7 @@ optimism %>%
 Only exists in Wave 5
 ```{r}
 optimism %>%
-  select(h4pe31) %>% 
+  dplyr::select(h4pe31) %>% 
   keep(is.numeric) %>% 
   gather() %>% 
   ggplot(aes(value)) +
@@ -124,3 +124,40 @@ plot(likert(optimism_sub),
 ```
 
 
+
+# Visualization of Wave 5 Variables and Survey Answers for those
+```{r}
+optimism_sub_wave5 <- optimism %>% 
+  dplyr::select(h5pe1, h5pe2, h5pe3)
+
+
+optimism_sub_wave5 <- data.frame(lapply(optimism_sub_wave5, factor, ordered=TRUE, 
+                          levels=1:5, 
+                          labels=c("1","2",
+                                   "3","4","5")))
+
+likert(optimism_sub_wave5)
+
+```
+
+```{r}
+plot(likert(optimism_sub_wave5, ))
+```
+
+```{r}
+plot(likert(optimism_sub_wave5),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+```{r}
+plot(likert(optimism_sub_wave5),
+     type="density",
+           facet = TRUE,
+           bw = 0.5)
+```
