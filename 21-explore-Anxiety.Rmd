@@ -112,6 +112,20 @@ diag_anxiety %>%
   ggplot(aes(value)) +
     facet_wrap(~ key, scales = "free") +
     geom_histogram()
+
+a <- diag_anxiety %>% 
+  group_by(h4id5j) %>% 
+  summarise(n = n())
+
+b <- diag_anxiety %>% 
+  group_by(h5id6i) %>% 
+  summarise(n = n())
+
+
+par(mfrow = c(1,2))
+barplot(a$n, names.arg = c("0","1","6"), main = "h4id5j")
+barplot(b$n, names.arg = c("0","1","Missed"), main = "h5id6i")
+
 ```
 
 

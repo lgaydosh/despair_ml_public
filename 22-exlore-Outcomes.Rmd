@@ -1,0 +1,145 @@
+---
+title: "22-exlore-Outcomes"
+output: html_notebook
+---
+
+# Outcomes Variables for suicide ideation and marjuana
+
+
+## Suicide ideation
+```{r}
+summary(suicide)
+describe(suicide)
+```
+
+
+## Missing Value Visualization
+```{r}
+
+suicide %>% 
+  vis_miss()
+```
+
+```{r}
+suicide %>% 
+  gg_miss_var(show_pct = T)
+```
+
+
+
+## Histogram of  Variables
+
+```{r}
+suicide %>%
+  dplyr::select(h1su1,h3to130,h4se1) %>% 
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
+```{r}
+colnames(suicide)
+```
+
+```{r}
+
+#par(mfrow = c(2,2))
+
+a <- suicide %>% 
+  group_by(h1su1) %>% 
+  summarise(n = n())
+
+b <- suicide %>% 
+  group_by(h3to130) %>% 
+  summarise(n = n())
+
+c <- suicide %>% 
+  group_by(h4se1) %>% 
+  summarise(n = n())
+
+d <- suicide %>% 
+  group_by(h5mn8) %>% 
+  summarise(n = n())
+
+
+par(mfrow = c(2,2))
+barplot(a$n, names.arg = c("0","1","6","8","9"), main = "h1su1")
+barplot(b$n, names.arg = c("0","1","8","7","6","9","missed"), main = "h3to130")
+barplot(c$n, names.arg = c("0","1","6","7","8","missed"), main = "h4se1")
+barplot(d$n, names.arg = c("0","1","missed"), main = "h5mn8")
+
+
+```
+
+```{r}
+summary(suicide)
+describe(suicide)
+
+summsuicide$h3to130)
+```
+
+
+```{r}
+unique(suicide$h4se1)
+```
+
+
+# Visualization of Suicide
+
+```{r}
+
+suicide_sub_1 <- suicide %>% 
+  dplyr::select(h1su1)
+
+suicide_sub_2 <- suicide %>% 
+  dplyr::select(h3to130)
+
+suicide_sub_3 <- suicide %>% 
+  dplyr::select(h4se1)
+
+
+suicide_sub_1 <- data.frame(lapply(suicide_sub_1, factor, ordered=TRUE, 
+                          levels=1:5, 
+                          labels=c("0","1","6","8","9")))
+
+
+suicide_sub_2 <- data.frame(lapply(suicide_sub_2, factor, ordered=TRUE, 
+                          levels=1:6, 
+                          labels=c("0","1","6","7","8","9")))
+
+suicide_sub_3 <- data.frame(lapply(suicide_sub_1, factor, ordered=TRUE, 
+                          levels=1:5, 
+                          labels=c("0","1","6","7","8")))
+```
+
+
+
+```{r}
+plot(likert(suicide_sub_1),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+```{r}
+plot(likert(suicide_sub_1),
+     type="density",
+           facet = TRUE,
+           bw = 0.5)
+```
+
+
+
+
+
+
+## Marijuana
+```{r}
+summary(marijuana)
+describe(marijuana)
+```

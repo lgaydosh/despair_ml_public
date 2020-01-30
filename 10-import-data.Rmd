@@ -7,6 +7,40 @@ output: html_notebook
 
 All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
 
+## Data Description/ Fields
+
+Measures used:
+
+Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
+*	Suicidal ideation at Wave IV
+    +	Thoughts of suicide in the last 12 months
+*	Alcohol use at Wave IV
+    +	Days drank alcohol in last 12 months
+    +	Drinks each time in last 12 months
+    +	Days drank alcohol in last 3 months
+    +	Drinks each time in last 3 months
+    +	Occasions of more than 4/5 drinks in a row in last 12 months
+    +	DSM4 lifetime diagnosis of alcohol abuse or dependence
+*	Marijuana use at Wave IV
+    +	Times used in last 30 days
+    +	DSM4 lifetime diagnosis of cannabis abuse or dependence
+*	Illegal drug use at Wave IV
+    +	DSM4 lifetime diagnosis of other drug use/dependence
+    +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
+*	Prescription drug abuse at Wave IV
+    +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
+
+Key independent variables: measures of cognitive and emotional despair
+*	Cognitive despair
+    +	Wave III personality measures of self-consciousness, persistence
+*	Emotional despair
+    +	Wave I – III CES-D items
+
+Other variables: 
+*	Demographic controls for age at Wave IV, sex, race/ethnicity
+*	Wave I – III predictors
+
+
 # Libraries
 ```{r}
 # install.packages("SASxport")
@@ -32,7 +66,7 @@ library(reshape2)
 # Importing The Waves
 
 Instructions:
-Run below chunk and select all the wave files you wish you import.
+Run below chunk and select all the 5 wave files you wish you import.
 
 ```{r}
 files <- choose.files(default = "", caption = "Select files",
@@ -119,7 +153,7 @@ anxiety <- predictor_vars %>%
 ```
 
 
-# Dia Anxiety Variables
+# Diagnosed Anxiety Variables
 ```{r}
 diag_anxiety <- predictor_vars %>%
   dplyr::select(aid,h4id5j, h5id6i)
@@ -143,9 +177,17 @@ Variables for answers to questions of diagnosed depression and CESD measures.
 
 depression <- predictor_vars %>%
   dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,
-h3sp5,h4mh18,h3sp6,h4mh19,h5ss0a,h3sp7,h4mh20,h3sp8,h4mh21,h3sp9,h4mh22,h5ss0b,h3sp10,h4mh23,h4mh24,h5ss0c,h3sp11,h4mh25,h3sp12,h4mh26,h5ss0d,h3sp13,h4mh27,h4id5h,h5id6g)
+h3sp5,h4mh18,h3sp6,h4mh19,h5ss0a,h3sp7,h4mh20,h3sp8,h4mh21,h3sp9,h4mh22,h5ss0b,h3sp10,h4mh23,h4mh24,h5ss0c,h3sp11,h4mh25,h3sp12,h4mh26,h5ss0d,h3sp13,h4mh27)
 
 ```
+
+
+# Diagnosed Depression
+```{r}
+diag_depression <- predictor_vars %>%
+  dplyr::select(h4id5h,h5id6g)
+```
+
 
 
 # Suicide Ideation Variables
@@ -165,38 +207,3 @@ marijuana <- joined_waves %>%
 ```
 
 
-
-
-
-## Data Description/ Fields
-
-Measures used:
-
-Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
-*	Suicidal ideation at Wave IV
-    +	Thoughts of suicide in the last 12 months
-*	Alcohol use at Wave IV
-    +	Days drank alcohol in last 12 months
-    +	Drinks each time in last 12 months
-    +	Days drank alcohol in last 3 months
-    +	Drinks each time in last 3 months
-    +	Occasions of more than 4/5 drinks in a row in last 12 months
-    +	DSM4 lifetime diagnosis of alcohol abuse or dependence
-*	Marijuana use at Wave IV
-    +	Times used in last 30 days
-    +	DSM4 lifetime diagnosis of cannabis abuse or dependence
-*	Illegal drug use at Wave IV
-    +	DSM4 lifetime diagnosis of other drug use/dependence
-    +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
-*	Prescription drug abuse at Wave IV
-    +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
-
-Key independent variables: measures of cognitive and emotional despair
-*	Cognitive despair
-    +	Wave III personality measures of self-consciousness, persistence
-*	Emotional despair
-    +	Wave I – III CES-D items
-
-Other variables: 
-*	Demographic controls for age at Wave IV, sex, race/ethnicity
-*	Wave I – III predictors
