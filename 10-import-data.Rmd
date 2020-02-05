@@ -1,6 +1,14 @@
 ---
 title: "10-import-data"
-output: html_notebook
+output:
+  html_document: 
+    code_folding: show
+    theme: cosmo
+    toc: yes
+    toc_depth: 5
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
 ---
 
 # Data
@@ -12,62 +20,67 @@ All data is structured. Source files are all SAS export files. This is a large d
 Measures used:
 
 Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
+
 *	Suicidal ideation at Wave IV
+
     +	Thoughts of suicide in the last 12 months
+    
 *	Alcohol use at Wave IV
+
     +	Days drank alcohol in last 12 months
+    
     +	Drinks each time in last 12 months
+    
     +	Days drank alcohol in last 3 months
+    
     +	Drinks each time in last 3 months
+    
     +	Occasions of more than 4/5 drinks in a row in last 12 months
+    
     +	DSM4 lifetime diagnosis of alcohol abuse or dependence
+    
 *	Marijuana use at Wave IV
+
     +	Times used in last 30 days
+    
     +	DSM4 lifetime diagnosis of cannabis abuse or dependence
+    
 *	Illegal drug use at Wave IV
+
     +	DSM4 lifetime diagnosis of other drug use/dependence
+    
     +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
+    
 *	Prescription drug abuse at Wave IV
+
     +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
 
 Key independent variables: measures of cognitive and emotional despair
+
 *	Cognitive despair
+
     +	Wave III personality measures of self-consciousness, persistence
+    
 *	Emotional despair
+
     +	Wave I – III CES-D items
 
 Other variables: 
+
 *	Demographic controls for age at Wave IV, sex, race/ethnicity
+
 *	Wave I – III predictors
 
 
 # Libraries
 ```{r}
-# install.packages("SASxport")
-library(SASxport)
-library(haven)
-library(plyr)
-library(dplyr)
-library(tidyr)
-# library(vroom)
-library(janitor)
-library(naniar)
-library(ggplot2)
-library(Hmisc)
-library(purrr)
-library(scales)
-library(reshape)
-library(HH)
-library(tibble)
-library(likert)
-library(reshape2)
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2)
 ```
 
-# Importing The Waves
+# Importing Data
 
-Instructions:
-Run below chunk and select all the 5 wave files you wish you import.
-
+Run below chunk and select the 5 wave files you wish you import. 
 ```{r}
 files <- choose.files(default = "", caption = "Select files",
              multi = TRUE, filters = Filters,
@@ -81,129 +94,169 @@ for (i in 1:length(files)){
 
 # Joined Data
 
-Note:
-Skipping wave 2 as it is not needed for analysis
-
+1. Skipping wave 2
+2. Keeping only the observations that are present in all waves 1,3,4, and 5.
 ```{r}
 joined_waves <- wave1 %>%
     #inner_join(wave2, by = "AID") %>%
     inner_join(wave3, by = "AID") %>%
     inner_join(wave4, by = "AID") %>%
-    inner_join(wave5, by = "AID")
+    inner_join(wave5, by = "AID") %>% 
+  clean_names()
 
 ```
 
 9349 observations remaining after inner joining on AID and 6576 variables. 
 
+
+# Function to Check Existence of Variable in Data
+
+Use this function to check if a certain variable exists in a given. 
+
+**Examples of Usage*
+
+    joined_waves %>% var_in("h4id5j")
+
 ```{r}
-joined_waves <- joined_waves %>% 
-  clean_names()
-```
-
-
-# Check the exsit of one variable 
-```{r}
-# Such as 
-
-c("H2FS1") %in% names(joined_waves)
-
-
-```
-
-
-# Combined Anxiety, Optimism and Depression 
-```{r}
-# c4var009 for anxiety not exist.
-# c4var010 for optimism not exist.
-predictor_vars <- joined_waves %>%
-  dplyr::select(aid, 
-         h4id5j,
-         #c4var009,
-         h4pe6,
-         h4pe14,
-         h4pe22,
-         h4pe30,
-         #c4var010,
-         h4pe7,
-         h4pe15,
-         h4pe23,
-         h4pe31,
-         h5id6i,
-         h5pe1,
-         h5pe2,
-         h5pe3,h1fs1,h3sp5,h4mh18,h1fs3,
-         h3sp6,h4mh19,h5ss0a,h1fs4,h3sp7,
-         h4mh20,h1fs5,h3sp8	,h4mh21,h1fs6,
-         h3sp9,h4mh22,h5ss0b,h1fs7,	
-         h3sp10,h4mh23,h1fs11,h4mh24,
-         h5ss0c,h1fs15,h3sp11,h4mh25,
-         h1fs16,h3sp12,h4mh26,h5ss0d,h1fs17,
-         h3sp13,h4mh27,h4id5h,h5id6g
-         #,c4var002
-         ) 
-
-
-```
-
-# Anxiety Variables
-```{r}
-anxiety <- predictor_vars %>%
-  dplyr::select(aid,h4pe6,h4pe14,h4pe22,h4pe30)
+ 
+var_in_df <- function(df, varname){
+  any(colnames(df) == varname)
+}
 
 ```
 
 
-# Diagnosed Anxiety Variables
+# Lists of Relevant Predictor Variables
+
+These will be later used to create subsets of the data. 
 ```{r}
-diag_anxiety <- predictor_vars %>%
-  dplyr::select(aid,h4id5j, h5id6i)
+
+
+
+# List of all the predictor variables. 
+
+predictor_list <- c("aid", 
+         "h4id5j",
+         "h4pe6",
+         "h4pe14",
+         "h4pe22",
+         "h4pe30",
+         "h4pe7",
+         "h4pe15",
+         "h4pe23",
+         "h4pe31",
+         "h5id6i",
+         "h5pe1",
+         "h5pe2",
+         "h5pe3",
+         "h1fs1",
+         "h3sp5",
+         "h4mh18",
+         "h1fs3",
+         "h3sp6",
+         "h4mh19",
+         "h5ss0a",
+         "h1fs4",
+         "h3sp7",
+         "h4mh20",
+         "h1fs5",
+         "h3sp8",
+         "h4mh21",
+         "h1fs6",
+         "h3sp9",
+         "h4mh22",
+         "h5ss0b",
+         "h1fs7",	
+         "h3sp10",
+         "h4mh23",
+         "h1fs11",
+         "h4mh24",
+         "h5ss0c",
+         "h1fs15",
+         "h3sp11",
+         "h4mh25",
+         "h1fs16",
+         "h3sp12",
+         "h4mh26",
+         "h5ss0d",
+         "h1fs17",
+         "h3sp13",
+         "h4mh27",
+         "h4id5h",
+         "h5id6g")
+
+
+# List of all Anxiety Variables - Note only wave 4 is being looked at for Anxiety measures
+anxiety_list <- c("aid","h4pe6","h4pe14","h4pe22","h4pe30")
+diagnosed_anxiety_list <- c("aid","h4id5j","h5id6i")
+
+
+# List of all Optimism Variables
+optimism_list <- c("aid", "h4pe7","h5pe1","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3")
+
+
+# List of all Depression Variables
+depression_list <- c("aid",
+                     "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
+                     "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
+                     "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
+                     "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d")                                          # Wave 5 ~ 5 vars
+
+diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
+
+
+# Note: Look into creating these later
+#c4var009,
+#c4var010,
+#c4var002
+
+
+
 ```
 
 
 
-
-
-# Optimism Variables
+# Different subsets of interest
+Using the lists generated in the above chunk to create subsets of data to work with. 
 ```{r}
-optimism <- predictor_vars %>%
-  dplyr::select(h4pe7,h5pe1,h4pe15,h5pe2,h4pe23,h5pe3,h4pe31)
+#Subset of data with all predictor variables
+predictor_vars <- joined_waves[predictor_list]
+
+#Subset of data with all anxiety variables
+anxiety <- joined_waves[anxiety_list]
+diag_anxiety <- joined_waves[diagnosed_anxiety_list]
+
+#Subset of all depression variables
+depression<- joined_waves[depression_list]
+diag_depression <- joined_waves[diagnosed_depression_list]
+
+#Subset of data with all optimism variables
+optimism <- joined_waves[optimism_list]
 
 ```
 
 
-# Depression Variables
-Variables for answers to questions of diagnosed depression and CESD measures.
+
+# Lists of Relevant Outcome Variables
 ```{r}
+# List of suicidal ideation variables
+# Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
 
-depression <- predictor_vars %>%
-  dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,
-h3sp5,h4mh18,h3sp6,h4mh19,h5ss0a,h3sp7,h4mh20,h3sp8,h4mh21,h3sp9,h4mh22,h5ss0b,h3sp10,h4mh23,h4mh24,h5ss0c,h3sp11,h4mh25,h3sp12,h4mh26,h5ss0d,h3sp13,h4mh27)
+suicidal_ideation_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
 
-```
-
-
-# Diagnosed Depression
-```{r}
-diag_depression <- predictor_vars %>%
-  dplyr::select(h4id5h,h5id6g)
-```
-
-
-
-# Suicide Ideation Variables
-
-```{r}
-suicide <- joined_waves %>% 
-  dplyr::select(aid,h1su1,h3to130,h4se1,h5mn8)
+# List of variables to indicate marijuana usage in the last 30 days
+marijuana_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
 
 ```
 
 
 # Marijuana Use Variables
-
 ```{r}
-marijuana <- joined_waves %>% 
-  dplyr::select(aid,h1to32,h3to110,h4to71,h5to21)
+#Subset of data with all suicidal ideation variables
+suicidal_id <- joined_waves[suicidal_ideation_list]
+
+#Subset of data with all marijuana usage in last 30 days variables                            
+marijuana_usage30 <- joined_waves[marijuana_use30_list]
 ```
 
 
