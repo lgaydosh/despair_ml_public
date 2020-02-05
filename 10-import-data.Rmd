@@ -113,7 +113,7 @@ joined_waves <- wave1 %>%
 
 Use this function to check if a certain variable exists in a given. 
 
-**Examples of Usage*
+**Examples of Usage**
 
     joined_waves %>% var_in("h4id5j")
 
