@@ -242,21 +242,21 @@ optimism <- joined_waves[optimism_list]
 # List of suicidal ideation variables
 # Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
 
-suicidal_ideation_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
+suicidal_id_outcome_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
 
 # List of variables to indicate marijuana usage in the last 30 days
-marijuana_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
+marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
 
 ```
 
 
-# Marijuana Use Variables
+# Outcome Variables Across All Waves Except Wave 2
 ```{r}
 #Subset of data with all suicidal ideation variables
-suicidal_id <- joined_waves[suicidal_ideation_list]
+suicidal_id_outcome <- joined_waves[suicidal_id_outcome_list]
 
 #Subset of data with all marijuana usage in last 30 days variables                            
-marijuana_usage30 <- joined_waves[marijuana_use30_list]
+marijuana_outcome_usage30 <- joined_waves[marijuana_outcome_use30_list]
 ```
 
 
