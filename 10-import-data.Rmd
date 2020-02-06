@@ -11,71 +11,12 @@ editor_options:
   chunk_output_type: inline
 ---
 
-# Data
-
-All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
-
-## Data Description/ Fields
-
-Measures used:
-
-Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
-
-*	Suicidal ideation at Wave IV
-
-    +	Thoughts of suicide in the last 12 months
-    
-*	Alcohol use at Wave IV
-
-    +	Days drank alcohol in last 12 months
-    
-    +	Drinks each time in last 12 months
-    
-    +	Days drank alcohol in last 3 months
-    
-    +	Drinks each time in last 3 months
-    
-    +	Occasions of more than 4/5 drinks in a row in last 12 months
-    
-    +	DSM4 lifetime diagnosis of alcohol abuse or dependence
-    
-*	Marijuana use at Wave IV
-
-    +	Times used in last 30 days
-    
-    +	DSM4 lifetime diagnosis of cannabis abuse or dependence
-    
-*	Illegal drug use at Wave IV
-
-    +	DSM4 lifetime diagnosis of other drug use/dependence
-    
-    +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
-    
-*	Prescription drug abuse at Wave IV
-
-    +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
-
-Key independent variables: measures of cognitive and emotional despair
-
-*	Cognitive despair
-
-    +	Wave III personality measures of self-consciousness, persistence
-    
-*	Emotional despair
-
-    +	Wave I – III CES-D items
-
-Other variables: 
-
-*	Demographic controls for age at Wave IV, sex, race/ethnicity
-
-*	Wave I – III predictors
-
+Note: See bottom of file for description of data
 
 # Libraries
 ```{r}
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2)
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats)
 ```
 
 # Importing Data
@@ -87,29 +28,30 @@ files <- choose.files(default = "", caption = "Select files",
              index = nrow(Filters))
 
 for (i in 1:length(files)){
-  assign(paste0('wave',i), read_xpt(files[i]))
+  assign(paste0('wave',i), read_xpt(files[i] ))
 }
 ```
 
 
-# Joined Data
+# Joined Wave Data
 
 1. Skipping wave 2
 2. Keeping only the observations that are present in all waves 1,3,4, and 5.
+3. Doing a full join because of issues with factoring and creating the right number of labels for the variables. This will be used to later to filter after we have created the data subsets. 
 ```{r}
-joined_waves <- wave1 %>%
-    #inner_join(wave2, by = "AID") %>%
-    inner_join(wave3, by = "AID") %>%
-    inner_join(wave4, by = "AID") %>%
-    inner_join(wave5, by = "AID") %>% 
-  clean_names()
+all_wave_sbjs <- intersect(intersect(intersect(wave1$AID, wave3$AID), wave4$AID), wave5$AID)
 
+outer_joined_waves <-  wave1 %>%
+    #inner_join(wave2, by = "AID") %>%
+    full_join(wave3, by = "AID") %>%
+    full_join(wave4, by = "AID") %>%
+    full_join(wave5, by = "AID") %>% 
+  clean_names() %>% 
+  mutate_at(vars(starts_with("h")), as.factor) # Subject to change, this is under the assumption that essentially all the variables start with 'h'
 ```
 
-9349 observations remaining after inner joining on AID and 6576 variables. 
 
-
-# Function to Check Existence of Variable in Data
+## Function to Check Existence of Variable in Data
 
 Use this function to check if a certain variable exists in a given. 
 
@@ -118,7 +60,6 @@ Use this function to check if a certain variable exists in a given.
     joined_waves %>% var_in("h4id5j")
 
 ```{r}
- 
 var_in_df <- function(df, varname){
   any(colnames(df) == varname)
 }
@@ -126,12 +67,20 @@ var_in_df <- function(df, varname){
 ```
 
 
+## Function to check the counts by categories in the variables
+
+```{r}
+count_response_by_variable <- function(x, ...){
+  x %>% group_by_(...) %>% summarise(n = n())
+}
+```
+
+
+
 # Lists of Relevant Predictor Variables
 
 These will be later used to create subsets of the data. 
 ```{r}
-
-
 
 # List of all the predictor variables. 
 
@@ -209,9 +158,6 @@ diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
 #c4var009,
 #c4var010,
 #c4var002
-
-
-
 ```
 
 
@@ -220,25 +166,27 @@ diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
 Using the lists generated in the above chunk to create subsets of data to work with. 
 ```{r}
 #Subset of data with all predictor variables
-predictor_vars <- joined_waves[predictor_list]
+predictor_vars <- outer_joined_waves[which(colnames(outer_joined_waves) %in% predictor_list)] %>% 
+  mutate_at(vars(starts_with("h")), as.factor)
 
 #Subset of data with all anxiety variables
-anxiety <- joined_waves[anxiety_list]
-diag_anxiety <- joined_waves[diagnosed_anxiety_list]
+anxiety <- predictor_vars[anxiety_list]
+diag_anxiety <- predictor_vars[diagnosed_anxiety_list]
 
 #Subset of all depression variables
-depression<- joined_waves[depression_list]
-diag_depression <- joined_waves[diagnosed_depression_list]
+depression<- predictor_vars[depression_list]
+diag_depression <- predictor_vars[diagnosed_depression_list]
 
 #Subset of data with all optimism variables
-optimism <- joined_waves[optimism_list]
+optimism <- predictor_vars[optimism_list]
 
 ```
 
 
-
 # Lists of Relevant Outcome Variables
 ```{r}
+outcome_vars_list <- c("aid","h1su1","h3to130","h4se1","h5mn8", "h1to32","h3to110","h4to71","h5to21")
+
 # List of suicidal ideation variables
 # Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
 
@@ -252,11 +200,74 @@ marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #
 
 # Outcome Variables Across All Waves Except Wave 2
 ```{r}
+outcome_vars <- outer_joined_waves[which(colnames(outer_joined_waves) %in% outcome_vars_list)] %>% 
+  mutate_at(vars(starts_with("h")), as.factor)
+
 #Subset of data with all suicidal ideation variables
-suicidal_id_outcome <- joined_waves[suicidal_id_outcome_list]
+suicidal_id_outcome <- outcome_vars[suicidal_id_outcome_list]
 
 #Subset of data with all marijuana usage in last 30 days variables                            
-marijuana_outcome_usage30 <- joined_waves[marijuana_outcome_use30_list]
+marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
 ```
 
+
+# Data
+
+All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
+
+## Data Description/ Fields
+
+Measures used:
+
+Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
+
+*	Suicidal ideation at Wave IV
+
+    +	Thoughts of suicide in the last 12 months
+    
+*	Alcohol use at Wave IV
+
+    +	Days drank alcohol in last 12 months
+    
+    +	Drinks each time in last 12 months
+    
+    +	Days drank alcohol in last 3 months
+    
+    +	Drinks each time in last 3 months
+    
+    +	Occasions of more than 4/5 drinks in a row in last 12 months
+    
+    +	DSM4 lifetime diagnosis of alcohol abuse or dependence
+    
+*	Marijuana use at Wave IV
+
+    +	Times used in last 30 days
+    
+    +	DSM4 lifetime diagnosis of cannabis abuse or dependence
+    
+*	Illegal drug use at Wave IV
+
+    +	DSM4 lifetime diagnosis of other drug use/dependence
+    
+    +	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
+    
+*	Prescription drug abuse at Wave IV
+
+    +	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
+
+Key independent variables: measures of cognitive and emotional despair
+
+*	Cognitive despair
+
+    +	Wave III personality measures of self-consciousness, persistence
+    
+*	Emotional despair
+
+    +	Wave I – III CES-D items
+
+Other variables: 
+
+*	Demographic controls for age at Wave IV, sex, race/ethnicity
+
+*	Wave I – III predictors
 

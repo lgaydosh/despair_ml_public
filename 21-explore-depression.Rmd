@@ -3,512 +3,332 @@ title: "21-explore-depression"
 output: html_notebook
 ---
 
-# Depression Varible Questions
-
-## Summary of Depression Subset
-
-### Notice that some are ranging 0,1,2,3,6,8,9, and some are ranging 0,1,2,3,6,8
-
-```{r}
-describe(depression)
-```
-
-
-## Missing Value Visualization
-
-```{r}
-depression %>% 
-  vis_miss()
-```
-
+## Missing Value Visualization for Depression
+* All the missing values are from wave 5.
 ```{r}
 depression %>% 
   gg_miss_var(show_pct = T)
 ```
 
 
+# Depression Variables
 
-## Histogram of  Variables
+## Answer Changing Based on Questions
 
+#### Depression Q: bothered by things
 ```{r}
-hist.data.frame(depression)
+# depression %>%
+#   dplyr::select(h1fs1,h3sp5,h4mh18) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
 ```
 
-### Depression Q: bothered by things
+#### Depression Q: shake off blues
 ```{r}
-depression %>%
-  dplyr::select(h1fs1,h3sp5,h4mh18) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
+# depression %>%
+#   dplyr::select(h1fs3,h3sp6,h4mh19,h5ss0a) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
 ```
 
-### Depression Q: shake off blues
-
+#### Depression Q: felt as good as others
 ```{r}
-depression %>%
-  dplyr::select(h1fs3,h3sp6,h4mh19,h5ss0a) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
+# depression %>%
+#   dplyr::select(h1fs4,h3sp7,h4mh20) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
 ```
 
-### Depression Q: felt as good as others
-
+#### Depression Q: trouble concentrating
 ```{r}
-depression %>%
-  dplyr::select(h1fs4,h3sp7,h4mh20) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-```
-
-### Depression Q: trouble concentrating
-
-```{r}
-depression %>%
-  dplyr::select(h1fs5,h3sp8,h4mh21) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-### Depression Q: felt depressed
-
-```{r}
-depression %>%
-  dplyr::select(h1fs6,h3sp9,h4mh22,	h5ss0b) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-
-### Depression Q: felt too tired
-
-```{r}
-depression %>%
-  dplyr::select(h1fs7,h3sp10,	h4mh23) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-
-### Depression Q: felt happy
-
-```{r}
-depression %>%
-  dplyr::select(h1fs11,h4mh24,	h5ss0c) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-
-### Depression Q: enjoyed life
-
-```{r}
-depression %>%
-  dplyr::select(h1fs15,h3sp11,	h4mh25) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-### Depression Q: felt sad
-
-```{r}
-depression %>%
-  dplyr::select(h1fs16,h3sp12,	h4mh26,	h5ss0d) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-
-### Depression Q: felt disliked
-
-```{r}
-depression %>%
-  dplyr::select(h1fs17,h3sp13,	h4mh27) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-```
-
-
-# Visualization of Wave 1 Variables and Survey Answers for those
-
-```{r}
-
-# only the first one h1fs1 has range 0,1,2,3,4,5,6,8,9
-# other ones have range 0,1,2,3,6,8
-depression_wave1 <- depression %>% 
-  dplyr::select(h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17)
-
-
-depression_wave1 <- data.frame(lapply(depression_wave1, factor, ordered=TRUE, 
-                          levels=1:6, 
-                          labels=c("0","1","2",
-                                   "3","6","8")))
-
-likert(depression_wave1)
-
-
-
-
-depression_wave1_sub <- depression %>% 
-  dplyr::select(h1fs1)
-
-
-depression_wave1_sub <- data.frame(lapply(depression_wave1_sub, factor, ordered=TRUE, 
-                          levels=1:9, 
-                          labels=c("0","1","2",
-                                   "3","4","5","6","8","9")))
-
-likert(depression_wave1_sub)
-
-
-```
-
-#### How often were you bothered by things
-
-```{r}
-plot(likert(depression_wave1),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-
-plot(likert(depression_wave1_sub),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-
-
-```
-
-
-```{r}
-plot(likert(depression_wave1),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-
-plot(likert(depression_wave1_sub),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-
-
-```
-
-
-# Visualization of Wave3 Variables and Survey Answers for those
-
-```{r}
-
-# only the first variable in wave 3 h3sp5: 0,1,2,3,6,8,9
-
-
-depression_wave3 <- depression %>% 
-  dplyr::select(h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13)
-
-describe(depression_wave3)
-
-```
-
-Two variables in wave 3 for depression have different scales: h3sp5 and h3sp9 [ 0     1     2     3     6     8     9]
-h3sp5 - bothered by things
-h3sp9 - felt depressed
-
-We will separate these two for easier visualisation
-
-```{r}
-
-depression_wave3_sub_1<- depression_wave3 %>% 
-  dplyr::select(h3sp5,h3sp9)
-
-depression_wave3_sub_2<- depression_wave3 %>% 
-  dplyr::select(-c("h3sp5","h3sp9"))
-
-# 0     1     2     3     6     8
-
-
-depression_wave3_sub_1 <- data.frame(lapply(depression_wave3_sub_1, factor, ordered=TRUE, 
-                          levels=1:6, 
-                          labels=c("0","1","2",
-                                   "3","6","8")))
-
-depression_wave3_sub_2 <- data.frame(lapply(depression_wave3_sub_2, factor, ordered=TRUE, 
-                          levels=1:7, 
-                          labels=c("0","1","2",
-                                   "3","6","8","9")))
-```
-
-
-
-
-```{r}
-plot(likert(depression_wave3_sub_1 ))
-```
-
-```{r}
-plot(likert(depression_wave3_sub_1),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-```
-
-
-```{r}
-plot(likert(depression_wave3_sub_1),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
-#### For the other variables in Wave 3 with the matchning scales
-```{r}
-plot(likert(depression_wave3_sub_2))
-```
-```{r}
-plot(likert(depression_wave3_sub_2),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-
-```
-
-
-```{r}
-plot(likert(depression_wave3_sub_2),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
-
-
-
-# Visualization of Wave 4 Variables and Survey Answers for those
-
-```{r}
-
-# only the first variable in wave 3 h3sp5: 0,1,2,3,6,8,9
-
-
-depression_wave4 <- depression %>% 
-  dplyr::select(h4mh18,h4mh19,h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27)
-
-describe(depression_wave4)
-
-```
-
-One variable in wave 4 for depression has different scales: h4mh22
-h4mh22 - felt depressed
-
-We will separate these two for easier visualisation
-
-
-```{r}
-
-depression_wave4_sub_1<- depression_wave4 %>% 
-  dplyr::select(h4mh22)
-
-depression_wave4_sub_2<- depression_wave4 %>% 
-  dplyr::select(-c("h4mh22"))
-
-# 0     1     2     3     8
-
-
-depression_wave4_sub_1 <- data.frame(lapply(depression_wave4_sub_1, factor, ordered=TRUE, 
-                          levels=1:5, 
-                          labels=c("0","1","2",
-                                   "3","8")))
-
-depression_wave4_sub_2 <- data.frame(lapply(depression_wave4_sub_2, factor, ordered=TRUE, 
-                          levels=1:6, 
-                          labels=c("0","1","2",
-                                   "3","6","8")))
-```
-
-
-
-
-```{r}
-plot(likert(depression_wave4_sub_1 ))
-```
-
-```{r}
-plot(likert(depression_wave4_sub_1),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-```
-
-
-```{r}
-plot(likert(depression_wave4_sub_1),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
-#### For the other variables in Wave 4 with the matchning scales
-```{r}
-plot(likert(depression_wave4_sub_2))
-```
-
-```{r}
-plot(likert(depression_wave4_sub_2),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-
-```
-
-
-```{r}
-plot(likert(depression_wave4_sub_2),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
---------
-
-
-# Visualization of Wave 5 Variables and Survey Answers for those
-
-```{r}
-
-# only the first variable in wave 3 h3sp5: 0,1,2,3,6,8,9
-
-
-depression_wave5 <- depression %>% 
-  dplyr::select(h5ss0a,h5ss0b,h5ss0c,h5ss0d)
-
-describe(depression_wave5)
-
-```
-
-```{r}
-depression_wave5 %>% 
-  vis_miss()
-```
-
-
-```{r}
-
-depression_wave5 <- data.frame(lapply(depression_wave5, factor, ordered=TRUE, 
-                          levels=1:4, 
-                          labels=c("1","2",
-                                   "3","4")))
-
-```
-
-
-
-
-```{r}
-plot(likert(depression_wave5 ))
-```
-
-```{r}
-plot(likert(depression_wave5),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-```
-
-
-```{r}
-plot(likert(depression_wave5),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
-# Diagnosed Depression
-
-```{r}
-describe(diag_depression)
-```
-
-
-```{r}
-# diag_depression %>%
-#   dplyr::select(h4id5h,h5id6g) %>% 
+# depression %>%
+#   dplyr::select(h1fs5,h3sp8,h4mh21) %>% 
 #   keep(is.numeric) %>% 
 #   gather() %>% 
 #   ggplot(aes(value)) +
 #     facet_wrap(~ key, scales = "free") +
 #     geom_histogram()
 
-a <- diag_depression %>% 
-  group_by(h4id5h) %>% 
-  summarise(n = n())
+```
 
-b <- diag_depression %>% 
-  group_by(h5id6g) %>% 
-  summarise(n = n())
+#### Depression Q: felt depressed
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs6,h3sp9,h4mh22,	h5ss0b) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
 
 
-par(mfrow = c(1,2))
-barplot(a$n, names.arg = c("0","1","6","8"), main = "h4id5h")
-barplot(b$n, names.arg = c("0","1","Missed"), main = "h5id6g")
+#### Depression Q: felt too tired
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs7,h3sp10,	h4mh23) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
+
+
+#### Depression Q: felt happy
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs11,h4mh24,	h5ss0c) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
+
+
+#### Depression Q: enjoyed life
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs15,h3sp11,	h4mh25) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
+
+#### Depression Q: felt sad
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs16,h3sp12,	h4mh26,	h5ss0d) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
+
+
+#### Depression Q: felt disliked
+
+```{r}
+# depression %>%
+#   dplyr::select(h1fs17,h3sp13,	h4mh27) %>% 
+#   keep(is.numeric) %>% 
+#   gather() %>% 
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+```
+
+
+## Answe Changing Based on Waves
+
+#### Visualization of Wave 1 Variables and Survey Answers for those
+* Only the first one h1fs1 has range 0,1,2,3,4,5,6,8,9
+0	never or rarely
+1	sometimes
+2	a lot of the time	
+3	most of the time or all of the time	
+6	refused	
+8	don't know	
+9	not applicable
+
+* Other ones have range 0,1,2,3,6,8
+0	never or rarely	
+1	sometimes	
+2	a lot of the time	
+3	most of the time or all of the time	
+6	refused	
+8	don't know
+
+```{r}
+depression_wave1 <- depression %>% 
+  dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17)
+
+
+depression_wave1 <- data.frame(lapply(depression_wave1, factor, ordered=TRUE, 
+                          levels=1:6, 
+                          labels=c("never\nor rarely	","sometimes","a lot of\nthe time",
+                                   "most of the\ntime or all\nof the time","refused","don't know")))
+
+depression_wave1_prop<-likert(depression_wave1)
+
+
+depression_wave1_sub <- depression %>% 
+  dplyr::select(h1fs1)
+
+depression_wave1_sub <- data.frame(lapply(depression_wave1_sub, factor, ordered=TRUE, 
+                          levels=1:7, 
+                          labels=c("never\nor rarely","sometimes","a lot of\nthe time",
+                                   "most of the\ntime or all\nof the time","refused","don't\nknow","not applicable")))
+
+depression_wave1_sub_prop<-likert(depression_wave1_sub)
+
+
+
+plot(likert(data.frame(depression_wave1)),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+
+plot(depression_wave1_sub_prop,
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+
+str(depression_wave1)
 
 ```
 
 
 
+#### Visualization of Wave 3 Variables and Survey Answers for those
+
+Survey scale toward variables:
+0	never or rarely
+1	sometimes	
+2	a lot of the time	
+3	most of the time or all of the time	
+6	refused	
+8	don't know
+9	not applicable
+```{r}
+depression_wave3 <- depression %>% 
+  dplyr::select(h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13)
+
+
+plot(likert(data.frame(depression_wave3)),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 3.5,
+           wrap = 50)
+```
+
+
+
+
+
+
+#### Visualization of Wave 4 Variables and Survey Answers for those
+h4mh22:
+0	never or rarely
+1	sometimes	
+2	a lot of the time	
+3	most of the time or all of the time	
+6	refused	
+8	don't know	
+
+
+
+```{r}
+
+depression_wave4 <- depression%>% 
+  dplyr::select(h4mh18, h4mh19, h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27) 
+
+plot(likert(as.data.frame(depression_wave4)),
+     type="heat",
+     low.color = "white",
+     high.color = "blue",
+     text.color = "black",
+     text.size = 3.5,
+     wrap = 50,
+     plot.percent = F)
+
+#Labels for the answers 
+#("never or\nrarely","sometimes","a lot of\nthe time","most of the\ntime or all\nof the time","refused","don't\nknow"
+
+```
+
+
+#### Visualization of Wave 5 Variables and Survey Answers for those
+
+```{r}
+depression_wave5 <- depression %>% 
+  dplyr::select(h5ss0a,h5ss0b,h5ss0c,h5ss0d)
+
+plot(likert(data.frame(depression_wave5)),
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 4,
+           wrap = 50)
+```
+
+
+
+# Diagnosed Depression Variables
+
+```{r}
+# diag_depression %>%
+#   #dplyr::select(h4id5h,h5id6g) %>%
+#   keep(is.numeric) %>%
+#   gather() %>%
+#   ggplot(aes(value)) +
+#     facet_wrap(~ key, scales = "free") +
+#     geom_histogram()
+
+str(diag_depression)
+
+par(mfrow = c(1,2))
+barplot(count_response_by_variable(diag_depression, "h4id5h")$n, names.arg = c("0","1","6","8"), main = "h4id5h")
+barplot(count_response_by_variable(diag_depression, "h5id6g")$n, names.arg = c("0","1"), main = "h5id6g")
+
+```
+
+# Description of the Two Datasets
+
+## Description of Depression Subsets
+This description is for the responses to the following questions:
+bothered by things
+shake off blues
+felt as good as others
+trouble concentrating
+felt depressed
+felt too tired
+felt happy
+enjoyed life
+felt sad
+felt disliked
+
+* Notice that some are ranging 0,1,2,3,6,8,9, and some are ranging 0,1,2,3,6,8
+```{r}
+describe(depression)
+```
+
+
+## Description of Diagnosed Depression
+```{r}
+describe(diag_depression)
+```
 

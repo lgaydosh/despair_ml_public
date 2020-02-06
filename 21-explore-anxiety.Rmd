@@ -1,132 +1,90 @@
 ---
-title: "21-explore-Anxiety"
+title: "21-explore-anxiety"
 output: html_notebook
 ---
 
-# Anxiety Varible Questions
-
-## Summary of Anxiety Subset
-
+# Missing Value Visualization for Both Anxiety and Diagnosed Anxiety
+* No missing values in the anxiety dataset
+* 38 missing values in the diagnosed anxiety dataset which takes about 0.41% in the overall.
 ```{r}
-summary(anxiety)
+sapply(diag_anxiety, function(x) sum(is.na(x)))
+
+diag_anxiety %>% 
+  gg_miss_var(show_pct = T)
 ```
+
+
+
+# Anxiety Varible
+
+## Histogram/Line Chart of Anxiety Variables
+```{r}
+
+```
+
+
+
+
+## Visualization of Variables from Wave 4 and Their Survey Answers
+* For anxiety, variables are only under wave 4. So we create this new subset called anxiety_sub which contains all the variables for anxiety (except c4var009).
+* Scale is the same for these four variables. 
+* Scale of 1 represents "strongly agree" and 5 represents "strongly disagree". 
+* Scale of 6 reoresents "refused" and 8 represents "don't know".
+```{r}
+anxiety_sub <- anxiety %>% 
+  dplyr::select(h4pe6,h4pe14,h4pe22,h4pe30)
+
+# 1, 2, 3, 4, 5, 6, 8
+anxiety_sub <- data.frame(lapply(anxiety_sub, factor, ordered=TRUE, 
+                          levels=1:7, 
+                          labels=c("strongly\nagree","agree",
+                                   "neither agree\nnor disagree","disagree","strongly\ndisagree","refused","don't know")))
+anxiety_sub_prop <- likert(anxiety_sub)
+
+
+plot(anxiety_sub_prop,
+     type="heat",
+           low.color = "white",
+           high.color = "blue",
+           text.color = "black",
+           text.size = 3,
+           wrap = 50)
+```
+
+
+# Diagnosed Anxiety Varible
+
+## Wave4 Versus Wave5
+```{r}
+
+par(mfrow = c(1,2))
+barplot(count_response_by_variable(diag_anxiety, "h4id5j")$n, names.arg = c("0=no","1=yes","6=refused"), main = "h4id5j")
+barplot(count_response_by_variable(diag_anxiety, "h5id6i")$n, names.arg = c("0","1","Missed"), main = "h5id6i")
+
+```
+
+
+# Description of the Two Datasets
+
+## Description of Anxiety Subsets
+
+This description is for the responses to the following questions:
+I worry about things
+I am not easily bothered by things
+I get stressed out easily
+I don't worry about things that have already happened
 
 ```{r}
 describe(anxiety)
 ```
 
+## Description of Diagnosed Anxiety
+Only two variables involved: 
+h4id5j from wave 4
+h5id6i from wave 5
 
-## Missing Value Visualization
-
-```{r}
-anxiety %>% 
-  vis_miss()
-```
-
-
-## Histogram of  Variables
-
-```{r}
-hist.data.frame(anxiety)
-```
-
-
-
-# Visualization of Wave 4 Variables and Survey Answers for those
-
-```{r}
-anxiety_sub <- anxiety %>% 
-  dplyr::select(h4pe6,h4pe14,h4pe22,h4pe30)
-
-
-anxiety_sub <- data.frame(lapply(anxiety_sub, factor, ordered=TRUE, 
-                          levels=1:7, 
-                          labels=c("1","2",
-                                   "3","4","5","6","8")))
-
-likert(anxiety_sub)
-
-```
-
-```{r}
-plot(likert(anxiety_sub, ))
-```
-
-```{r}
-plot(likert(anxiety_sub),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50)
-```
-
-
-```{r}
-plot(likert(anxiety_sub),
-     type="density",
-           facet = TRUE,
-           bw = 0.5)
-```
-
-
-# Diagnosed Anxiety Varible Questions
 ```{r}
 describe(diag_anxiety)
 ```
-
-## Missing Value Visualization
-
-
-```{r}
-diag_anxiety %>% 
-  gg_miss_var(show_pct = T)
-```
-
-## Number of observations
-```{r}
-diag_anxiety %>%
-  dplyr::select(h4id5j) %>%
-  summarise_each(funs(sum(.==0)))
-#8241
-
-
-diag_anxiety %>%
-  dplyr::select(h4id5j) %>%
-  summarise_each(funs(sum(.==1)))
-#1107
-
-
-
-```
-
-
-
-## Wave4 Versus Wave5
-```{r}
-diag_anxiety %>%
-  dplyr::select(h4id5j,h5id6i) %>% 
-  keep(is.numeric) %>% 
-  gather() %>% 
-  ggplot(aes(value)) +
-    facet_wrap(~ key, scales = "free") +
-    geom_histogram()
-
-a <- diag_anxiety %>% 
-  group_by(h4id5j) %>% 
-  summarise(n = n())
-
-b <- diag_anxiety %>% 
-  group_by(h5id6i) %>% 
-  summarise(n = n())
-
-
-par(mfrow = c(1,2))
-barplot(a$n, names.arg = c("0","1","6"), main = "h4id5j")
-barplot(b$n, names.arg = c("0","1","Missed"), main = "h5id6i")
-
-```
-
 
 
