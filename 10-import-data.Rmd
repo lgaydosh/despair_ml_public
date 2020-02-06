@@ -39,15 +39,25 @@ for (i in 1:length(files)){
 2. Keeping only the observations that are present in all waves 1,3,4, and 5.
 3. Doing a full join because of issues with factoring and creating the right number of labels for the variables. This will be used to later to filter after we have created the data subsets. 
 ```{r}
-all_wave_sbjs <- intersect(intersect(intersect(wave1$AID, wave3$AID), wave4$AID), wave5$AID)
 
-outer_joined_waves <-  wave1 %>%
+
+join_waves <- function(wave1,wave2,wave3,wave4,wave5, inner = T){
+  
+  all_wave_sbjs <- intersect(intersect(intersect(wave1$AID, wave3$AID), wave4$AID), wave5$AID)
+  
+  joined_waves <-  wave1 %>%
     #inner_join(wave2, by = "AID") %>%
     full_join(wave3, by = "AID") %>%
     full_join(wave4, by = "AID") %>%
     full_join(wave5, by = "AID") %>% 
-  clean_names() %>% 
-  mutate_at(vars(starts_with("h")), as.factor) # Subject to change, this is under the assumption that essentially all the variables start with 'h'
+    clean_names() %>% 
+    mutate_at(vars(starts_with("h")), as.factor) %>% # Subject to change, this is under the assumption that essentially all the variables start with 'h'
+    filter(aid %in% all_wave_sbjs, inner == T)
+  
+}
+
+
+joined_waves <- join_waves(wave1,wave2,wave3,wave4,wave5,inner = T)
 ```
 
 
@@ -166,9 +176,7 @@ diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
 Using the lists generated in the above chunk to create subsets of data to work with. 
 ```{r}
 #Subset of data with all predictor variables
-predictor_vars <- outer_joined_waves[which(colnames(outer_joined_waves) %in% predictor_list)] %>% 
-  mutate_at(vars(starts_with("h")), as.factor)
-
+predictor_vars <- joined_waves[which(colnames(joined_waves) %in% predictor_list)] 
 #Subset of data with all anxiety variables
 anxiety <- predictor_vars[anxiety_list]
 diag_anxiety <- predictor_vars[diagnosed_anxiety_list]
@@ -200,8 +208,7 @@ marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #
 
 # Outcome Variables Across All Waves Except Wave 2
 ```{r}
-outcome_vars <- outer_joined_waves[which(colnames(outer_joined_waves) %in% outcome_vars_list)] %>% 
-  mutate_at(vars(starts_with("h")), as.factor)
+outcome_vars <- joined_waves[which(colnames(joined_waves) %in% outcome_vars_list)] 
 
 #Subset of data with all suicidal ideation variables
 suicidal_id_outcome <- outcome_vars[suicidal_id_outcome_list]

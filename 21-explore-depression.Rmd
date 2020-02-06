@@ -10,142 +10,44 @@ depression %>%
   gg_miss_var(show_pct = T)
 ```
 
+```{r}
+diag_depression %>% 
+  gg_miss_var(show_pct = T)
+```
+
+```{r}
+hist_by_var <-function(df,vars, title = title){
+  ggplot(gather(df[,which(colnames(df) %in% vars)]), aes(x= value)) + 
+    geom_bar(stat = 'count') + 
+    facet_wrap(~key, scales = 'free_x')+
+    ggtitle(title)+
+    theme_minimal()+
+    theme(plot.title=element_text(hjust=0.5))
+}
+```
+
+
 
 # Depression Variables
-
-## Answer Changing Based on Questions
-
-#### Depression Q: bothered by things
+Visualization of how answers change for the same question over different waves.
 ```{r}
-# depression %>%
-#   dplyr::select(h1fs1,h3sp5,h4mh18) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
+
+p1 <- hist_by_var(depression, c('h1fs1',"h3sp5","h4mh18"), "bothered by things")
+p2 <- hist_by_var(depression, c("h1fs3","h3sp6","h4mh19","h5ss0a"), "shake off blues")
+p3 <- hist_by_var(depression, c("h1fs4","h3sp7","h4mh20"), "felt as good as others")
+p4 <- hist_by_var(depression, c("h1fs5","h3sp8","h4mh21"), "trouble concentrating")
+p5 <- hist_by_var(depression, c("h1fs6","h3sp9","h4mh22",	"h5ss0b"), "felt depressed")
+p6 <- hist_by_var(depression, c("h1fs7","h3sp10",	"h4mh23"), "felt too tired")
+p7 <- hist_by_var(depression, c("h1fs11","h4mh24","h5ss0c"), "felt happy")
+p8 <-hist_by_var(depression, c("h1fs15","h3sp11","h4mh25"), "enjoyed life")
+p9 <-hist_by_var(depression, c("h1fs16","h3sp12","h4mh26","h5ss0d"), "felt sad")
+p10 <- hist_by_var(depression, c("h1fs17","h3sp13","h4mh27"), "felt disliked")
+grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
+grid.arrange(p7, p8, p9, p10, nrow = 2)             
+          
 ```
 
-#### Depression Q: shake off blues
-```{r}
-# depression %>%
-#   dplyr::select(h1fs3,h3sp6,h4mh19,h5ss0a) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-```
-
-#### Depression Q: felt as good as others
-```{r}
-# depression %>%
-#   dplyr::select(h1fs4,h3sp7,h4mh20) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-```
-
-#### Depression Q: trouble concentrating
-```{r}
-# depression %>%
-#   dplyr::select(h1fs5,h3sp8,h4mh21) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-#### Depression Q: felt depressed
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs6,h3sp9,h4mh22,	h5ss0b) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-
-#### Depression Q: felt too tired
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs7,h3sp10,	h4mh23) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-
-#### Depression Q: felt happy
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs11,h4mh24,	h5ss0c) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-
-#### Depression Q: enjoyed life
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs15,h3sp11,	h4mh25) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-#### Depression Q: felt sad
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs16,h3sp12,	h4mh26,	h5ss0d) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-
-#### Depression Q: felt disliked
-
-```{r}
-# depression %>%
-#   dplyr::select(h1fs17,h3sp13,	h4mh27) %>% 
-#   keep(is.numeric) %>% 
-#   gather() %>% 
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
-
-```
-
-
-## Answe Changing Based on Waves
-
-#### Visualization of Wave 1 Variables and Survey Answers for those
+### Visualization of Wave 1 Variables and Survey Answers for those
 * Only the first one h1fs1 has range 0,1,2,3,4,5,6,8,9
 0	never or rarely
 1	sometimes
@@ -165,51 +67,34 @@ depression %>%
 
 ```{r}
 depression_wave1 <- depression %>% 
-  dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17)
-
-
-depression_wave1 <- data.frame(lapply(depression_wave1, factor, ordered=TRUE, 
-                          levels=1:6, 
-                          labels=c("never\nor rarely	","sometimes","a lot of\nthe time",
-                                   "most of the\ntime or all\nof the time","refused","don't know")))
-
-depression_wave1_prop<-likert(depression_wave1)
-
+  dplyr::select(h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17)
 
 depression_wave1_sub <- depression %>% 
   dplyr::select(h1fs1)
 
-depression_wave1_sub <- data.frame(lapply(depression_wave1_sub, factor, ordered=TRUE, 
-                          levels=1:7, 
-                          labels=c("never\nor rarely","sometimes","a lot of\nthe time",
-                                   "most of the\ntime or all\nof the time","refused","don't\nknow","not applicable")))
 
-depression_wave1_sub_prop<-likert(depression_wave1_sub)
-
-
-
-plot(likert(data.frame(depression_wave1)),
+p1 <- plot(likert(data.frame(depression_wave1)),
      type="heat",
            low.color = "white",
            high.color = "blue",
            text.color = "black",
-           text.size = 4,
+           text.size = 2.5,
            wrap = 50)
 
-plot(depression_wave1_sub_prop,
+p2 <- plot(likert(data.frame(depression_wave1_sub)),
      type="heat",
            low.color = "white",
            high.color = "blue",
            text.color = "black",
-           text.size = 4,
+           text.size = 2.5,
            wrap = 50)
 
-str(depression_wave1)
+grid.arrange(p1, p2, nrow = 2)
+
+#                           labels=c("never\nor rarely","sometimes","a lot of\nthe time",
+#                                    "most of the\ntime or all\nof the time","refused","don't know")))
 
 ```
-
-
-
 #### Visualization of Wave 3 Variables and Survey Answers for those
 
 Survey scale toward variables:
@@ -231,14 +116,12 @@ plot(likert(data.frame(depression_wave3)),
            high.color = "blue",
            text.color = "black",
            text.size = 3.5,
-           wrap = 50)
+           wrap = 50)+
+  ggtitle("Wave 3 Depression Related Survey Answers")+
+  theme_minimal()+
+  theme(plot.title=element_text(hjust=0.5))
+
 ```
-
-
-
-
-
-
 #### Visualization of Wave 4 Variables and Survey Answers for those
 h4mh22:
 0	never or rarely
@@ -247,9 +130,6 @@ h4mh22:
 3	most of the time or all of the time	
 6	refused	
 8	don't know	
-
-
-
 ```{r}
 
 depression_wave4 <- depression%>% 
@@ -262,16 +142,16 @@ plot(likert(as.data.frame(depression_wave4)),
      text.color = "black",
      text.size = 3.5,
      wrap = 50,
-     plot.percent = F)
+     plot.percent = F) +
+  ggtitle("Wave 4 Depression Related Survey Answers")+
+  theme_minimal()+
+  theme(plot.title=element_text(hjust=0.5))
 
 #Labels for the answers 
 #("never or\nrarely","sometimes","a lot of\nthe time","most of the\ntime or all\nof the time","refused","don't\nknow"
 
 ```
-
-
 #### Visualization of Wave 5 Variables and Survey Answers for those
-
 ```{r}
 depression_wave5 <- depression %>% 
   dplyr::select(h5ss0a,h5ss0b,h5ss0c,h5ss0d)
@@ -282,7 +162,12 @@ plot(likert(data.frame(depression_wave5)),
            high.color = "blue",
            text.color = "black",
            text.size = 4,
-           wrap = 50)
+           wrap = 50) +
+  ggtitle("Wave 5 Depression Related Survey Answers")+
+  theme_minimal()+
+  theme(plot.title=element_text(hjust=0.5))
+  
+
 ```
 
 
@@ -290,20 +175,10 @@ plot(likert(data.frame(depression_wave5)),
 # Diagnosed Depression Variables
 
 ```{r}
-# diag_depression %>%
-#   #dplyr::select(h4id5h,h5id6g) %>%
-#   keep(is.numeric) %>%
-#   gather() %>%
-#   ggplot(aes(value)) +
-#     facet_wrap(~ key, scales = "free") +
-#     geom_histogram()
 
-str(diag_depression)
-
-par(mfrow = c(1,2))
-barplot(count_response_by_variable(diag_depression, "h4id5h")$n, names.arg = c("0","1","6","8"), main = "h4id5h")
-barplot(count_response_by_variable(diag_depression, "h5id6g")$n, names.arg = c("0","1"), main = "h5id6g")
-
+ggplot(gather(diag_depression[,2:3]), aes(x= value)) + 
+    geom_bar(stat = 'count') + 
+    facet_wrap(~key, scales = 'free_x')
 ```
 
 # Description of the Two Datasets

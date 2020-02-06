@@ -1,0 +1,31 @@
+---
+title: "23-visualization-functions"
+output: html_notebook
+---
+# Visualization Functions
+
+```{r}
+anxiety_long <-pivot_longer(anxiety_sub, cols=1:4, names_to = "Variable", values_to = "Response") 
+anxiety_long$Response <- factor(anxiety_long$Response)
+anxiety_long$Variable <- factor(anxiety_long$Variable)
+anxiety_long %>% 
+  group_by(Variable,Response) %>% 
+  dplyr::summarize(n=n()) %>% 
+  ggplot(aes(x= Variable, y= n, group = Response))+
+  geom_line(aes(col=Response),size=1) +
+  theme_minimal()+coord_cartesian(xlim =c(1.5, 3.5))+
+  labs(x="Variable", y= "Count of Response", Title = "How Question Response Changes Over Multiple Waves")
+```
+
+
+
+
+
+```{r}
+anxiety_sub %>%
+  keep(is.numeric) %>% 
+  gather() %>% 
+  ggplot(aes(value)) +
+    facet_wrap(~ key, scales = "free") +
+    geom_histogram()
+```
