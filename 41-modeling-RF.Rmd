@@ -7,98 +7,93 @@ output: html_notebook
 library(data.table)
 library(mlr)
 library(splitstackshape)
+library(boot)
 ```
 
 # Creating the subset of the dataset we will be using for the model
-
-```{r}
-
-data_subset_list <- c(
-         "h4id5j",
-         "h4pe6",
-         "h4pe14",
-         "h4pe22",
-         "h4pe30",
-         "h4pe7",
-         "h4pe15",
-         "h4pe23",
-         "h4pe31",
-         "h5id6i",
-         "h5pe1",
-         "h5pe2",
-         "h5pe3",
-         "h1fs1",
-         "h3sp5",
-         "h4mh18",
-         "h1fs3",
-         "h3sp6",
-         "h4mh19",
-         "h5ss0a",
-         "h1fs4",
-         "h3sp7",
-         "h4mh20",
-         "h1fs5",
-         "h3sp8",
-         "h4mh21",
-         "h1fs6",
-         "h3sp9",
-         "h4mh22",
-         "h5ss0b",
-         "h1fs7",	
-         "h3sp10",
-         "h4mh23",
-         "h1fs11",
-         "h4mh24",
-         "h5ss0c",
-         "h1fs15",
-         "h3sp11",
-         "h4mh25",
-         "h1fs16",
-         "h3sp12",
-         "h4mh26",
-         "h5ss0d",
-         "h1fs17",
-         "h3sp13",
-         "h4mh27",
-         "h4id5h",
-         "h5id6g",
-         "h5mn8")
-
-
-data_subset <- as.data.table(joined_waves[data_subset_list] %>% na.omit())
-```
-
-```{r stratified train-test split}
-train <- as.h2o(stratified(data_subset, c("h5mn8"), 0.7))
-test <- as.h2o(stratified(data_subset, c("h5mn8"), 0.3))
-```
 Note:
 1. Have not added age, race and sex/gender information in this subset as of yet. 
 2. Initially creating the model to predict suicidal ideation at wave 5. 
-3. Initially making the decision to remove all NA values in wave 5
+3. Initially making the decision to remove all NA values in wave 5.
 
 ```{r}
-rf1 <- h2o.randomForest(         ## h2o.randomForest function
-  training_frame = train,        ## the H2O frame for training
+library(tidyverse)
+library(rsample)
 
-  x=1:48,                        ## the predictor columns, by column index
-  y=49,                          ## the target index (what we are predicting)
-  model_id = "rf_covType_v1",    ## name the model in H2O
-                                 ##   not required, but helps use Flow
-  ntrees = 500,                  ## use a maximum of 200 trees to create the
-                                 ##  random forest model. The default is 50.
-                                 ##  I have increased it because I will let 
-                                 ##  the early stopping criteria decide when
-                                 ##  the random forest is sufficiently accurate
-  stopping_rounds = 2,           ## Stop fitting new trees when the 2-tree
-                                 ##  average is within 0.001 (default) of 
-                                 ##  the prior two 2-tree averages.
-                                 ##  Can be thought of as a convergence setting
-  score_each_iteration = T,      ## Predict against training and validation for
-                                 ##  each tree. Default will skip several.
-  seed = 1000000)                ## Set the random seed so that this can be
-                    
+data_subset_list <- setdiff(predictor_list, "aid") %>% append("h5mn8")
+
+data_subsets <- joined_waves[data_subset_list] %>% na.omit() %>% bootstraps(times = 2) # Creating 2 samples
+
+
+summary(data_subsets)
+
+
 ```
+
+```{r stratified train-test split}
+#set.seed(42) -- Consider updating seed at every iteration or model creation
+#splits <- as.h2o(stratified(data_subset, c("h5mn8"), 0.7, bothSets = T))
+splits <- stratified(data_subset, c("h5mn8"), 0.7, bothSets = T)
+
+train <- as.h2o(splits[[1]])
+
+test <- as.h2o(splits[[2]])
+
+
+
+## what if bootstrap here
+
+subsets_resample <- nested_cv(train, 
+                     outside = vfold_cv(repeats = 5), 
+                     inside = bootstraps(2))
+
+
+```
+
+```{r}
+rf1 <- h2o.randomForest(
+  training_frame = train,
+  x=setdiff(predictor_list, c("aid","h5mn8")),
+  y=49, 
+  model_id = "rf_covType_v1",
+  ntrees = 500, 
+  max_depth = 10,
+  stopping_rounds = 2,
+  nfolds = 5,
+  fold_assignment = "Stratified",
+  score_each_iteration = T,
+  seed = 1000000)
+
+rf1
+```
+
+
+```{r}
+
+RF <- function(ntrees = 500,max_depth = 10 ){
+  rf1 <- h2o.randomForest(
+    training_frame = train,
+    x=setdiff(predictor_list, c("aid","h5mn8")),
+    y="h5mn8", 
+    model_id = "rf_covType_v1",
+    ntrees, 
+    max_depth,
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = "Stratified",
+    score_each_iteration = T,
+    seed = 1000000)
+
+
+  return(rf1)
+}
+
+
+
+```
+
+
+
 ```{r}
 summary(rf1)
 ```

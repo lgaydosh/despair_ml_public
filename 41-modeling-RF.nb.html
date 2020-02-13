@@ -1751,191 +1751,108 @@ summary {
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeShtbHIpXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShkYXRhLnRhYmxlKVxubGlicmFyeShtbHIpXG5saWJyYXJ5KHNwbGl0c3RhY2tzaGFwZSlcbmxpYnJhcnkoYm9vdClcbmBgYCJ9 -->
 <pre class="r"><code>library(data.table)
-library(mlr)</code></pre>
+library(mlr)
+library(splitstackshape)
+library(boot)</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBQYXJhbUhlbHBlcnNcbidtbHInIGlzIGluIG1haW50ZW5hbmNlIG1vZGUgc2luY2UgSnVseSAyMDE5LiBGdXR1cmVcbmRldmVsb3BtZW50IGVmZm9ydHMgd2lsbCBnbyBpbnRvIGl0cyBzdWNjZXNzb3IgJ21scjMnXG4oPGh0dHBzOi8vbWxyMy5tbHItb3JnLmNvbT4pLlxuXG5BdHRhY2hpbmcgcGFja2FnZTog46S847ixbWxy46S847iyXG5cblRoZSBmb2xsb3dpbmcgb2JqZWN0IGlzIG1hc2tlZCBmcm9tIOOkvOO4sXBhY2thZ2U6SG1pc2PjpLzjuLI6XG5cbiAgICBpbXB1dGVcbiJ9 -->
-<pre><code>Loading required package: ParamHelpers
-&#39;mlr&#39; is in maintenance mode since July 2019. Future
-development efforts will go into its successor &#39;mlr3&#39;
-(&lt;https://mlr3.mlr-org.com&gt;).
-
-Attaching package: 㤼㸱mlr㤼㸲
-
-The following object is masked from 㤼㸱package:Hmisc㤼㸲:
-
-    impute</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="creating-the-subset-of-the-dataset-we-will-be-using-for-the-model" class="section level1">
 <h1>Creating the subset of the dataset we will be using for the model</h1>
+<p>Note: 1. Have not added age, race and sex/gender information in this subset as of yet. 2. Initially creating the model to predict suicidal ideation at wave 5. 3. Initially making the decision to remove all NA values in wave 5.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5kYXRhX3N1YnNldF9saXN0IDwtIGMoXG4gICAgICAgICBcImg0aWQ1alwiLFxuICAgICAgICAgXCJoNHBlNlwiLFxuICAgICAgICAgXCJoNHBlMTRcIixcbiAgICAgICAgIFwiaDRwZTIyXCIsXG4gICAgICAgICBcImg0cGUzMFwiLFxuICAgICAgICAgXCJoNHBlN1wiLFxuICAgICAgICAgXCJoNHBlMTVcIixcbiAgICAgICAgIFwiaDRwZTIzXCIsXG4gICAgICAgICBcImg0cGUzMVwiLFxuICAgICAgICAgXCJoNWlkNmlcIixcbiAgICAgICAgIFwiaDVwZTFcIixcbiAgICAgICAgIFwiaDVwZTJcIixcbiAgICAgICAgIFwiaDVwZTNcIixcbiAgICAgICAgIFwiaDFmczFcIixcbiAgICAgICAgIFwiaDNzcDVcIixcbiAgICAgICAgIFwiaDRtaDE4XCIsXG4gICAgICAgICBcImgxZnMzXCIsXG4gICAgICAgICBcImgzc3A2XCIsXG4gICAgICAgICBcImg0bWgxOVwiLFxuICAgICAgICAgXCJoNXNzMGFcIixcbiAgICAgICAgIFwiaDFmczRcIixcbiAgICAgICAgIFwiaDNzcDdcIixcbiAgICAgICAgIFwiaDRtaDIwXCIsXG4gICAgICAgICBcImgxZnM1XCIsXG4gICAgICAgICBcImgzc3A4XCIsXG4gICAgICAgICBcImg0bWgyMVwiLFxuICAgICAgICAgXCJoMWZzNlwiLFxuICAgICAgICAgXCJoM3NwOVwiLFxuICAgICAgICAgXCJoNG1oMjJcIixcbiAgICAgICAgIFwiaDVzczBiXCIsXG4gICAgICAgICBcImgxZnM3XCIsXHRcbiAgICAgICAgIFwiaDNzcDEwXCIsXG4gICAgICAgICBcImg0bWgyM1wiLFxuICAgICAgICAgXCJoMWZzMTFcIixcbiAgICAgICAgIFwiaDRtaDI0XCIsXG4gICAgICAgICBcImg1c3MwY1wiLFxuICAgICAgICAgXCJoMWZzMTVcIixcbiAgICAgICAgIFwiaDNzcDExXCIsXG4gICAgICAgICBcImg0bWgyNVwiLFxuICAgICAgICAgXCJoMWZzMTZcIixcbiAgICAgICAgIFwiaDNzcDEyXCIsXG4gICAgICAgICBcImg0bWgyNlwiLFxuICAgICAgICAgXCJoNXNzMGRcIixcbiAgICAgICAgIFwiaDFmczE3XCIsXG4gICAgICAgICBcImgzc3AxM1wiLFxuICAgICAgICAgXCJoNG1oMjdcIixcbiAgICAgICAgIFwiaDRpZDVoXCIsXG4gICAgICAgICBcImg1aWQ2Z1wiLFxuICAgICAgICAgXCJoNW1uOFwiKVxuXG5cbmRhdGFfc3Vic2V0IDwtIGFzLmRhdGEudGFibGUoam9pbmVkX3dhdmVzW2RhdGFfc3Vic2V0X2xpc3RdICU+JSBuYS5vbWl0KCkpXG5cbiMgd3JpdGUuY3N2KGRhdGFfc3Vic2V0LCBcImRhdGFfc3Vic2V0LmNzdlwiKVxuIyBcbiMgZGF0YV9zdWJzZXQgPC0gaDJvLmltcG9ydEZpbGUoKVxuYGBgIn0= -->
-<pre class="r"><code>
-data_subset_list &lt;- c(
-         &quot;h4id5j&quot;,
-         &quot;h4pe6&quot;,
-         &quot;h4pe14&quot;,
-         &quot;h4pe22&quot;,
-         &quot;h4pe30&quot;,
-         &quot;h4pe7&quot;,
-         &quot;h4pe15&quot;,
-         &quot;h4pe23&quot;,
-         &quot;h4pe31&quot;,
-         &quot;h5id6i&quot;,
-         &quot;h5pe1&quot;,
-         &quot;h5pe2&quot;,
-         &quot;h5pe3&quot;,
-         &quot;h1fs1&quot;,
-         &quot;h3sp5&quot;,
-         &quot;h4mh18&quot;,
-         &quot;h1fs3&quot;,
-         &quot;h3sp6&quot;,
-         &quot;h4mh19&quot;,
-         &quot;h5ss0a&quot;,
-         &quot;h1fs4&quot;,
-         &quot;h3sp7&quot;,
-         &quot;h4mh20&quot;,
-         &quot;h1fs5&quot;,
-         &quot;h3sp8&quot;,
-         &quot;h4mh21&quot;,
-         &quot;h1fs6&quot;,
-         &quot;h3sp9&quot;,
-         &quot;h4mh22&quot;,
-         &quot;h5ss0b&quot;,
-         &quot;h1fs7&quot;,   
-         &quot;h3sp10&quot;,
-         &quot;h4mh23&quot;,
-         &quot;h1fs11&quot;,
-         &quot;h4mh24&quot;,
-         &quot;h5ss0c&quot;,
-         &quot;h1fs15&quot;,
-         &quot;h3sp11&quot;,
-         &quot;h4mh25&quot;,
-         &quot;h1fs16&quot;,
-         &quot;h3sp12&quot;,
-         &quot;h4mh26&quot;,
-         &quot;h5ss0d&quot;,
-         &quot;h1fs17&quot;,
-         &quot;h3sp13&quot;,
-         &quot;h4mh27&quot;,
-         &quot;h4id5h&quot;,
-         &quot;h5id6g&quot;,
-         &quot;h5mn8&quot;)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5saWJyYXJ5KHJzYW1wbGUpXG5cbmRhdGFfc3Vic2V0X2xpc3QgPC0gc2V0ZGlmZihwcmVkaWN0b3JfbGlzdCwgXCJhaWRcIikgJT4lIGFwcGVuZChcImg1bW44XCIpXG5cbmRhdGFfc3Vic2V0cyA8LSBqb2luZWRfd2F2ZXNbZGF0YV9zdWJzZXRfbGlzdF0gJT4lIG5hLm9taXQoKSAlPiUgYm9vdHN0cmFwcyh0aW1lcyA9IDIpICMgQ3JlYXRpbmcgMiBzYW1wbGVzXG5cbnN1bW1hcnkoZGF0YV9zdWJzZXRzKVxuYGBgIn0= -->
+<pre class="r"><code>library(tidyverse)
+library(rsample)
 
+data_subset_list &lt;- setdiff(predictor_list, &quot;aid&quot;) %&gt;% append(&quot;h5mn8&quot;)
 
-data_subset &lt;- as.data.table(joined_waves[data_subset_list] %&gt;% na.omit())
+data_subsets &lt;- joined_waves[data_subset_list] %&gt;% na.omit() %&gt;% bootstraps(times = 2) # Creating 2 samples
 
-# write.csv(data_subset, &quot;data_subset.csv&quot;)
-# 
-# data_subset &lt;- h2o.importFile()</code></pre>
+summary(data_subsets)</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiIHNwbGl0cy5MZW5ndGggIHNwbGl0cy5DbGFzcyAgc3BsaXRzLk1vZGUgICAgICBpZCAgICAgICAgICAgXG4gNCAgICAgICByc3BsaXQgIGxpc3QgICAgICAgICAgICAgICAgICAgICBMZW5ndGg6MiAgICAgICAgICBcbiA0ICAgICAgIHJzcGxpdCAgbGlzdCAgICAgICAgICAgICAgICAgICAgIENsYXNzIDpjaGFyYWN0ZXIgIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgTW9kZSAgOmNoYXJhY3RlciAgXG4ifQ== -->
+<pre><code> splits.Length  splits.Class  splits.Mode      id           
+ 4       rsplit  list                     Length:2          
+ 4       rsplit  list                     Class :character  
+                                          Mode  :character  </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI3NldC5zZWVkKDQyKSAtLSBDb25zaWRlciB1cGRhdGluZyBzZWVkIGF0IGV2ZXJ5IGl0ZXJhdGlvbiBvciBtb2RlbCBjcmVhdGlvblxuI3NwbGl0cyA8LSBhcy5oMm8oc3RyYXRpZmllZChkYXRhX3N1YnNldCwgYyhcImg1bW44XCIpLCAwLjcsIGJvdGhTZXRzID0gVCkpXG5zcGxpdHMgPC0gc3RyYXRpZmllZChkYXRhX3N1YnNldCwgYyhcImg1bW44XCIpLCAwLjcsIGJvdGhTZXRzID0gVClcblxudHJhaW4gPC0gYXMuaDJvKHNwbGl0c1tbMV1dKVxuYGBgIn0= -->
+<pre class="r"><code>#set.seed(42) -- Consider updating seed at every iteration or model creation
+#splits &lt;- as.h2o(stratified(data_subset, c(&quot;h5mn8&quot;), 0.7, bothSets = T))
+splits &lt;- stratified(data_subset, c(&quot;h5mn8&quot;), 0.7, bothSets = T)
+
+train &lt;- as.h2o(splits[[1]])</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG4gIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFxuICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMCVcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4gIHw9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PXwgMTAwJVxuIn0= -->
+<pre><code>
+  |                                                                                                                                      
+  |                                                                                                                                |   0%
+  |                                                                                                                                      
+  |================================================================================================================================| 100%</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGVzdCA8LSBhcy5oMm8oc3BsaXRzW1syXV0pXG5gYGAifQ== -->
+<pre class="r"><code>test &lt;- as.h2o(splits[[2]])</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG4gIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFxuICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMCVcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4gIHw9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PXwgMTAwJVxuIn0= -->
+<pre><code>
+  |                                                                                                                                      
+  |                                                                                                                                |   0%
+  |                                                                                                                                      
+  |================================================================================================================================| 100%</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudHJhaW4gPC0gYXMuaDJvKHN0cmF0aWZpZWQoZGF0YV9zdWJzZXQsIGMoXCJoNW1uOFwiKSwgMC43KSlcbmBgYCJ9 -->
-<pre class="r"><code>train &lt;- as.h2o(stratified(data_subset, c(&quot;h5mn8&quot;), 0.7))</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucmYxXG5cbmBgYCJ9 -->
+<pre class="r"><code>rf1
+</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG4gIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAwJVxuICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4gIHw9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT18IDEwMCVcbiJ9 -->
-<pre><code>
-  |                                                                                                
-  |                                                                                          |   0%
-  |                                                                                                
-  |==========================================================================================| 100%</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxudGVzdCA8LSBhcy5oMm8oc3RyYXRpZmllZChkYXRhX3N1YnNldCwgYyhcImg1bW44XCIpLCAwLjMpKVxuYGBgIn0= -->
-<pre class="r"><code>test &lt;- as.h2o(stratified(data_subset, c(&quot;h5mn8&quot;), 0.3))</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG4gIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAwJVxuICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4gIHw9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT18IDEwMCVcbiJ9 -->
-<pre><code>
-  |                                                                                                
-  |                                                                                          |   0%
-  |                                                                                                
-  |==========================================================================================| 100%</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-text-begin -->
-<p>Note: 1. Have not added age, race and sex/gender information in this subset as of yet. 2. Initially creating the model to predict suicidal ideation at wave 5. 3. Initially making the decision to remove all NA values in wave 5</p>
-<!-- rnb-text-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucmYxIDwtIGgyby5yYW5kb21Gb3Jlc3QoICAgICAgICAgIyMgaDJvLnJhbmRvbUZvcmVzdCBmdW5jdGlvblxuICB0cmFpbmluZ19mcmFtZSA9IHRyYWluLCAgICAgICAgIyMgdGhlIEgyTyBmcmFtZSBmb3IgdHJhaW5pbmdcblxuICB4PTE6NDgsICAgICAgICAgICAgICAgICAgICAgICAgIyMgdGhlIHByZWRpY3RvciBjb2x1bW5zLCBieSBjb2x1bW4gaW5kZXhcbiAgeT00OSwgICAgICAgICAgICAgICAgICAgICAgICAgICMjIHRoZSB0YXJnZXQgaW5kZXggKHdoYXQgd2UgYXJlIHByZWRpY3RpbmcpXG4gIG1vZGVsX2lkID0gXCJyZl9jb3ZUeXBlX3YxXCIsICAgICMjIG5hbWUgdGhlIG1vZGVsIGluIEgyT1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgICBub3QgcmVxdWlyZWQsIGJ1dCBoZWxwcyB1c2UgRmxvd1xuICBudHJlZXMgPSA1MDAsICAgICAgICAgICAgICAgICAgIyMgdXNlIGEgbWF4aW11bSBvZiAyMDAgdHJlZXMgdG8gY3JlYXRlIHRoZVxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIHJhbmRvbSBmb3Jlc3QgbW9kZWwuIFRoZSBkZWZhdWx0IGlzIDUwLlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIEkgaGF2ZSBpbmNyZWFzZWQgaXQgYmVjYXVzZSBJIHdpbGwgbGV0IFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIHRoZSBlYXJseSBzdG9wcGluZyBjcml0ZXJpYSBkZWNpZGUgd2hlblxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIHRoZSByYW5kb20gZm9yZXN0IGlzIHN1ZmZpY2llbnRseSBhY2N1cmF0ZVxuICBzdG9wcGluZ19yb3VuZHMgPSAyLCAgICAgICAgICAgIyMgU3RvcCBmaXR0aW5nIG5ldyB0cmVlcyB3aGVuIHRoZSAyLXRyZWVcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICBhdmVyYWdlIGlzIHdpdGhpbiAwLjAwMSAoZGVmYXVsdCkgb2YgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIyAgdGhlIHByaW9yIHR3byAyLXRyZWUgYXZlcmFnZXMuXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIyAgQ2FuIGJlIHRob3VnaHQgb2YgYXMgYSBjb252ZXJnZW5jZSBzZXR0aW5nXG4gIHNjb3JlX2VhY2hfaXRlcmF0aW9uID0gVCwgICAgICAjIyBQcmVkaWN0IGFnYWluc3QgdHJhaW5pbmcgYW5kIHZhbGlkYXRpb24gZm9yXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIyAgZWFjaCB0cmVlLiBEZWZhdWx0IHdpbGwgc2tpcCBzZXZlcmFsLlxuICBzZWVkID0gMTAwMDAwMCkgICAgICAgICAgICAgICAgIyMgU2V0IHRoZSByYW5kb20gc2VlZCBzbyB0aGF0IHRoaXMgY2FuIGJlXG5gYGAifQ== -->
-<pre class="r"><code>rf1 &lt;- h2o.randomForest(         ## h2o.randomForest function
-  training_frame = train,        ## the H2O frame for training
-
-  x=1:48,                        ## the predictor columns, by column index
-  y=49,                          ## the target index (what we are predicting)
-  model_id = &quot;rf_covType_v1&quot;,    ## name the model in H2O
-                                 ##   not required, but helps use Flow
-  ntrees = 500,                  ## use a maximum of 200 trees to create the
-                                 ##  random forest model. The default is 50.
-                                 ##  I have increased it because I will let 
-                                 ##  the early stopping criteria decide when
-                                 ##  the random forest is sufficiently accurate
-  stopping_rounds = 2,           ## Stop fitting new trees when the 2-tree
-                                 ##  average is within 0.001 (default) of 
-                                 ##  the prior two 2-tree averages.
-                                 ##  Can be thought of as a convergence setting
-  score_each_iteration = T,      ## Predict against training and validation for
-                                 ##  each tree. Default will skip several.
-  seed = 1000000)                ## Set the random seed so that this can be</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG4gIHwgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHwgICAwJVxuICB8ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4gIHw9ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB8ICAgMSVcbiAgfCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFxuICB8PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09fCAxMDAlXG4ifQ== -->
-<pre><code>
-  |                                                                                                
-  |                                                                                          |   0%
-  |                                                                                                
-  |=                                                                                         |   1%
-  |                                                                                                
-  |==========================================================================================| 100%</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuICAgICAgICAgICAgICAgICAgICBcbmBgYCJ9 -->
-<pre class="r"><code>                    </code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-chunk-end -->
-<!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3VtbWFyeShyZjEpXG5gYGAifQ== -->
-<pre class="r"><code>summary(rf1)</code></pre>
-<!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiTW9kZWwgRGV0YWlsczpcbj09PT09PT09PT09PT09XG5cbkgyT0Jpbm9taWFsTW9kZWw6IGRyZlxuTW9kZWwgS2V5OiAgcmZfY292VHlwZV92MSBcbk1vZGVsIFN1bW1hcnk6IFxuIn0= -->
+<!-- rnb-output-begin eyJkYXRhIjoiTW9kZWwgRGV0YWlsczpcbj09PT09PT09PT09PT09XG5cbkgyT0Jpbm9taWFsTW9kZWw6IGRyZlxuTW9kZWwgSUQ6ICByZl9jb3ZUeXBlX3YxIFxuTW9kZWwgU3VtbWFyeTogXG4ifQ== -->
 <pre><code>Model Details:
 ==============
 
 H2OBinomialModel: drf
-Model Key:  rf_covType_v1 
+Model ID:  rf_covType_v1 
 Model Summary: </code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6OSwibnJvdyI6MX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJvV1N6MUtETUJER1V5Z29PR3BuZXZFbHl2Q3YySjd0QXppZWVtTUNwSll4SkV3SVduMzQ2a0tCbHZUZ2diRDcyLzJTL1NCdm0yMWdiMjJFa0k1MFUwTzZBU0V5WDE0OWYra2pOTlVnbTZBcHNwcjNBYnJtRURUSjdLS2doZXQvaWVrSGJoUkVhcDkzUlh4WEliZmUydkhkMEYwcFhBK3V0dE5EZDZrZ0s0aWVuUlVzZ2VMR1lMZ2dWZGR0ZGZDUjFVVkNSTXgzc1JRRXlpZjhkTVk1azBRd1RFZjFlY0V6UXVNcS95SFFFQ2ZmY2loWkJZQ01sSEkvQUh3WUFic2dtQ2tFTkpUZ3oyRVh1eEdOeUYycjZ0RFltU1g0bDlPN3UyOEw3VE8ybjFKY1Zjckhzak1zc2JNVG9JWHNxRWh1ZUNsenprQ2tOYmZBVU1RVG9ZQlp6Wm9wc2tXNnI5bkhJZ3FiRTg3alhJNDJ4TmJwVE8yMzI4dm9ydzloN3prai9mQVVKNFIyeVFQWWJkMDZwWUMvMDFzQldqbVNTOXozMlNtblBXbk5vZU1maG9ZYy92NENBQUE9In0= -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6OSwibnJvdyI6MX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJvV1N3VktETUJDR1V5aFZjTlRPOU9KTGxDSFlnbmQ5QU1kVGIweUExREtHaEFsQnF3OWYzVkNnSlI3S0RNUHV0L3R2OWdmZVhqYVAzc1pEQ05uSW5sbklkaUJFcytkWEhLNURoS1lXWkJNMFJhNSs3cUZyQVlGTzVtY0ZDejlkSk00cWprUDhyeTI0U0s1eDRBZjZNcmlObzVXSndyWFo1WVpCNU9Nb2ltTERqTU5KU2V1dTIrM2dQVy9LbE1wRWJCTWxLWlNQK09HRUM2Nm81SVNONm90UzVKUWxkZkZEb1NGSnY5VlFja3NBT2EzVWJnQmtQd0plU1FrM0NHZ1lKWi9ERkUrTFJ1U21WWFZvN015VjRzdnYzZDIyaGZZZTI4OFlxV3ZqWlhrNVVjVGZTdEJDZGpBa1Y2SlNoZUFnc3ZSUDRCamlpVFRBdk9GNmkzeVo3UnIrc2NTUlB1RzB6dmxxUSt3ZXo3Uit1MWxPTjJ0RytYdkJhYjg4SXlsbFhYSUhkbHUzZmlYaDYvUldnTmErRW9yMGZWNG1XRTlhYytqd0I0dGh0MEw5QWdBQSJ9 -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["number_of_trees"],"name":[1],"type":["chr"],"align":["left"]},{"label":["number_of_internal_trees"],"name":[2],"type":["chr"],"align":["left"]},{"label":["model_size_in_bytes"],"name":[3],"type":["chr"],"align":["left"]},{"label":["min_depth"],"name":[4],"type":["chr"],"align":["left"]},{"label":["max_depth"],"name":[5],"type":["chr"],"align":["left"]},{"label":["mean_depth"],"name":[6],"type":["chr"],"align":["left"]},{"label":["min_leaves"],"name":[7],"type":["chr"],"align":["left"]},{"label":["max_leaves"],"name":[8],"type":["chr"],"align":["left"]},{"label":["mean_leaves"],"name":[9],"type":["chr"],"align":["left"]}],"data":[{"1":"49","2":"49","3":"230636","4":"16","5":"20","6":"19.20408","7":"336","8":"405","9":"367.83673","_rn_":"1"}],"options":{"columns":{"min":{},"max":[10],"total":[9]},"rows":{"min":[10],"max":[10],"total":[1]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["number_of_trees"],"name":[1],"type":["chr"],"align":["left"]},{"label":["number_of_internal_trees"],"name":[2],"type":["chr"],"align":["left"]},{"label":["model_size_in_bytes"],"name":[3],"type":["chr"],"align":["left"]},{"label":["min_depth"],"name":[4],"type":["chr"],"align":["left"]},{"label":["max_depth"],"name":[5],"type":["chr"],"align":["left"]},{"label":["mean_depth"],"name":[6],"type":["chr"],"align":["left"]},{"label":["min_leaves"],"name":[7],"type":["chr"],"align":["left"]},{"label":["max_leaves"],"name":[8],"type":["chr"],"align":["left"]},{"label":["mean_leaves"],"name":[9],"type":["chr"],"align":["left"]}],"data":[{"1":"18","2":"18","3":"47721","4":"10","5":"10","6":"10.00000","7":"164","8":"250","9":"206.16667","_rn_":"1"}],"options":{"columns":{"min":{},"max":[10],"total":[9]},"rows":{"min":[10],"max":[10],"total":[1]},"pages":{}}}
   </script>
 </div>
 <!-- rnb-frame-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5IMk9CaW5vbWlhbE1ldHJpY3M6IGRyZlxuKiogUmVwb3J0ZWQgb24gdHJhaW5pbmcgZGF0YS4gKipcbioqIE1ldHJpY3MgcmVwb3J0ZWQgb24gT3V0LU9mLUJhZyB0cmFpbmluZyBzYW1wbGVzICoqXG5cbk1TRTogIDAuMDUzMjczNTRcblJNU0U6ICAwLjIzMDgxMDZcbkxvZ0xvc3M6ICAwLjQyMTA5ODlcbk1lYW4gUGVyLUNsYXNzIEVycm9yOiAgMC4yOTg0ODY3XG5BVUM6ICAwLjgyODY4MjdcbkFVQ1BSOiAgMC4zNDQxNTYxXG5HaW5pOiAgMC42NTczNjUzXG5SXjI6ICAwLjE1ODYyMjNcblxuQ29uZnVzaW9uIE1hdHJpeCAodmVydGljYWw6IGFjdHVhbDsgYWNyb3NzOiBwcmVkaWN0ZWQpIGZvciBGMS1vcHRpbWFsIHRocmVzaG9sZDpcbiJ9 -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5cbkgyT0Jpbm9taWFsTWV0cmljczogZHJmXG4qKiBSZXBvcnRlZCBvbiB0cmFpbmluZyBkYXRhLiAqKlxuKiogTWV0cmljcyByZXBvcnRlZCBvbiBPdXQtT2YtQmFnIHRyYWluaW5nIHNhbXBsZXMgKipcblxuTVNFOiAgMC4wNTYzOTY0N1xuUk1TRTogIDAuMjM3NDc5NFxuTG9nTG9zczogIDAuMjQyNDg3OFxuTWVhbiBQZXItQ2xhc3MgRXJyb3I6ICAwLjMxMjAwNjRcbkFVQzogIDAuODA2MDMwNlxuQVVDUFI6ICAwLjI4MjI2NDlcbkdpbmk6ICAwLjYxMjA2MTJcblJeMjogIDAuMTA5MzAwMVxuXG5Db25mdXNpb24gTWF0cml4ICh2ZXJ0aWNhbDogYWN0dWFsOyBhY3Jvc3M6IHByZWRpY3RlZCkgZm9yIEYxLW9wdGltYWwgdGhyZXNob2xkOlxuIn0= -->
 <pre><code>
+
 H2OBinomialMetrics: drf
 ** Reported on training data. **
 ** Metrics reported on Out-Of-Bag training samples **
 
-MSE:  0.05327354
-RMSE:  0.2308106
-LogLoss:  0.4210989
-Mean Per-Class Error:  0.2984867
-AUC:  0.8286827
-AUCPR:  0.3441561
-Gini:  0.6573653
-R^2:  0.1586223
+MSE:  0.05639647
+RMSE:  0.2374794
+LogLoss:  0.2424878
+Mean Per-Class Error:  0.3120064
+AUC:  0.8060306
+AUCPR:  0.2822649
+Gini:  0.6120612
+R^2:  0.1093001
 
 Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6M30sInJkZiI6Ikg0c0lBQUFBQUFBQUJuVlJ3VTZFTUJEdFVsaUZSTE9KUDdBL3NFQUxMWERZazNvM0d3OTdyU3dxRWN1bXNOR3ZYeTNRY1VrVEQwMW5YdWU5bVRmZFBleVRZQjhnaEREQ1N3ZGhUNGRvZWY5RUtLTUl1WTdPRnNoRi9uQi82Nm83SGJqNnJFYks5T0N5TkU5TmpDbk4vK0NNVUtzVUo1eEFTQXFveEl3VlZ1RjFITWFjWkp4ZWNwWXdTc2pzdlVnS21scThZTDNWTFNLV3A4d2cvbnFyWjRwU3lpOGxMQzhpVGpOaU9mU2srS3c2bytpQzdSZ0M2TzA5S3RVcWNMa1RmV1hwK0tyOUN1ZGErRit0NVhQYmk2YXpCeWtiMFFFWndPQWdlaEcrS3EycnM3TkZ1V3FQZmQxS1RYS0dQL0lzOGtKWndPb2tod2tQbS9MOUpEODJmRmhrTUw1UDU4YmNlQmE3VTAvbngyaDVZS0tTYjdXc1lQaEd2RlNOU1c3MUtzWk5oRWRWeXg2c2FMUUwrOEU2SUdYYkFES2FRK2RmL3QwNkpad0NBQUE9In0= -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6M30sInJkZiI6Ikg0c0lBQUFBQUFBQUJuVlJYVStETUJRdEZGQklORXY4QS9zREExcmFzajNzU1gwM2l3OTdyUXlWaUdVcExQcnJwK1hqeXRMRUI5SnpUKzg5OTV5eWU5aG4wVDVDQ0dHRUF4ZGgzMEFVM0Q4UnlpbENubXNxQjNrbzdNOXYwM1ZuZ0dlK3hUQXlYbmljVVRwaFREUCtSd3VlVzYyWTBRd2cyUkNBZ2pDcjhUcU4wNXhtZVRyWG5CUEJzcmttS2R0UWUwRzAzSm9WQ1Y4enNCRXV0OFpUd3FpWVd3UmZKNExteEVyb0svbFp0cE9pQjdIQmdnTjIvVWV0R3cwcGQ3SXJMWjFRTjEveHBSYitWeXQ0YmpwWnQ3YVJvcFl0REFNWkhXUW40MWR0ZEUxMXRrYXVtbU5YTmNvTXVmMC84cTFoUjF2RTRxUjZoNGRWOFg1U0h5c2krZzNEL2ZqZFRDZSt3TjY0MC8yWnRId0lVYXEzU3BWZ3ZwWXZaVDBWdCtZcGhwZUlqN3BTSFVReGJCdDNmWFJnaXFZR1pnaUh6ci8vQjdXM25BSUFBQT09In0= -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["0"],"name":[1],"type":["chr"],"align":["left"]},{"label":["1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["Error"],"name":[3],"type":["chr"],"align":["left"]},{"label":["Rate"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"5484","2":"361","3":"0.061762","4":"=361/5845","_rn_":"0"},{"1":"228","2":"198","3":"0.535211","4":"=228/426","_rn_":"1"},{"1":"5712","2":"559","3":"0.093924","4":"=589/6271","_rn_":"Totals"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[3]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["0"],"name":[1],"type":["chr"],"align":["left"]},{"label":["1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["Error"],"name":[3],"type":["chr"],"align":["left"]},{"label":["Rate"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"5422","2":"423","3":"0.072370","4":"=423/5845","_rn_":"0"},{"1":"235","2":"191","3":"0.551643","4":"=235/426","_rn_":"1"},{"1":"5657","2":"614","3":"0.104927","4":"=658/6271","_rn_":"Totals"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[3]},"pages":{}}}
   </script>
 </div>
 <!-- rnb-frame-end -->
@@ -1943,25 +1860,59 @@ Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:
 <pre><code>
 Maximum Metrics: Maximum metrics at their respective thresholds</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6MTh9LCJyZGYiOiJINHNJQUFBQUFBQUFCbzFVVFkrYk1CRDE4cEZ0YU5ORzZhMjk5QThzc3NIR2NHNS9RTlhUM2lLdlF4cFVBc2lZTnIzdEw5L1dzSmdQYjlJVUNlSDM1czBiejBqTXR5LzNvWGZ2QVFCc1lDOHNZTHZxQ0JhZnY2S0FCQUE0bGtJM3dBSEw5bnRTcXZmcTRLaDNyZDVOSDFnYzJlblRIczFRMEtNM0hZSlZtUldTVERuR2VTTVkvOTF6cTVhclJNcXpPaXVMbnZSYVVuRXN6M3ZtWGN2VWxaTHRNNTVKbmIzdUhCL3FNbTlrdWoxeTN2TWZXdjZZRmRzcUZWdWVzN3JlR25VL2RvcVUvVU55MjBwa1VVL2gzb0RWREVvREZtS2VPNGVWbU9jS1k3eXZvQjlFSVNMeGlCR01BZ0pISEJLS2NEaGlUQ09VVE9KeEhJUmtFb2ZkY3prZWtua2NRYUt1Y0xtK21YK3Qzclg2LzVuL1lrNFlCakNjNkhDU2hBbWE0SUFxNXhFbnF0RmttQ3N5Nmx6RGFrNFJwSEV5WWtveGlxSXBwakhWK0RXSk1abGJlRGd3bVBPaTZPcE5rb1JHNDhRdTNudytNUnNoTWh5cG5vTVY2NS9Yd2xULys5cktEaEUyT1N2R2cwc01YeG9Pd25NdTV3d3Y2dVlMeVMzWU1hMzducHhoL2FSU1pIb0JMT1ZCcFBXaHpIYzY1eWZMbTFSN1pydVQ0YmtVNVM5Zis2N2E1aDVCOTJ6TTR0MnU2SXRyMHRzeHlmeTlVUGtLUFJrcHQyVWwxWEpUU1ZhN1JsMGorVVlZeExvcDJwdnM3dmloS1g3Y1JiaXQwTVdmMzFYLzNVek96bk5ONjAvdjVlcXhwTVgzck5DTnV6bDdTUFZPZmF0YTdqcjJLNkcydEc1RnNiVXZTOG0wenVObHJwbXVPZkQwRjJHRUFWQS9CZ0FBIn0= -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6MTh9LCJyZGYiOiJINHNJQUFBQUFBQUFCbzFVeTQ2Yk1CUjFBbVFhMnJSUnVtczMvWUZCK01WajNYNUExZFhzSW85REdsUUN5SmcyM2ZYTHB6VU01dUVrelNCWitKeDd6cjIrQnQxdlh4NncrK0FDQUN4Z0xlYkFjdFFXTEQ1L2hZZ2lBT3k1UWpOZ2cyWHpQaW5WZTdXeDFWcXJ0ZWtDaXlNN2ZkckRDVUlkZXRNaXZ5elNYTkl4eHppdkJlTy9PMjdWY0tWSWVGcWxSZDZSYmtNcWptVlp4N3hybUtwVXNuM0tVNm5kNnpialkxVmt0VXkyUjg0Ny9rUERIOU44V3laaXl6TldWVnVqN3NkV2tiRC9TTzRhaWN5ck1kd2JzSnhBYWNCY1RMMVRXSXFwVnhqWCs4cjNFQ0p4NEE4WXdoQVJPbUJNS0tXamVFUkRTTERHMFBQYlo0ZzNDQWJYNDJZOW53WTBRQ05NSUE3Sk5mK3RlcmZxdjloL2RrODRDTEVmRFpoUUdPTjRGQTloaEVaNVlveWk0TVhuT0Q4WGhoRW1jTUFoamdrT1I1aEVzSy8vbWthRVRsTzRCT0VwYzFrVTNEeEpIS09ZUmpkUFByMHhDNFphWWlFUzlTelU3RXgvNDFtdnczRjh4bzNTWUIvMVczaW12SlRtVXNhcnV1bEVjbkoyVEtxdUtidWZQNGtVcVo0QVMza1FTWFVvc3AzMi9HUlpuZWljNmU1azVGeUs0cGVuODY3VW12OEI3Yk14aTdmRG9pdXVTWGZISlBQMlF2a1ZlaklzZDBVcDFYUlRwbmt6UngzRFBCTUdzYTd6NWlTN2UzNm84eC8zN1IvdnR2SG50ZXJlbTlIZWZxNDUvOXZsY3ZTMUpQbjNOTmVOT3hsN1RQUlFmYXRhYmp2MlNxSEd0RzVGc1pVbkM4bTB6dVZGcHBtMk9mRDBEOHpLZ3JOQUJnQUEifQ== -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["metric"],"name":[1],"type":["chr"],"align":["left"]},{"label":["threshold"],"name":[2],"type":["chr"],"align":["left"]},{"label":["value"],"name":[3],"type":["chr"],"align":["left"]},{"label":["idx"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"max f1","2":"0.263158","3":"0.402030","4":"115","_rn_":"1"},{"1":"max f2","2":"0.106250","3":"0.499391","4":"178","_rn_":"2"},{"1":"max f0point5","2":"0.357143","3":"0.427823","4":"82","_rn_":"3"},{"1":"max accuracy","2":"0.476190","3":"0.935098","4":"47","_rn_":"4"},{"1":"max precision","2":"0.882353","3":"1.000000","4":"0","_rn_":"5"},{"1":"max recall","2":"0.000000","3":"1.000000","4":"314","_rn_":"6"},{"1":"max specificity","2":"0.882353","3":"1.000000","4":"0","_rn_":"7"},{"1":"max absolute_mcc","2":"0.350000","3":"0.360789","4":"84","_rn_":"8"},{"1":"max min_per_class_accuracy","2":"0.105263","3":"0.774166","4":"180","_rn_":"9"},{"1":"max mean_per_class_accuracy","2":"0.106250","3":"0.777876","4":"178","_rn_":"10"},{"1":"max tns","2":"0.882353","3":"5845.000000","4":"0","_rn_":"11"},{"1":"max fns","2":"0.882353","3":"425.000000","4":"0","_rn_":"12"},{"1":"max fps","2":"0.000000","3":"5845.000000","4":"314","_rn_":"13"},{"1":"max tps","2":"0.000000","3":"426.000000","4":"314","_rn_":"14"},{"1":"max tnr","2":"0.882353","3":"1.000000","4":"0","_rn_":"15"},{"1":"max fnr","2":"0.882353","3":"0.997653","4":"0","_rn_":"16"},{"1":"max fpr","2":"0.000000","3":"1.000000","4":"314","_rn_":"17"},{"1":"max tpr","2":"0.000000","3":"1.000000","4":"314","_rn_":"18"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[18]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["metric"],"name":[1],"type":["chr"],"align":["left"]},{"label":["threshold"],"name":[2],"type":["chr"],"align":["left"]},{"label":["value"],"name":[3],"type":["chr"],"align":["left"]},{"label":["idx"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"max f1","2":"0.224960","3":"0.367308","4":"170","_rn_":"1"},{"1":"max f2","2":"0.117245","3":"0.451939","4":"248","_rn_":"2"},{"1":"max f0point5","2":"0.345550","3":"0.371826","4":"110","_rn_":"3"},{"1":"max accuracy","2":"0.857143","3":"0.932866","4":"4","_rn_":"4"},{"1":"max precision","2":"1.000000","3":"1.000000","4":"0","_rn_":"5"},{"1":"max recall","2":"0.000016","3":"1.000000","4":"399","_rn_":"6"},{"1":"max specificity","2":"1.000000","3":"1.000000","4":"0","_rn_":"7"},{"1":"max absolute_mcc","2":"0.224960","3":"0.318341","4":"170","_rn_":"8"},{"1":"max min_per_class_accuracy","2":"0.056562","3":"0.739437","4":"302","_rn_":"9"},{"1":"max mean_per_class_accuracy","2":"0.041374","3":"0.748139","4":"319","_rn_":"10"},{"1":"max tns","2":"1.000000","3":"5845.000000","4":"0","_rn_":"11"},{"1":"max fns","2":"1.000000","3":"423.000000","4":"0","_rn_":"12"},{"1":"max fps","2":"0.000016","3":"5845.000000","4":"399","_rn_":"13"},{"1":"max tps","2":"0.000016","3":"426.000000","4":"399","_rn_":"14"},{"1":"max tnr","2":"1.000000","3":"1.000000","4":"0","_rn_":"15"},{"1":"max fnr","2":"1.000000","3":"0.992958","4":"0","_rn_":"16"},{"1":"max fpr","2":"0.000016","3":"1.000000","4":"399","_rn_":"17"},{"1":"max tpr","2":"0.000016","3":"1.000000","4":"399","_rn_":"18"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[18]},"pages":{}}}
   </script>
 </div>
 <!-- rnb-frame-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5HYWlucy9MaWZ0IFRhYmxlOiBFeHRyYWN0IHdpdGggYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgPGRhdGE+KWAgb3IgYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgdmFsaWQ9PFQvRj4sIHh2YWw9PFQvRj4pYFxuXG5cblxuU2NvcmluZyBIaXN0b3J5OiBcbiJ9 -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5HYWlucy9MaWZ0IFRhYmxlOiBFeHRyYWN0IHdpdGggYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgPGRhdGE+KWAgb3IgYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgdmFsaWQ9PFQvRj4sIHh2YWw9PFQvRj4pYFxuXG5IMk9CaW5vbWlhbE1ldHJpY3M6IGRyZlxuKiogUmVwb3J0ZWQgb24gY3Jvc3MtdmFsaWRhdGlvbiBkYXRhLiAqKlxuKiogNS1mb2xkIGNyb3NzLXZhbGlkYXRpb24gb24gdHJhaW5pbmcgZGF0YSAoTWV0cmljcyBjb21wdXRlZCBmb3IgY29tYmluZWQgaG9sZG91dCBwcmVkaWN0aW9ucykgKipcblxuTVNFOiAgMC4wNTMxNzQ2NFxuUk1TRTogIDAuMjMwNTk2M1xuTG9nTG9zczogIDAuMTk0ODc5MVxuTWVhbiBQZXItQ2xhc3MgRXJyb3I6ICAwLjMyNDQxMTVcbkFVQzogIDAuODM1ODg0OFxuQVVDUFI6ICAwLjMyOTI2MTNcbkdpbmk6ICAwLjY3MTc2OTVcblJeMjogIDAuMTYwMTg0MlxuXG5Db25mdXNpb24gTWF0cml4ICh2ZXJ0aWNhbDogYWN0dWFsOyBhY3Jvc3M6IHByZWRpY3RlZCkgZm9yIEYxLW9wdGltYWwgdGhyZXNob2xkOlxuIn0= -->
 <pre><code>
 Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
 
+H2OBinomialMetrics: drf
+** Reported on cross-validation data. **
+** 5-fold cross-validation on training data (Metrics computed for combined holdout predictions) **
 
+MSE:  0.05317464
+RMSE:  0.2305963
+LogLoss:  0.1948791
+Mean Per-Class Error:  0.3244115
+AUC:  0.8358848
+AUCPR:  0.3292613
+Gini:  0.6717695
+R^2:  0.1601842
 
-Scoring History: </code></pre>
+Confusion Matrix (vertical: actual; across: predicted) for F1-optimal threshold:</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6OSwibnJvdyI6NX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJyMlRUWStiTUJDR0hiSWtCVFhkU0RsWHloOEk4Z2Myc0xlcVBWZFZUM3VMdklTa3FNUkVCdFFlKzh1M05XQ0RvV3FPUlVMTSs5Z3pmbWVBcjUrZWlmL3NBd0NXWUxseXdOSlZJVmg5L0lJd3hRQThPRW90d0FQdzJ1ZFB0V3VuZ2xaczFlM3FoUjJHR0I0Z1BpQzBSOUVUUlU4NC9xOUxVenYrSGdZUTBuMlZwVGJCY0U3SVh5VEVjMEo3TWoxaEFVMkFUSUJOUUV3UXpwS2N6eDkwdElZQklWRkNMSW5KMEdFckVhUzJWSXI4dXhvSmtoQXlOa29TczlENFdlTWdUbGhNUnNsQ0JPRTlielNoT0JvbGd5U3l6RENDV1dMSkVHSjhyeHFDTWJXcUlVU2hsWTV3Rk5sU2VVdnVkWXFUR0VhalpNaEtEOXQzaktDOVN0bmRUaEVLcDJZUW5jZzRDU2ZlMm1xVFg4SVYvSnBWK2doUFE2L09GYXo1OWFiQm0xTWplWjJYUXV0SDBWeGZNbmtzejhkYVppcS94NXRhOGx6azRuS1UxeXJUY0R2QW9yd1VaV1UydngwNGI4d0greml3bTdUd1dMZkl6N1dHN3dlWUZyeXE4bk9lZGhhUG1aU2xuTFhweWZKSFlGcmR0RlA4QmJyTG5jK2pLNmJuWWFCLzRqVVB6bExsSy9VNlMxbVh0L1pjbGVUcytvcVQ1SVdjZ1cwaldpZW5RL3F0RWQ4UHJQM04vRzY5dnpmNjZWcXgxNS9wL0o1OURLdE1YSEpoUnUwVy9DVXJ0SGluV3U0NkRtNHlGMlpxdnFKVlVKYzFOL3Y4dEN3TTZab0RyMzhBZkRPd3dWUUZBQUE9In0= -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6M30sInJkZiI6Ikg0c0lBQUFBQUFBQUJuVlJUVStFTUJBdEZGWWgwV3ppSC9BUExMUUZDaHc4cVhlejhiRFh5cUlTc2QwVU52cnJWOHZIdUtTSmg2WnYzc3k4bWRkdUgzWkp1QXNSUWhqaGxZdXdieUJhM1Q5UmxqR0VQTmRFRHZKUU1OemZwdXJHQU0rYzlkZ3lKYnlNTXpKanpEajVvNHVDV0tXWXNRd2c1UnhnVWxLcjhKSkVKQ25TTWozSG5KS0VsWXQ4bmllcFBTQzh2VE1qNHF4SVlVNWdHRTdpbFBGelNWcGtNV2M1dFJ6NlVuelczYXpvZ1czdzQxQW9lOVJhYVhDNUZYMXQ2UVJhZlVWTExmeXYxdXBaOWFMdDdFV3FWblRRREdTNEY3MklYclhSTmRISmFybFFoNzVSMGpTNXd4LzVWck9qTFdKOWxNT0crMDMxZnBRZkc4cUhDV04rT2xmempSZlltMmE2UDdPV0R5WnErZGJJR3BadnhVdmR6c0cxZVlyeEphS0RibVFQVmd6YlJmMWdIWmhLdGNDTTV0RHBGNzc5a09tY0FnQUEifQ== -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["timestamp"],"name":[1],"type":["chr"],"align":["left"]},{"label":["duration"],"name":[2],"type":["chr"],"align":["left"]},{"label":["number_of_trees"],"name":[3],"type":["chr"],"align":["left"]},{"label":["training_rmse"],"name":[4],"type":["chr"],"align":["left"]},{"label":["training_logloss"],"name":[5],"type":["chr"],"align":["left"]},{"label":["training_auc"],"name":[6],"type":["chr"],"align":["left"]},{"label":["training_pr_auc"],"name":[7],"type":["chr"],"align":["left"]},{"label":["training_lift"],"name":[8],"type":["chr"],"align":["left"]},{"label":["training_classification_error"],"name":[9],"type":["chr"],"align":["left"]}],"data":[{"1":"2020-02-11 17:51:28","2":"0.005 sec","3":"0","4":"__NA__","5":"__NA__","6":"__NA__","7":"__NA__","8":"__NA__","9":"__NA__","_rn_":"1"},{"1":"2020-02-11 17:51:28","2":"0.020 sec","3":"1","4":"0.33793","5":"3.94066","6":"0.59527","7":"0.10857","8":"3.29807","9":"0.11409","_rn_":"2"},{"1":"2020-02-11 17:51:28","2":"0.030 sec","3":"2","4":"0.32328","5":"3.38642","6":"0.60378","7":"0.11509","8":"3.61779","9":"0.12159","_rn_":"3"},{"1":"2020-02-11 17:51:28","2":"0.042 sec","3":"3","4":"0.31058","5":"2.89683","6":"0.63269","7":"0.12779","8":"4.02010","9":"0.12894","_rn_":"4"},{"1":"2020-02-11 17:51:28","2":"0.052 sec","3":"4","4":"0.30583","5":"2.64100","6":"0.64022","7":"0.14109","8":"3.61560","9":"0.14160","_rn_":"5"}],"options":{"columns":{"min":{},"max":[10],"total":[9]},"rows":{"min":[10],"max":[10],"total":[5]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["0"],"name":[1],"type":["chr"],"align":["left"]},{"label":["1"],"name":[2],"type":["chr"],"align":["left"]},{"label":["Error"],"name":[3],"type":["chr"],"align":["left"]},{"label":["Rate"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"5620","2":"225","3":"0.038494","4":"=225/5845","_rn_":"0"},{"1":"260","2":"166","3":"0.610329","4":"=260/426","_rn_":"1"},{"1":"5880","2":"391","3":"0.077340","4":"=485/6271","_rn_":"Totals"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[3]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5NYXhpbXVtIE1ldHJpY3M6IE1heGltdW0gbWV0cmljcyBhdCB0aGVpciByZXNwZWN0aXZlIHRocmVzaG9sZHNcbiJ9 -->
+<pre><code>
+Maximum Metrics: Maximum metrics at their respective thresholds</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6MTh9LCJyZGYiOiJINHNJQUFBQUFBQUFCcFZVVFhPYk1CQ1ZQM0JxV3JjZTk5WmUrZ2ZDU09nRGRHNStRS2FuM0R3S3hqVlRESXlRVy9lV1g1NVdJc2lBa3RndE14cjJQZTE3cTkzRGZydTV3LzZkRHdDWWdNbHNEQ2FlRHNIczZ5MEthUWpBZEt6UkNFekIzUHlQT3V1akRxYjZMUFZadFJlenZUaCsyYUlCQ2x2MHJrR3dLck5DMFQ0bmt1UWdSZks3NVJhR3EyU2FaSFZXRmkzcEcxSnpJczliNW9OaDZrcW5iYk1rVTFhOWJCenY2ekkvcUhTOVQ1S1cvMlQ0ZlZhc3ExU3VrMXpVOWRxcCs3bkpTTVdabEN1VG9vcTZEN2NPckFaUU9iQ1FRKzBRVm5Lb2xjNTQzOEFnakNMTzRnNmprTWNvN0RCbW1NYW93eVJtaU1NT3gweC9VWWNoaEp5aTErL2RlakJHTVlSOXpPZzUvUXYxQ1AyUCt2K29melluQWhsbXRJY2p5Z251NFpCQnpqdk1NY0h3OUE1a2ZHSFg1eVZzNWs1SnYxNUVDTUtvajJOTzdmMWJHaE02dFBCSjZEQXZKN0dMTCtFOFloUmZmUGx3WWhPRWlRMURISjdZMDBqR3A2R1ByTmNFOC9nWjEvZUplQmNTTjdOdnc4ODR2cG8zWEVsZUlmWnAzWFkxUFMyZ1ZNbk1yb0M1MnNtMDNwWDV4bXAraXZ5UVdzOXNjM1E4NTdMOEZWamZoUm5DQTJpK2xWdTgyUlp0Y1V2Nkc2RkVzSlZhcjlHakk3a3FLNlhYbXhhTnpTTDFIUEZJT3NUeVVKaVhiSzZUM2FINGNZMllxZERjUDUxRisxLzE0dWxUemZHZjFzdXpZMG1MNzFsaEcvZHljWi9hcmZwZXQ5eDBIRlJTNzJuYmltYnJRSlZLMkR3L0tYUExOTTJCeDcrWFJCdWZRUVlBQUE9PSJ9 -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["metric"],"name":[1],"type":["chr"],"align":["left"]},{"label":["threshold"],"name":[2],"type":["chr"],"align":["left"]},{"label":["value"],"name":[3],"type":["chr"],"align":["left"]},{"label":["idx"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"max f1","2":"0.277968","3":"0.406365","4":"134","_rn_":"1"},{"1":"max f2","2":"0.129812","3":"0.475943","4":"232","_rn_":"2"},{"1":"max f0point5","2":"0.363581","3":"0.426099","4":"101","_rn_":"3"},{"1":"max accuracy","2":"0.486190","3":"0.934301","4":"57","_rn_":"4"},{"1":"max precision","2":"0.866667","3":"1.000000","4":"0","_rn_":"5"},{"1":"max recall","2":"0.000951","3":"1.000000","4":"398","_rn_":"6"},{"1":"max specificity","2":"0.866667","3":"1.000000","4":"0","_rn_":"7"},{"1":"max absolute_mcc","2":"0.277968","3":"0.365465","4":"134","_rn_":"8"},{"1":"max min_per_class_accuracy","2":"0.081800","3":"0.744131","4":"279","_rn_":"9"},{"1":"max mean_per_class_accuracy","2":"0.086551","3":"0.748955","4":"274","_rn_":"10"},{"1":"max tns","2":"0.866667","3":"5845.000000","4":"0","_rn_":"11"},{"1":"max fns","2":"0.866667","3":"425.000000","4":"0","_rn_":"12"},{"1":"max fps","2":"0.000457","3":"5845.000000","4":"399","_rn_":"13"},{"1":"max tps","2":"0.000951","3":"426.000000","4":"398","_rn_":"14"},{"1":"max tnr","2":"0.866667","3":"1.000000","4":"0","_rn_":"15"},{"1":"max fnr","2":"0.866667","3":"0.997653","4":"0","_rn_":"16"},{"1":"max fpr","2":"0.000457","3":"1.000000","4":"399","_rn_":"17"},{"1":"max tpr","2":"0.000951","3":"1.000000","4":"398","_rn_":"18"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[18]},"pages":{}}}
+  </script>
+</div>
+<!-- rnb-frame-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiXG5HYWlucy9MaWZ0IFRhYmxlOiBFeHRyYWN0IHdpdGggYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgPGRhdGE+KWAgb3IgYGgyby5nYWluc0xpZnQoPG1vZGVsPiwgdmFsaWQ9PFQvRj4sIHh2YWw9PFQvRj4pYFxuQ3Jvc3MtVmFsaWRhdGlvbiBNZXRyaWNzIFN1bW1hcnk6IFxuIn0= -->
+<pre><code>
+Gains/Lift Table: Extract with `h2o.gainsLift(&lt;model&gt;, &lt;data&gt;)` or `h2o.gainsLift(&lt;model&gt;, valid=&lt;T/F&gt;, xval=&lt;T/F&gt;)`
+Cross-Validation Metrics Summary: </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NywibnJvdyI6NX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJuVlN5MjdiTUJCa1pNdU9YTFFJa08rSVFDNWZ5M1A3QVVWT3VSbXNyTFJHRmNtUTdiVDkrYlJyUlpRcDJSVkFjRGtrWjJlR2V2enlKRmRQSzhiWWpNMFdDWnVsVkxMRjU2OENOREEyVDJoMXcrWXNPODIvNmRROUZVc2FkelRTZm1QRmN5ZWNSY05WajJROFIya1JMSjZQU1BvVW9qMGpIRGtJNlFLU0NzNXpOZUgrUU1lRTVGSTdEakhFblpYU3VRaVM2Q1FITlArL21BbVZJMGZTTldtU25ReElVQTVHK3EwZEdwejBheFRPV0JYck4xWno2d2I5Z3JBcjFGd2djaE5SZ3pCQ1JrU0FVZ2dGT3FKMktJU1RPRkREZFdxcGxMVng2aHEwR2FWdVVCZ0xFY0tOMWdBbVdKMmp1c29zbkJZd3lnTUZLaE9KZHZUazU5Zkx1dmRVT0RTZk8zZVZHTWdhdHlOaTUrSTBwTFlLZ1dQMGtKWWlkR0Qxb0xtakh2MmRhZTFmeW4zZmJ4a092cFMrN3V0a3Z3azlpdGUxV0wvNmFoc2pjSUhJQzBSZElMcEh4bUt5dHZtVng0SkNBTGUrS0k2dEwvNzA2NWsvRnNFQWxiczI0R1VieW96S2RkRWM2OFBVY1ZINWZXZ1F3TlhHSDN6KzNGSnZXcjFOcml5YjNXSGIxSFFwdWU5VWpTL2Z0QlBnN2xpZlhHd2VpaC9IK3VlRE1LY08zZjc3K05qUGFWUXYzM3NtZnlmV0YyWDlmVnVYUVh6bHY1VlZ2L2hFY1hWcDVidDJTejU3SzRUdTgwTno4TlVRZUZNRnBEUEgzdjRCQUVsZmFjRUVBQUE9In0= -->
+<div data-pagedtable="false">
+<script data-pagedtable-source type="application/json">
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["mean"],"name":[1],"type":["chr"],"align":["left"]},{"label":["sd"],"name":[2],"type":["chr"],"align":["left"]},{"label":["cv_1_valid"],"name":[3],"type":["chr"],"align":["left"]},{"label":["cv_2_valid"],"name":[4],"type":["chr"],"align":["left"]},{"label":["cv_3_valid"],"name":[5],"type":["chr"],"align":["left"]},{"label":["cv_4_valid"],"name":[6],"type":["chr"],"align":["left"]},{"label":["cv_5_valid"],"name":[7],"type":["chr"],"align":["left"]}],"data":[{"1":"0.91978604","2":"0.013035902","3":"0.9132492","4":"0.9018806","5":"0.9344774","6":"0.9195122","7":"0.9298107","_rn_":"accuracy"},{"1":"0.8378278","2":"0.010973399","3":"0.8377799","4":"0.8216134","5":"0.8525678","6":"0.8381846","7":"0.8389934","_rn_":"auc"},{"1":"0.33334887","2":"0.038930286","3":"0.35819674","4":"0.28311425","5":"0.36816728","6":"0.29978397","7":"0.35748208","_rn_":"aucpr"},{"1":"0.08021397","2":"0.013035902","3":"0.08675079","4":"0.09811938","5":"0.06552262","6":"0.0804878","7":"0.070189275","_rn_":"err"},{"1":"100.4","2":"14.808782","3":"110.0","4":"120.0","5":"84.0","6":"99.0","7":"89.0","_rn_":"err_count"}],"options":{"columns":{"min":{},"max":[10],"total":[7]},"rows":{"min":[10],"max":[10],"total":[5]},"pages":{}}}
   </script>
 </div>
 <!-- rnb-frame-end -->
@@ -1969,44 +1920,51 @@ Scoring History: </code></pre>
 <pre><code>
 ---</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6OSwibnJvdyI6Nn0sInJkZiI6Ikg0c0lBQUFBQUFBQUJzMlUzVzZiTUJUSDNhU2tBeTFycEY1UHlndkFiR093NmUzMkFGV3ZlaGU1aEdSb0JDSUQycDYrbXdIajJtYTczNFhGK2YzUGwzMGM1L25iU3h5OEJBQ0FOVmh2Vm1EdFNSTnN2ajRobkdBQWJsZVNic0F0OElmdkx4bjFJSTBCZGtPWWNqeGdpR0VJY1lqUUh0SEhCRDNpN0g5eDJUc045akFpS2R5M1JXNHFGTHNLaTEwbGM1VUVMaFEwS1hiUEZTSGFTclNWYW90cWkybkwzZmNkakhDTWRPaUVLYkVRSXd0UmJDSmt4RWEwN0VCd1NyQ0ZORFlSWVdLaEhZeWdIWXpnc2dQRE5Ja3RoTXhFeHJEbFpabnR0VEZseXc0eHdSazBFYWFKaVRHa1ZqQ3prTmhlZ2xLM1F4YkJoTDBuWlRJcTFiY3FNV0VRb1g4aWhwQVlpQkNtZjdscGVUa2tNMUZPM3NBTVVtSWl0b0lwVGFEcGpUUDNHWHMxdnhTdGF1c3IwZTlLS1hiOGNsWENoMk12ZUZjMnRlTDd1cis4RnVMUW5BNmRLR1QrSkc4N3djdTZyTThIY1drTEplNjBXRFhucW1ubjRJOWE1LzM4YnU2MWRoV0cvRjYzS2srZEVqOXJNYTk0MjVhbk1oKzNlQ2lFYUlSelRGODBQNlA1cU50eHdnQ0Vja1Z5ZlpGcitIME9yMkF4bjdHNG1zOHNCa2ZlOGVna1pEMUpiMDdLWFhNZDlpR1RWc1AvbytjazN3aEgyUFgxc0xOam1IL3Y2eCtoZk1peXcraWYxbFo5TjRidFR6MVh2MVV0VDlYYUZQVzVyT2ZSZXhWL0xTb0ZuK1FJeGdsRVYxSFc4eFFEcWJaUjEzUjhqZ3Z5cHBxVjhYRGc3UTk0cVpKd0dBWUFBQT09In0= -->
+<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NywibnJvdyI6Nn0sInJkZiI6Ikg0c0lBQUFBQUFBQUJtMlUyMjdiTUF5RzNSeVI3SUFDZTQ0R0lrWHFjTDA5d0xDcjNnV2VrMjdHSENld2syNTcrVzUwYXlYTXdZQmg2VE1sOHY5Ris5dVhSenQvbkdkWk5zeUdrMEUySE1zd20zeitDc2lZWmFPQnpPNnlVVGJybm44azZwTU1wbkxmZDJIOWk3bFpXTGtvQkg4aWhFZ09tRTRFT0FieVJoR3lnUUpZZHlKb0RiTnNkU0tSS2JBVGNwN3puVmtZRzZJMUdKeENMZ1lBajZTakFDRVNvRUpTR25pR0ZQVmVrSW5la2NTeENnTjBHSjIxTitSeWdPaThLdE1HdEl5UmxWd1A0SXl4U2k1M0h0blFrNW5JeFJDQjRnbEVjdDRZdnM2SXdRSVE4aW5VeWl5aThnNUFIR0ZrN2E5Qmk2eUlDSmRqd0tqOHRaNlpvcnNoMGdWd0hzT1pnTzdTSWp1N2lWUVZSTUFjU09jRU5vWU1LSldPby9oL1EyV01QdGlvMjhqSUNRUXRRZnlTck1jV21YVXg1QjFFM1VVb2hUdW5NckkwQmQ0U3laNENHblVtakdTalFhM1JTMGNhZFVyazBEbythMXMyd0lHMVJCZU1nUE5QYUZ6bm0zWGJWekh0NFdpenp1dCtQR2hYYWRmaWVRbkw1N3dxTmNFcllxOElYUkh1eVhreHMyYjdlNkVMU3JaTWRzMHlQeFFwYk5lc2k3SXR0OGNhbTJUT1JON2tWWlYwTkp0Mm5UNmZkaWVMbnNxaTNQKzk5S0NvOGphbFRIQyt5dmY1NHFtUmFtVDJjckZrdXQzdEpiOHNHblQvbi9IRjRydm1BdHdmNms3WDZxSDRlYWgvUFVCMzd2UFg5Mi8zaC80NVVlUHBXODdCdjM2dmNkSzRybitVZGRJMXJ2THY2eVQ0b3hqNDZ0OWkxNVQxUGtrUjJpNzIyMzFlSFk5Z1d5WHlLaTU3K1EreVVCNXllQVVBQUE9PSJ9 -->
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["timestamp"],"name":[1],"type":["chr"],"align":["left"]},{"label":["duration"],"name":[2],"type":["chr"],"align":["left"]},{"label":["number_of_trees"],"name":[3],"type":["chr"],"align":["left"]},{"label":["training_rmse"],"name":[4],"type":["chr"],"align":["left"]},{"label":["training_logloss"],"name":[5],"type":["chr"],"align":["left"]},{"label":["training_auc"],"name":[6],"type":["chr"],"align":["left"]},{"label":["training_pr_auc"],"name":[7],"type":["chr"],"align":["left"]},{"label":["training_lift"],"name":[8],"type":["chr"],"align":["left"]},{"label":["training_classification_error"],"name":[9],"type":["chr"],"align":["left"]}],"data":[{"1":"2020-02-11 17:51:29","2":"0.460 sec","3":"44","4":"0.23147","5":"0.42642","6":"0.82753","7":"0.34290","8":"9.05887","9":"0.08149","_rn_":"45"},{"1":"2020-02-11 17:51:29","2":"0.472 sec","3":"45","4":"0.23164","5":"0.42673","6":"0.82708","7":"0.34065","8":"9.34645","9":"0.08212","_rn_":"46"},{"1":"2020-02-11 17:51:29","2":"0.483 sec","3":"46","4":"0.23121","5":"0.42124","6":"0.82882","7":"0.34307","8":"9.58011","9":"0.09074","_rn_":"47"},{"1":"2020-02-11 17:51:29","2":"0.493 sec","3":"47","4":"0.23113","5":"0.42142","6":"0.82789","7":"0.34287","8":"9.58011","9":"0.09249","_rn_":"48"},{"1":"2020-02-11 17:51:29","2":"0.503 sec","3":"48","4":"0.23084","5":"0.42103","6":"0.82889","7":"0.34407","8":"9.20041","9":"0.07750","_rn_":"49"},{"1":"2020-02-11 17:51:29","2":"0.513 sec","3":"49","4":"0.23081","5":"0.42110","6":"0.82868","7":"0.34416","8":"9.11279","9":"0.09392","_rn_":"50"}],"options":{"columns":{"min":{},"max":[10],"total":[9]},"rows":{"min":[10],"max":[10],"total":[6]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG5WYXJpYWJsZSBJbXBvcnRhbmNlczogKEV4dHJhY3Qgd2l0aCBgaDJvLnZhcmltcGApIFxuPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuXG5WYXJpYWJsZSBJbXBvcnRhbmNlczogXG4ifQ== -->
-<pre><code>
-Variable Importances: (Extract with `h2o.varimp`) 
-=================================================
-
-Variable Importances: </code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6NX0sInJkZiI6Ikg0c0lBQUFBQUFBQUJtV1MzMDZETUJUR093YlRrY3pNN0RscytvZTJjSzBQWUx6YW5lbFkzWWlza01LbWx6NzV0R05Vb1RZNWFYL2ZPYWRmRCtIbGFVM2pkUXdBbUlMcExBRFR5QjdCN1BFWkUwWUFDQU5MRXhDQytXWC90RlVyZXdodExHMUVmV0syWjAyRE5pT1NJOXIyRk8xWnJmQW9sWHVYeFVJa01PRWt6VnhkekFXR0thTjJPWVZsQkJKT0NFK2RrbVFKWkFRakpuNFZua0tlVXNxUTUzQ0xJZXFXWXdSVExoaksvbGp3Uk5BQmMycjlrd0VqaGdYeDcwVVFjVXpab0E0eFNnZ2JjTUl6TXZCRk5NTkNERmxnaXJ6dkhtbDVVRTF2RnJyaWt6U0YzSlNxNTVWUnBXeUxrM290RG5WbFdxbHpsN3B2Y2xtcTdmOUVYQ3VUSzkzS25mSXM1NmI2Z001MllTUDRBdDJLL0xmbHBXemMyNXdZYjJVcjRadXgvWmJPWHN0TlZiZEZwVzFUc0xyZU9HcWVHRTlZSHZYbEpkdUhmSC9VN3c4OHVUaDArV3NzK2owYW5NT3JaL0R0LzZsSzd3cnQ1bzlLdVZGbEQzZDI1RzVpV0p0Q3QyNFVxemF3clZycDZ1SzhLcDNTRFFmT1A3V2QvWEZGQXdBQSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["variable"],"name":[1],"type":["chr"],"align":["left"]},{"label":["relative_importance"],"name":[2],"type":["chr"],"align":["left"]},{"label":["scaled_importance"],"name":[3],"type":["chr"],"align":["left"]},{"label":["percentage"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"h5ss0b","2":"774.462891","3":"1.000000","4":"0.061354","_rn_":"1"},{"1":"h5ss0a","2":"671.853333","3":"0.867509","4":"0.053225","_rn_":"2"},{"1":"h5ss0d","2":"592.262268","3":"0.764739","4":"0.046920","_rn_":"3"},{"1":"h5pe1","2":"494.521057","3":"0.638534","4":"0.039177","_rn_":"4"},{"1":"h5ss0c","2":"468.683350","3":"0.605172","4":"0.037130","_rn_":"5"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[5]},"pages":{}}}
-  </script>
-</div>
-<!-- rnb-frame-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiXG4tLS1cbiJ9 -->
-<pre><code>
----</code></pre>
-<!-- rnb-output-end -->
-<!-- rnb-frame-begin eyJtZXRhZGF0YSI6eyJjbGFzc2VzIjpbImRhdGEuZnJhbWUiXSwibmNvbCI6NCwibnJvdyI6Nn0sInJkZiI6Ikg0c0lBQUFBQUFBQUJtV1MyMUxiTUJDR1JXS0h4ak13ZEhnTUdsVUg2M1FORDhCd3hSMGpISlVZSE5sakcralQwNjRUSzFITXhZNzAvYnVyWGEzMGNQZklzOGNNSVRSSDg4VU16VlBZb3NYdFBXV0NJWlRNZ001UWdwYkQraGVpcm1HVGdGME5ZYU1qM2ZDdWtTTXNCcURzUVBsMlE4MkpqeDk5NVZwc1R1aDFjblJHaGNTQ0djck1VY2x4enFtUy9LaFFUQ2pWUWg0VXJyQXhtaHM5S2t1anNWWkdxUkN5VkFKVEpaVEtKeFYvRU13SW80Y3VnYWt4T1JFeDUwYWJpSldtV2tiTWxGUlJQREdLU1AyOURxRXNKK1NFR2M5anBrYnltSW5oTEdLaU5JLzlSQmlZd2VtcnBkNXVYVGNXVDBMd2gyMUwrMXk1a2E5YlY5bSsvSEJQNWJhcDI5NzZJcmgrZG9XdDNQcTdJMnRjV3pqZjJ4YzNLYmxzNjA4Y3lsN3M3b3pRRGRndnNCVVlCdnNOUnFhOUZwWHRRcTlCek5hMnQvaFBDK2NCZlUxU3p1dW1MMnNQU2JQaGE2YVQ1TE4ySWx5OSs2R3o5YXJZdlB1M2xSeWVQOXY1OTNZeHJvdG9uK3hyenY2Tlo2WGh5enIvVXZvd2o3U3l6NjRhNFJKR3NKc0FidHJTOStFcW9IYTRyM3NiNHJLaXJvS3l1eHo2K2c4ZU5pYnJrd01BQUE9PSJ9 -->
-<div data-pagedtable="false">
-<script data-pagedtable-source type="application/json">
-{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["variable"],"name":[1],"type":["chr"],"align":["left"]},{"label":["relative_importance"],"name":[2],"type":["chr"],"align":["left"]},{"label":["scaled_importance"],"name":[3],"type":["chr"],"align":["left"]},{"label":["percentage"],"name":[4],"type":["chr"],"align":["left"]}],"data":[{"1":"h3sp6","2":"156.529129","3":"0.202113","4":"0.012400","_rn_":"43"},{"1":"h3sp12","2":"154.431763","3":"0.199405","4":"0.012234","_rn_":"44"},{"1":"h4mh19","2":"151.011856","3":"0.194989","4":"0.011963","_rn_":"45"},{"1":"h3sp13","2":"137.998398","3":"0.178186","4":"0.010932","_rn_":"46"},{"1":"h4id5h","2":"98.879776","3":"0.127675","4":"0.007833","_rn_":"47"},{"1":"h4id5j","2":"75.175774","3":"0.097068","4":"0.005956","_rn_":"48"}],"options":{"columns":{"min":{},"max":[10],"total":[4]},"rows":{"min":[10],"max":[10],"total":[6]},"pages":{}}}
+{"columns":[{"label":[""],"name":["_rn_"],"type":[""],"align":["left"]},{"label":["mean"],"name":[1],"type":["chr"],"align":["left"]},{"label":["sd"],"name":[2],"type":["chr"],"align":["left"]},{"label":["cv_1_valid"],"name":[3],"type":["chr"],"align":["left"]},{"label":["cv_2_valid"],"name":[4],"type":["chr"],"align":["left"]},{"label":["cv_3_valid"],"name":[5],"type":["chr"],"align":["left"]},{"label":["cv_4_valid"],"name":[6],"type":["chr"],"align":["left"]},{"label":["cv_5_valid"],"name":[7],"type":["chr"],"align":["left"]}],"data":[{"1":"0.33334887","2":"0.038930286","3":"0.35819674","4":"0.28311425","5":"0.36816728","6":"0.29978397","7":"0.35748208","_rn_":"pr_auc"},{"1":"0.42246154","2":"0.069811724","3":"0.38235295","4":"0.3425926","5":"0.45333335","6":"0.40963855","7":"0.5243902","_rn_":"precision"},{"1":"0.15984704","2":"0.031219412","3":"0.17116003","4":"0.11038525","5":"0.18117446","6":"0.14918134","7":"0.18733409","_rn_":"r2"},{"1":"0.43848136","2":"0.022417514","3":"0.45348838","4":"0.43023255","5":"0.44155845","6":"0.4047619","7":"0.4623656","_rn_":"recall"},{"1":"0.23055334","2":"0.0097641945","3":"0.2289149","4":"0.24115929","5":"0.21500401","6":"0.23267266","7":"0.23501585","_rn_":"rmse"},{"1":"0.95485634","2":"0.012629633","3":"0.9467005","4":"0.93755496","5":"0.9659751","6":"0.9572426","7":"0.9668085","_rn_":"specificity"}],"options":{"columns":{"min":{},"max":[10],"total":[7]},"rows":{"min":[10],"max":[10],"total":[6]},"pages":{}}}
   </script>
 </div>
 <!-- rnb-frame-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuXG5SRiA8LSBmdW5jdGlvbihudHJlZXMgPSA1MDAsbWF4X2RlcHRoID0gMTAgKXtcbiAgcmYxIDwtIGgyby5yYW5kb21Gb3Jlc3QoXG4gICAgdHJhaW5pbmdfZnJhbWUgPSB0cmFpbixcbiAgICB4PXNldGRpZmYocHJlZGljdG9yX2xpc3QsIGMoXCJhaWRcIixcImg1bW44XCIpKSxcbiAgICB5PVwiaDVtbjhcIiwgXG4gICAgbW9kZWxfaWQgPSBcInJmX2NvdlR5cGVfdjFcIixcbiAgICBudHJlZXMsIFxuICAgIG1heF9kZXB0aCxcbiAgICBzdG9wcGluZ19yb3VuZHMgPSAyLFxuICAgIG5mb2xkcyA9IDUsXG4gICAgZm9sZF9hc3NpZ25tZW50ID0gXCJTdHJhdGlmaWVkXCIsXG4gICAgc2NvcmVfZWFjaF9pdGVyYXRpb24gPSBULFxuICAgIHNlZWQgPSAxMDAwMDAwKVxuXG5cbiAgcmV0dXJuKHJmMSlcbn1cblxuXG5cbmBgYCJ9 -->
+<pre class="r"><code>
+RF &lt;- function(ntrees = 500,max_depth = 10 ){
+  rf1 &lt;- h2o.randomForest(
+    training_frame = train,
+    x=setdiff(predictor_list, c(&quot;aid&quot;,&quot;h5mn8&quot;)),
+    y=&quot;h5mn8&quot;, 
+    model_id = &quot;rf_covType_v1&quot;,
+    ntrees, 
+    max_depth,
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = &quot;Stratified&quot;,
+    score_each_iteration = T,
+    seed = 1000000)
+
+
+  return(rf1)
+}
+</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc3VtbWFyeShyZjEpXG5gYGAifQ== -->
+<pre class="r"><code>summary(rf1)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+<!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIjQxLW1vZGVsaW5nLVJGIg0Kb3V0cHV0OiBodG1sX25vdGVib29rDQotLS0NCg0KYGBge3J9DQpsaWJyYXJ5KGRhdGEudGFibGUpDQpsaWJyYXJ5KG1scikNCmxpYnJhcnkoc3BsaXRzdGFja3NoYXBlKQ0KYGBgDQoNCiMgQ3JlYXRpbmcgdGhlIHN1YnNldCBvZiB0aGUgZGF0YXNldCB3ZSB3aWxsIGJlIHVzaW5nIGZvciB0aGUgbW9kZWwNCg0KYGBge3J9DQoNCmRhdGFfc3Vic2V0X2xpc3QgPC0gYygNCiAgICAgICAgICJoNGlkNWoiLA0KICAgICAgICAgImg0cGU2IiwNCiAgICAgICAgICJoNHBlMTQiLA0KICAgICAgICAgImg0cGUyMiIsDQogICAgICAgICAiaDRwZTMwIiwNCiAgICAgICAgICJoNHBlNyIsDQogICAgICAgICAiaDRwZTE1IiwNCiAgICAgICAgICJoNHBlMjMiLA0KICAgICAgICAgImg0cGUzMSIsDQogICAgICAgICAiaDVpZDZpIiwNCiAgICAgICAgICJoNXBlMSIsDQogICAgICAgICAiaDVwZTIiLA0KICAgICAgICAgImg1cGUzIiwNCiAgICAgICAgICJoMWZzMSIsDQogICAgICAgICAiaDNzcDUiLA0KICAgICAgICAgImg0bWgxOCIsDQogICAgICAgICAiaDFmczMiLA0KICAgICAgICAgImgzc3A2IiwNCiAgICAgICAgICJoNG1oMTkiLA0KICAgICAgICAgImg1c3MwYSIsDQogICAgICAgICAiaDFmczQiLA0KICAgICAgICAgImgzc3A3IiwNCiAgICAgICAgICJoNG1oMjAiLA0KICAgICAgICAgImgxZnM1IiwNCiAgICAgICAgICJoM3NwOCIsDQogICAgICAgICAiaDRtaDIxIiwNCiAgICAgICAgICJoMWZzNiIsDQogICAgICAgICAiaDNzcDkiLA0KICAgICAgICAgImg0bWgyMiIsDQogICAgICAgICAiaDVzczBiIiwNCiAgICAgICAgICJoMWZzNyIsCQ0KICAgICAgICAgImgzc3AxMCIsDQogICAgICAgICAiaDRtaDIzIiwNCiAgICAgICAgICJoMWZzMTEiLA0KICAgICAgICAgImg0bWgyNCIsDQogICAgICAgICAiaDVzczBjIiwNCiAgICAgICAgICJoMWZzMTUiLA0KICAgICAgICAgImgzc3AxMSIsDQogICAgICAgICAiaDRtaDI1IiwNCiAgICAgICAgICJoMWZzMTYiLA0KICAgICAgICAgImgzc3AxMiIsDQogICAgICAgICAiaDRtaDI2IiwNCiAgICAgICAgICJoNXNzMGQiLA0KICAgICAgICAgImgxZnMxNyIsDQogICAgICAgICAiaDNzcDEzIiwNCiAgICAgICAgICJoNG1oMjciLA0KICAgICAgICAgImg0aWQ1aCIsDQogICAgICAgICAiaDVpZDZnIiwNCiAgICAgICAgICJoNW1uOCIpDQoNCg0KZGF0YV9zdWJzZXQgPC0gYXMuZGF0YS50YWJsZShqb2luZWRfd2F2ZXNbZGF0YV9zdWJzZXRfbGlzdF0gJT4lIG5hLm9taXQoKSkNCmBgYA0KDQpgYGB7ciBzdHJhdGlmaWVkIHRyYWluLXRlc3Qgc3BsaXR9DQp0cmFpbiA8LSBhcy5oMm8oc3RyYXRpZmllZChkYXRhX3N1YnNldCwgYygiaDVtbjgiKSwgMC43KSkNCnRlc3QgPC0gYXMuaDJvKHN0cmF0aWZpZWQoZGF0YV9zdWJzZXQsIGMoImg1bW44IiksIDAuMykpDQpgYGANCk5vdGU6DQoxLiBIYXZlIG5vdCBhZGRlZCBhZ2UsIHJhY2UgYW5kIHNleC9nZW5kZXIgaW5mb3JtYXRpb24gaW4gdGhpcyBzdWJzZXQgYXMgb2YgeWV0LiANCjIuIEluaXRpYWxseSBjcmVhdGluZyB0aGUgbW9kZWwgdG8gcHJlZGljdCBzdWljaWRhbCBpZGVhdGlvbiBhdCB3YXZlIDUuIA0KMy4gSW5pdGlhbGx5IG1ha2luZyB0aGUgZGVjaXNpb24gdG8gcmVtb3ZlIGFsbCBOQSB2YWx1ZXMgaW4gd2F2ZSA1DQoNCmBgYHtyfQ0KcmYxIDwtIGgyby5yYW5kb21Gb3Jlc3QoICAgICAgICAgIyMgaDJvLnJhbmRvbUZvcmVzdCBmdW5jdGlvbg0KICB0cmFpbmluZ19mcmFtZSA9IHRyYWluLCAgICAgICAgIyMgdGhlIEgyTyBmcmFtZSBmb3IgdHJhaW5pbmcNCg0KICB4PTE6NDgsICAgICAgICAgICAgICAgICAgICAgICAgIyMgdGhlIHByZWRpY3RvciBjb2x1bW5zLCBieSBjb2x1bW4gaW5kZXgNCiAgeT00OSwgICAgICAgICAgICAgICAgICAgICAgICAgICMjIHRoZSB0YXJnZXQgaW5kZXggKHdoYXQgd2UgYXJlIHByZWRpY3RpbmcpDQogIG1vZGVsX2lkID0gInJmX2NvdlR5cGVfdjEiLCAgICAjIyBuYW1lIHRoZSBtb2RlbCBpbiBIMk8NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICAgbm90IHJlcXVpcmVkLCBidXQgaGVscHMgdXNlIEZsb3cNCiAgbnRyZWVzID0gNTAwLCAgICAgICAgICAgICAgICAgICMjIHVzZSBhIG1heGltdW0gb2YgMjAwIHRyZWVzIHRvIGNyZWF0ZSB0aGUNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICByYW5kb20gZm9yZXN0IG1vZGVsLiBUaGUgZGVmYXVsdCBpcyA1MC4NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICBJIGhhdmUgaW5jcmVhc2VkIGl0IGJlY2F1c2UgSSB3aWxsIGxldCANCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICB0aGUgZWFybHkgc3RvcHBpbmcgY3JpdGVyaWEgZGVjaWRlIHdoZW4NCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICMjICB0aGUgcmFuZG9tIGZvcmVzdCBpcyBzdWZmaWNpZW50bHkgYWNjdXJhdGUNCiAgc3RvcHBpbmdfcm91bmRzID0gMiwgICAgICAgICAgICMjIFN0b3AgZml0dGluZyBuZXcgdHJlZXMgd2hlbiB0aGUgMi10cmVlDQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAjIyAgYXZlcmFnZSBpcyB3aXRoaW4gMC4wMDEgKGRlZmF1bHQpIG9mIA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIHRoZSBwcmlvciB0d28gMi10cmVlIGF2ZXJhZ2VzLg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIENhbiBiZSB0aG91Z2h0IG9mIGFzIGEgY29udmVyZ2VuY2Ugc2V0dGluZw0KICBzY29yZV9lYWNoX2l0ZXJhdGlvbiA9IFQsICAgICAgIyMgUHJlZGljdCBhZ2FpbnN0IHRyYWluaW5nIGFuZCB2YWxpZGF0aW9uIGZvcg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIyMgIGVhY2ggdHJlZS4gRGVmYXVsdCB3aWxsIHNraXAgc2V2ZXJhbC4NCiAgc2VlZCA9IDEwMDAwMDApICAgICAgICAgICAgICAgICMjIFNldCB0aGUgcmFuZG9tIHNlZWQgc28gdGhhdCB0aGlzIGNhbiBiZQ0KICAgICAgICAgICAgICAgICAgICANCmBgYA0KYGBge3J9DQpzdW1tYXJ5KHJmMSkNCmBgYA0KDQoNCg0KDQo=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIjQxLW1vZGVsaW5nLVJGIg0Kb3V0cHV0OiBodG1sX25vdGVib29rDQotLS0NCg0KYGBge3J9DQpsaWJyYXJ5KGRhdGEudGFibGUpDQpsaWJyYXJ5KG1scikNCmxpYnJhcnkoc3BsaXRzdGFja3NoYXBlKQ0KbGlicmFyeShib290KQ0KYGBgDQoNCiMgQ3JlYXRpbmcgdGhlIHN1YnNldCBvZiB0aGUgZGF0YXNldCB3ZSB3aWxsIGJlIHVzaW5nIGZvciB0aGUgbW9kZWwNCk5vdGU6DQoxLiBIYXZlIG5vdCBhZGRlZCBhZ2UsIHJhY2UgYW5kIHNleC9nZW5kZXIgaW5mb3JtYXRpb24gaW4gdGhpcyBzdWJzZXQgYXMgb2YgeWV0LiANCjIuIEluaXRpYWxseSBjcmVhdGluZyB0aGUgbW9kZWwgdG8gcHJlZGljdCBzdWljaWRhbCBpZGVhdGlvbiBhdCB3YXZlIDUuIA0KMy4gSW5pdGlhbGx5IG1ha2luZyB0aGUgZGVjaXNpb24gdG8gcmVtb3ZlIGFsbCBOQSB2YWx1ZXMgaW4gd2F2ZSA1Lg0KDQpgYGB7cn0NCmxpYnJhcnkodGlkeXZlcnNlKQ0KbGlicmFyeShyc2FtcGxlKQ0KDQpkYXRhX3N1YnNldF9saXN0IDwtIHNldGRpZmYocHJlZGljdG9yX2xpc3QsICJhaWQiKSAlPiUgYXBwZW5kKCJoNW1uOCIpDQoNCmRhdGFfc3Vic2V0cyA8LSBqb2luZWRfd2F2ZXNbZGF0YV9zdWJzZXRfbGlzdF0gJT4lIG5hLm9taXQoKSAlPiUgYm9vdHN0cmFwcyh0aW1lcyA9IDIpICMgQ3JlYXRpbmcgMiBzYW1wbGVzDQoNCg0Kc3VtbWFyeShkYXRhX3N1YnNldHMpDQoNCg0KYGBgDQoNCmBgYHtyIHN0cmF0aWZpZWQgdHJhaW4tdGVzdCBzcGxpdH0NCiNzZXQuc2VlZCg0MikgLS0gQ29uc2lkZXIgdXBkYXRpbmcgc2VlZCBhdCBldmVyeSBpdGVyYXRpb24gb3IgbW9kZWwgY3JlYXRpb24NCiNzcGxpdHMgPC0gYXMuaDJvKHN0cmF0aWZpZWQoZGF0YV9zdWJzZXQsIGMoImg1bW44IiksIDAuNywgYm90aFNldHMgPSBUKSkNCnNwbGl0cyA8LSBzdHJhdGlmaWVkKGRhdGFfc3Vic2V0LCBjKCJoNW1uOCIpLCAwLjcsIGJvdGhTZXRzID0gVCkNCg0KdHJhaW4gPC0gYXMuaDJvKHNwbGl0c1tbMV1dKQ0KDQp0ZXN0IDwtIGFzLmgybyhzcGxpdHNbWzJdXSkNCg0KDQoNCiMjIHdoYXQgaWYgYm9vdHN0cmFwIGhlcmUNCg0Kc3Vic2V0c19yZXNhbXBsZSA8LSBuZXN0ZWRfY3YodHJhaW4sIA0KICAgICAgICAgICAgICAgICAgICAgb3V0c2lkZSA9IHZmb2xkX2N2KHJlcGVhdHMgPSA1KSwgDQogICAgICAgICAgICAgICAgICAgICBpbnNpZGUgPSBib290c3RyYXBzKDIpKQ0KDQoNCmBgYA0KDQpgYGB7cn0NCnJmMSA8LSBoMm8ucmFuZG9tRm9yZXN0KA0KICB0cmFpbmluZ19mcmFtZSA9IHRyYWluLA0KICB4PXNldGRpZmYocHJlZGljdG9yX2xpc3QsIGMoImFpZCIsImg1bW44IikpLA0KICB5PTQ5LCANCiAgbW9kZWxfaWQgPSAicmZfY292VHlwZV92MSIsDQogIG50cmVlcyA9IDUwMCwgDQogIG1heF9kZXB0aCA9IDEwLA0KICBzdG9wcGluZ19yb3VuZHMgPSAyLA0KICBuZm9sZHMgPSA1LA0KICBmb2xkX2Fzc2lnbm1lbnQgPSAiU3RyYXRpZmllZCIsDQogIHNjb3JlX2VhY2hfaXRlcmF0aW9uID0gVCwNCiAgc2VlZCA9IDEwMDAwMDApDQoNCnJmMQ0KYGBgDQoNCg0KYGBge3J9DQoNClJGIDwtIGZ1bmN0aW9uKG50cmVlcyA9IDUwMCxtYXhfZGVwdGggPSAxMCApew0KICByZjEgPC0gaDJvLnJhbmRvbUZvcmVzdCgNCiAgICB0cmFpbmluZ19mcmFtZSA9IHRyYWluLA0KICAgIHg9c2V0ZGlmZihwcmVkaWN0b3JfbGlzdCwgYygiYWlkIiwiaDVtbjgiKSksDQogICAgeT0iaDVtbjgiLCANCiAgICBtb2RlbF9pZCA9ICJyZl9jb3ZUeXBlX3YxIiwNCiAgICBudHJlZXMsIA0KICAgIG1heF9kZXB0aCwNCiAgICBzdG9wcGluZ19yb3VuZHMgPSAyLA0KICAgIG5mb2xkcyA9IDUsDQogICAgZm9sZF9hc3NpZ25tZW50ID0gIlN0cmF0aWZpZWQiLA0KICAgIHNjb3JlX2VhY2hfaXRlcmF0aW9uID0gVCwNCiAgICBzZWVkID0gMTAwMDAwMCkNCg0KDQogIHJldHVybihyZjEpDQp9DQoNCg0KDQpgYGANCg0KDQoNCmBgYHtyfQ0Kc3VtbWFyeShyZjEpDQpgYGANCg0KDQoNCg0K</div>
 
 
 
