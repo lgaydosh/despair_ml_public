@@ -41,11 +41,11 @@ test <- as.h2o(splits[[2]])
 
 
 
-## what if bootstrap here
-
-subsets_resample <- nested_cv(train, 
-                     outside = vfold_cv(repeats = 5), 
-                     inside = bootstraps(2))
+## what if bootstrap here, test later
+# 
+# subsets_resample <- nested_cv(train, 
+#                      outside = vfold_cv(repeats = 5), 
+#                      inside = bootstraps(2))
 
 
 ```
