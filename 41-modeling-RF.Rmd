@@ -19,6 +19,7 @@ library(rsample)
 3. Splitting the bootstrap set into a training a validation set. [x]
 4. Creating n different models. [x]
 - finding the best tuning parameters for each model using grid search (Tuning parameters: ntrees and max_depth).
+- creating a final model (using k-fold cross validation) that uses the best tuning parameters from the previously conducted grid search.[x]
 - fitting the model onto the validation set created earlier.
 5. Saving all models and the performance metrics into a list. [x]
 6. Evaluation of all model parameters and the stability of those parameters.  
@@ -39,47 +40,81 @@ splits <- stratified(data_subsets, c("h5mn8"), 0.7, bothSets = T)
 train <- splits[[1]]
 test <- splits[[2]]
 
-
-# rf <- function(boots = 2, train, test){
-
-# Step 2
-n = 3 # input 
-straps <- train %>% bootstraps(times = n, strata = "h5mn8")
-
-model_list <- vector(mode = "list", length = n) # creating an empty list to save all the models
-results_list <- vector(mode = "list", length = n) # creating an empty list to save all the model validation results
-
-for(i in 1:length(straps)){
+rf_suicide <- function(nbootstraps,     # number of bootstraps
+                       k,               # ks of k fold
+                       train,           # training set
+                       max_depths_tune, # vector of max_depths to test on
+                       ntree_tune){     # vector of ntrees to test on
   
-  # Step 3
-  straps_splits <- stratified(as.data.frame(straps$splits[[i]]), c("h5mn8"), 0.9, bothSets = T) 
+  # Step 2
+  n = nbootstraps # input 
+  straps <- train %>% bootstraps(times = n, strata = "h5mn8")
   
-  training_frame <- straps_splits[[1]]
-  validation_frame <- straps_splits[[2]]
+  model_list <- vector(mode = "list", length = n) # creating an empty list to save all the models
+  results_list <- vector(mode = "list", length = n) # creating an empty list to save all the model validation results
   
-
-  # Step 4
-  rf_i <- h2o.randomForest(
-    training_frame = as.h2o(training_frame),
-    x=setdiff(data_subset_list, c("h5mn8")),
-    y="h5mn8", 
-    model_id = "rf_covType_v1",
-    ntrees = 200, 
-    max_depth = 10,
-    stopping_rounds = 2,
-    nfolds = 5,
-    fold_assignment = "Stratified",
-    score_each_iteration = T,
-    seed = 1000000
+  for(i in 1:length(straps)){
+    
+    # Step 3
+    straps_splits <- stratified(as.data.frame(straps$splits[[i]]), c("h5mn8"), 0.9, bothSets = T) 
+    
+    training_frame <- straps_splits[[1]]
+    validation_frame <- straps_splits[[2]]
+    
+    # Step 4
+    params <- expand.grid(max_depth = seq(7,8), ntrees = seq(200,201))
+    
+    model_tune_list <- rep(NA, nrow(params))
+    
+    for(i in 1:nrow(params)){
+      rf_i <- h2o.randomForest(
+        training_frame = as.h2o(training_frame),
+        x=setdiff(data_subset_list, c("h5mn8")),
+        y="h5mn8", 
+        model_id = "rf_covType_v1",
+        max_depth = params[i,][[1]],
+        ntrees = params[i,][[2]], 
+        stopping_rounds = 2,
+        nfolds = 5,
+        fold_assignment = "Stratified",
+        score_each_iteration = T,
+        seed = 1000000
+      )
+      
+      result <- h2o.performance(rf_i, as.h2o(validation_frame))
+      
+      model_tune_list[i] <- result@metrics$AUC
+    }
+    
+    best_index <- which(model_tune_list==max(model_tune_list))[1]
+    
+    rf_i <- h2o.randomForest(
+      training_frame = as.h2o(training_frame),
+      x=setdiff(data_subset_list, c("h5mn8")),
+      y="h5mn8", 
+      model_id = "rf_covType_v1",
+      ntrees = params[best_index,2], 
+      max_depth = params[best_index,1],
+      stopping_rounds = 2,
+      nfolds = k,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 1000000
     )
-  
-  model_list[i] <- rf_i
-  results_list[i] <- h2o.performance(rf_i, as.h2o(validation_frame))
-  
+    
+    model_list[i] <- rf_i
+    results_list[i] <- h2o.performance(rf_i, as.h2o(validation_frame))
+  }
+  return(list(model_list, results_list))
 }
 
-results_list[[2]]@metrics$AUC
+max_depths <- c(5,10,25)
+ntrees <- c(100,150,200)
 
+results <- rf_suicide(2, 5, train = train, max_depths_tune = max_depths, ntree_tune = ntrees)
+
+
+str(results)
 ```
 
 ```{r}
@@ -111,10 +146,16 @@ for(i in 1:nrow(params)){
 best_index <- which(model_tune_list==max(model_tune_list))[1]
 
 
+
+
 ```
 
 
 
+```{r}
+h2o.rm('rf_gridi', cascade = TRUE)
+
+```
 
 
 ```{r}
@@ -127,25 +168,25 @@ rf_params <- list(max_depth = c(5,10,25),
                   ntrees = c(100,150,200))
 
 rf_gridi <- h2o.grid("randomForest", 
-                      x = setdiff(data_subset_list, c("h5mn8")),
-                      y="h5mn8",
-                      model_id = "rf_covType_v1",
-                      grid_id = "rf_gridi",
-                      #nfold = 5,
-                      #fold_assignment = "Stratified",
-                      score_each_iteration = T,
-                      training_frame = as.h2o(training_frame),
-                      validation_frame = as.h2o(validation_frame),
-                      seed = 1,
-                      hyper_params = rf_params)
+                     x = setdiff(data_subset_list, c("h5mn8")),
+                     y="h5mn8",
+                     model_id = "rf_covType_v1",
+                     grid_id = "rf_gridi",
+                     #nfold = 5,
+                     #fold_assignment = "Stratified",
+                     score_each_iteration = T,
+                     training_frame = as.h2o(training_frame),
+                     validation_frame = as.h2o(validation_frame),
+                     seed = 1,
+                     hyper_params = rf_params)
 
 rf_gridperf <- h2o.getGrid(grid_id = "rf_gridi",
-                             sort_by = "auc",
-                             decreasing = TRUE)
+                           sort_by = "auc",
+                           decreasing = TRUE)
 
 str(rf_gridperf)
 
-jn
+rf_gridperf@summary_table$max_depth
 ```
 
 
