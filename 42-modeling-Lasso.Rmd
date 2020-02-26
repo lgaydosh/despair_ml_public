@@ -1,5 +1,5 @@
 ---
-title: "41-modeling-Lasso"
+title: "42-modeling-Lasso"
 output: html_notebook
 ---
 
@@ -68,4 +68,24 @@ lasso_suicide <- function(train,           # training set or bootstrap
 
 ```
 
+
+
+
+```{r}
+
+for(i in 1:length(straps)){
+  results <- as.data.frame(straps$splits[[i]])%>%
+    lasso_suicide()
+  
+  print(results)
+  
+  combined_models[i] <- results[1]
+  combined_performances[i] <- results[2]
+
+}
+
+#results[1]
+combined_models[1]
+combined_performances[1]
+```
 
