@@ -5,12 +5,23 @@ output: html_notebook
 Run 41-modeling-RF first
 
 ```{r lasso logistic model function}  
-lasso_suicide <- function(training_frame,         
-                          validation_frame，
+lasso_suicide <- function(#training_frame,         
+                          #validation_frame，
+                          train,
                           k = 5,               # ks of k fold
                           lambda_tune){     
 
-  lambda_tune = seq(0,1,0.1)
+  lambda_tune = seq(0.1,1,0.1)
+  
+  
+  straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
+  # 
+   training_frame <- straps_splits[[1]]
+   validation_frame <- straps_splits[[2]]
+  
+  
+  
+  
   params <- as.matrix(lambda_tune)
   
   model_tune_list <- rep(NA, nrow(params))

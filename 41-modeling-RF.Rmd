@@ -27,10 +27,10 @@ library(rsample)
 
 ```{r}
 ## these three variables could get out from the rf_suicide.
-  straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
-  
-  training_frame <- straps_splits[[1]]
-  validation_frame <- straps_splits[[2]]
+  # straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
+  # 
+  # training_frame <- straps_splits[[1]]
+  # validation_frame <- straps_splits[[2]]
 ```
 
 
@@ -40,9 +40,9 @@ library(rsample)
 
 ```{r random forest model function}
 # The steps are not in order because the function needed to be created first.
-rf_suicide <- function(training_frame,         
-                       validation_frame，
-                      #train,           # training set or bootstrap
+rf_suicide <- function(#training_frame,         
+                       #validation_frame，
+                      train,           # training set or bootstrap
                        k = 5,               # ks of k fold
                        max_depths_tune, # vector of max_depths to test on
                        ntree_tune){     # vector of ntrees to test on
@@ -53,10 +53,10 @@ rf_suicide <- function(training_frame,
   
   #straps$splits[[i]]
   # Step 3
-  # straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
+   straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
   # 
-  # training_frame <- straps_splits[[1]]
-  # validation_frame <- straps_splits[[2]]
+   training_frame <- straps_splits[[1]]
+   validation_frame <- straps_splits[[2]]
   
   # Step 4
   params <- expand.grid(max_depth = seq(7,8), ntrees = seq(200,201))
