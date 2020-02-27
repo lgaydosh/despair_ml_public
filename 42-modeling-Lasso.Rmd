@@ -2,36 +2,25 @@
 title: "42-modeling-Lasso"
 output: html_notebook
 ---
+Run 41-modeling-RF first
 
-```{r lasso logistic model function}
+```{r lasso logistic model function}  
+lasso_suicide <- function(training_frame,         
+                          validation_frame，
+                          k = 5,               # ks of k fold
+                          lambda_tune){     
 
-# The steps are not in order because the function needed to be created first.
-lasso_suicide <- function(train,           # training set or bootstrap
-                       k = 5,               # ks of k fold
-                       lambda_tune){     
-  
-  model_list <- vector(mode = "list", length = n) # creating an empty list to save all the models
-  results_list <- vector(mode = "list", length = n) # creating an empty list to save all the model validation results
-  
-  
-  #straps$splits[[i]]
-  # Step 3
-  straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
-  
-  training_frame <- straps_splits[[1]]
-  validation_frame <- straps_splits[[2]]
-  
-  # Step 4
-  params <- expand.grid(lambda_tune = seq(0,1))
+  lambda_tune = seq(0,1,0.1)
+  params <- as.matrix(lambda_tune)
   
   model_tune_list <- rep(NA, nrow(params))
   
   for(i in 1:nrow(params)){
     lasso_i <- h2o.glm(
-      training_frame = as.h2o(training_frame),
       x=setdiff(data_subset_list, c("h5mn8")),
       y="h5mn8", 
-      lambda_tune = params[i,][[1]],
+      training_frame = as.h2o(training_frame),
+      lambda = params[i],
       family = "binomial",
       alpha = 1,
       nfolds = 5,
@@ -48,10 +37,10 @@ lasso_suicide <- function(train,           # training set or bootstrap
   best_index <- which(model_tune_list==max(model_tune_list))[1]
   
   lasso_i <- h2o.glm(
-      training_frame = as.h2o(training_frame),
       x=setdiff(data_subset_list, c("h5mn8")),
       y="h5mn8", 
-      lambda_tune = params[i,][[1]],
+      training_frame = as.h2o(training_frame),
+      lambda = params[i],
       family = "binomial",
       alpha = 1,
       nfolds = 5,
@@ -59,10 +48,7 @@ lasso_suicide <- function(train,           # training set or bootstrap
       score_each_iteration = T,
       seed = 42
     )
-  
-  # model_list[i] <- rf_i
-  # results_list[i] <- h2o.performance(rf_i, as.h2o(validation_frame))
-  
+
   return(list(lasso_i, h2o.performance(lasso_i, as.h2o(validation_frame))))
 }
 
@@ -72,20 +58,21 @@ lasso_suicide <- function(train,           # training set or bootstrap
 
 
 ```{r}
+combined_models_lasso <- vector(mode = "list", length = n)
+combined_performances_lasso <- vector(mode = "list", length = n)
+
 
 for(i in 1:length(straps)){
-  results <- as.data.frame(straps$splits[[i]])%>%
+  results <- as.data.frame(straps$splits[[i]])%>% 
     lasso_suicide()
   
-  print(results)
-  
-  combined_models[i] <- results[1]
-  combined_performances[i] <- results[2]
+  combined_models_lasso[i] <- results[1]
+  combined_performances_lasso[i] <- results[2]
 
 }
 
 #results[1]
-combined_models[1]
-combined_performances[1]
+combined_models_lasso[1]
+combined_performances_lasso[1]
 ```
 
