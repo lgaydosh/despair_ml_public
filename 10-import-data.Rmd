@@ -16,7 +16,7 @@ Note: See bottom of file for description of data
 # Libraries
 ```{r}
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats, h2o)
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample, h2o)
 ```
 
 ```{r}

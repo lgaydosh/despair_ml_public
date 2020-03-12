@@ -34,12 +34,8 @@ library(rsample)
 ```
 
 
-
-
-
-
 ```{r random forest model function}
-# The steps are not in order because the function needed to be created first.
+# Note: The steps are not in order because the function needed to be created first.
 rf_suicide <- function(#training_frame,         
                        #validation_frame，
                       train,           # training set or bootstrap
@@ -125,7 +121,7 @@ test <- splits[[2]]
 
 
 # Step 2
-n =2 # input 
+n = 100 # input 
 straps <- train %>% bootstraps(times = n, strata = "h5mn8")
 
 combined_models <- vector(mode = "list", length = n)
@@ -137,7 +133,7 @@ max_depths <- c(5,10,25)
 ntrees <- c(100,150,200)
 
 
-for(i in 1:length(straps)){
+for(i in 1:length(straps$splits)){
   results <- as.data.frame(straps$splits[[i]])%>%
     rf_suicide()
   
@@ -147,27 +143,93 @@ for(i in 1:length(straps)){
   combined_performances[i] <- results[2]
 
 }
-
-#results[1]
-combined_models[1]
-combined_performances[1]
-
-# results[2]
-# 
-# 
-# str(results)
 ```
-
 
 
 ```{r}
-results[[2]]
+first <- rep(NA,n)
+second <- rep(NA,n)
+third <- rep(NA,n)
+fourth <- rep(NA,n)
+fifth <- rep(NA,n)
+sixth <- rep(NA,n)
+seventh <- rep(NA,n)
+eighth <- rep(NA,n)
+ninth <- rep(NA,n)
+tenth <- rep(NA,n)
+for(i in 1:n){
+  first[i] <- data.frame(h2o.varimp(combined_models[[i]]))[1,1]
+  second[i] <- data.frame(h2o.varimp(combined_models[[i]]))[2,1]
+  third[i] <- data.frame(h2o.varimp(combined_models[[i]]))[3,1]
+  fourth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[4,1]
+  fifth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[5,1]
+  sixth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[6,1]
+  seventh[i] <- data.frame(h2o.varimp(combined_models[[i]]))[7,1]
+  eighth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[8,1]
+  ninth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[9,1]
+  tenth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[10,1]
+} 
+
+as.data.frame(table(first))
+as.data.frame(table(second)) %>% arrange(-Freq)
+as.data.frame(table(third)) %>% arrange(-Freq)
+as.data.frame(table(fourth)) %>% arrange(-Freq)
+as.data.frame(table(fifth)) %>% arrange(-Freq)
+as.data.frame(table(seventh)) %>% arrange(-Freq)
+as.data.frame(table(eighth)) %>% arrange(-Freq)
+as.data.frame(table(ninth)) %>% arrange(-Freq)
+as.data.frame(table(tenth)) %>% arrange(-Freq)
+
+```
+## First Position
+```{r}
+as.data.frame(table(first)) %>% 
+  ggplot(aes(x = first, y = Freq))+
+  geom_col() +
+  coord_flip()
+```
+## Second Position
+```{r}
+as.data.frame(table(second)) %>% 
+  arrange(-Freq) %>% 
+  ggplot(aes(x = reorder(second, Freq), y = Freq))+
+  geom_col() +
+  coord_flip()
+```
+
+## Third Position
+```{r}
+as.data.frame(table(third)) %>% 
+  arrange(-Freq) %>% 
+  ggplot(aes(x = reorder(third, Freq), y = Freq))+
+  geom_col() +
+  coord_flip()
+```
+## Fourth Position
+```{r}
+as.data.frame(table(fourth)) %>% 
+  arrange(-Freq) %>% 
+  ggplot(aes(x = reorder(fourth, Freq), y = Freq))+
+  geom_col() +
+  coord_flip()
+```
+
+## Fifth Position
+
+```{r}
+as.data.frame(table(fifth)) %>% 
+  arrange(-Freq) %>% 
+  ggplot(aes(x = reorder(fifth, Freq), y = Freq))+
+  geom_col() +
+  coord_flip()
 ```
 
 
-
-
-
-
+```{r}
+data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth)))) %>% 
+  ggplot(aes(x = reorder(Var1, Freq), y = Freq))+
+  geom_col() +
+  coord_flip()
+```
 
 
