@@ -35,8 +35,9 @@ change_scale <- function(df, col_name){
 # Change on wave5$H5SS0A
 
 wave5$H5SS0A <- change_scale(wave5,wave5$H5SS0A)
-
-wave5$H5SS0A
+wave5$H5SS0B <- change_scale(wave5,wave5$H5SS0B)
+wave5$H5SS0C <- change_scale(wave5,wave5$H5SS0C)
+wave5$H5SS0D <- change_scale(wave5,wave5$H5SS0D)
 ```
 
 
