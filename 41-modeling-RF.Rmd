@@ -56,7 +56,6 @@ rf_suicide <- function(#training_frame,
   
   # Step 4
   params <- expand.grid(max_depth = seq(7,8), ntrees = seq(200,201))
-  
   model_tune_list <- rep(NA, nrow(params))
   
   for(i in 1:nrow(params)){
@@ -80,7 +79,6 @@ rf_suicide <- function(#training_frame,
   }
   
   best_index <- which(model_tune_list==max(model_tune_list))[1]
-  
   rf_i <- h2o.randomForest(
     training_frame = as.h2o(training_frame),
     x=setdiff(data_subset_list, c("h5mn8")),
@@ -242,7 +240,31 @@ data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, sev
 ```{r}
 final_features <- c("h5ss0b", "h5ss0a", "h5pe1", "h5id6g", "h5ss0d", "h5pe3", "h5pe2", "h5ss0c", "h4pe7", "h1fs17", "h5id6i", "h4pe14", "h4mh27", "h4pe23","h4pe22", "h1fs11", "h4pe31", "h4pe30", "h4mh24", "h3sp8")
 
-tuning_param <- c(8,200)
+
+tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
+model_tune_list <- rep(NA, nrow(tuning_param))
+  
+  for(i in 1:nrow(tuning_param)){
+    rf_i <- h2o.randomForest(
+      training_frame = as.h2o(train),
+      x=final_features,
+      y="h5mn8", 
+      model_id = "rf_covType_v1",
+      max_depth = tuning_param[i,][[1]],
+      ntrees = tuning_param[i,][[2]], 
+      stopping_rounds = 2,
+      nfolds = 5,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 42
+    )
+    
+    result <- h2o.performance(rf_i, as.h2o(train))
+    
+    model_tune_list[i] <- result@metrics$AUC
+  }
+  
+  best_index <- which(model_tune_list==max(model_tune_list))[1]
 
 
  rf_final_model <- h2o.randomForest(
@@ -250,8 +272,8 @@ tuning_param <- c(8,200)
     x=final_features,
     y="h5mn8", 
     model_id = "rf_covType_v1",
-    ntrees = tuning_param[2], 
-    max_depth = tuning_param[1],
+    ntrees = tuning_param[best_index,][[2]], 
+    max_depth = tuning_param[best_index,][[1]],
     stopping_rounds = 2,
     nfolds = 5,
     fold_assignment = "Stratified",
@@ -263,7 +285,12 @@ tuning_param <- c(8,200)
  
 perf <- h2o.performance(rf_final_model, as.h2o(test))
 plot(perf,type = "roc")
-#h2o.confusionMatrix(rf_final_model)
+
 
 ```
+
+```{r}
+h2o.confusionMatrix(rf_final_model)
+```
+
 
