@@ -235,11 +235,11 @@ data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, sev
 ```
 
 
-#final model
-
+## Final Model
+This is created based on the top features extracted from the previous section.
 ```{r}
 final_features <- c("h5ss0b", "h5ss0a", "h5pe1", "h5id6g", "h5ss0d", "h5pe3", "h5pe2", "h5ss0c", "h4pe7", "h1fs17", "h5id6i", "h4pe14", "h4mh27", "h4pe23","h4pe22", "h1fs11", "h4pe31", "h4pe30", "h4mh24", "h3sp8")
-
+## These features will be extracted from the previous section - hard coded for now. 
 
 tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
 model_tune_list <- rep(NA, nrow(tuning_param))
@@ -280,13 +280,22 @@ model_tune_list <- rep(NA, nrow(tuning_param))
     score_each_iteration = T,
     seed = 42
   )
-
+rf_final_model
+```
+```{r}
+h2o.varimp(rf_final_model)
+```
  
  
+ 
+ 
+```{r}
 perf <- h2o.performance(rf_final_model, as.h2o(test))
+perf
+```
+
+```{r}
 plot(perf,type = "roc")
-
-
 ```
 
 ```{r}
