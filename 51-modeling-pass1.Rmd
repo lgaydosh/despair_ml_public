@@ -1,0 +1,77 @@
+---
+title: "51-modeling-pass1"
+output: html_document
+---
+
+The purpose of this document is to create the models used for the exploration in the file 60 series.
+
+```{r load libraries}
+# these are the libraries needed to run the code below
+```
+
+```{r convenience functions}
+
+# This function performs a stratified split
+strat_split <- function(df, strat_var = "h5mn8", train_prop = 0.90, train_out = TRUE){
+  # df: input dataframe
+  # strat_var: variable to stratify on
+  # split_prop_big: proption to split for train/testing
+  # train_out: set to TRUE for training frame, set to FALSE for validation frame
+  # returns: training or testing tibble
+  
+  # create stratified split
+  strat_list <- df %>% 
+    stratified(group = strat_var, size = train_prop, bothSets = TRUE)
+  
+  # data frame to return
+  out <- if_else(train_out == TRUE, strat_list[[1]], strat_list[[2]])
+  
+  # return tibble
+  return(out)
+}
+
+
+
+# Get names of variables for top n predictors of decision tree
+# This should be called in the for loop after building the model on each bootstrap. 
+# Save the result in a list - see example below
+get_top_n_names <- function(model_h2o, top_n){
+  # model_h2o: The h2o model object
+  # top_n: The number of predictors to look at
+  # return: data frame of variable importance
+  
+  # get names for top_n predictors
+  out <- h2o.varimp(model_h2o)[1:top_n,1] %>% 
+    as.data.frame() %>% 
+    mutate_all(as.character)
+  
+  # add row_index
+  out <- out %>% mutate(placement = as.numeric(rownames(out)))
+  
+  # rename the period as variable name
+  names(out) <- c("variable", "placement")
+  
+  # return top_n predictors 
+  return(out)
+}
+
+# Example
+# h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
+```
+
+```{r create splits for training and validating}
+
+# Get training frame
+training_df <- df %>% 
+  strat_split()
+
+# Get validation frame
+validate_df <- df %>% 
+  strat_split(train_out = FALSE)
+```
+
+```{r build model}
+
+```
+
+

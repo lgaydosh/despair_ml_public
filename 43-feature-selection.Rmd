@@ -1,0 +1,51 @@
+---
+title: "43-feature-selection"
+output: html_document
+---
+
+The purpose of this document is to perform feature selection for the models built in the file 50 series. 
+
+```{r load libraries}
+# These are the libraries needed to run code below
+```
+
+Convenience functions are smaller functions you can string together to make bigger functions. Use them liberally.
+```{r convenience functions}
+
+# This function is for subsetting the data by outcome and predictors
+get_outcomes_df <- function(df, outcome = "h5mn8", predictors = predictor_vars){
+  # df: dataframe that has all data in it
+  # outcome: outcome variable of interest
+  # predictor_vars: predictor variables of interest
+  # returns: tibble with only outcome and predictors of interest
+  
+  # create tibble to return
+ out <- df %>%
+   select(outcome, predictor_vars)
+ 
+ # return tibble
+ return(out)
+}
+
+```
+
+This chunk should be where you create the tibbles you plan to use. The big_df in my example should be a data frame with all of your variables and waves. 
+```{r tibbles for different outcomes}
+
+# Tibble for first outcome with all of its predictors
+outcome1_df <- big_df %>% 
+  get_outcomes_df(outcome = "<outcome 1>", 
+                  predictors = "<predictor variables for outcome 1>")
+
+# Tibble for second outcome with all its predictors
+outcome2_df <- big_df %>% 
+  get_outcomes_df(outcome = "<outcome 2>", 
+                  predictors = "<predictor variables for outcome 2>")
+
+# Tibble for third outcome with all its predictors
+outcome3_df <- big_df %>% 
+  get_outcomes_df(outcome = "<outcome 3>", 
+                  predictors = "<predictor variables for outcome 3>")
+```
+
+

@@ -1,0 +1,23 @@
+---
+title: "60-results"
+output: html_document
+---
+
+The purpose of this document is to explore the results of the models built in the 50 series.
+
+```{r load libraries}
+
+```
+
+```{r convenience functions}
+
+```
+
+```{r explore results}
+
+```
+
+```{r explore variable importance}
+
+```
+

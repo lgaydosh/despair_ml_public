@@ -1,0 +1,83 @@
+---
+title: "61-results-pass1"
+output: html_document
+---
+
+The purpose of this document is to explore the results of the models built in the 50 series.
+
+```{r load libraries}
+# These are libraries needed to run the code below
+```
+
+```{r convenience functions}
+
+# This function returns the metric from an h20 model fit
+get_metrics <- function(df, h2o_model){
+  # df: training or testing frame
+  # h2o_model: h2o model fit to use
+  # returns: tibble of metrics
+  
+  h2o_df <- df %>% as.h2o()
+  
+  # calculate result
+  result <- h2o.performance(model = h2o_model, newdata = h2o_df)
+  
+  # get metrics of interest
+  metrics <- tibble(auc = result@metrics$AUC, 
+                    mse = result@metrics$MSE, 
+                    rmse = result@metrics$RMSE,
+                    r2 = result@metrics$r2,
+                    logloss = result@metrics$logloss)
+  
+  # return metric tibble
+  return(metrics)
+                    
+}
+
+
+# Get total value based on placement of variable importance
+get_total_placement <- function(df){
+  # df: a data frame returned from the get_top_n_names function
+  # returns: a data frame grouped by all variables with sum total of placement
+  
+  out <- df %>%
+    bind_rows() %>% 
+    group_by(variable) %>% 
+    summarise(total = sum(placement))
+  
+  # return tibble
+  return(out)
+}
+```
+
+```{r explore results}
+
+# get results for testing frame
+results <- testing_frame %>% 
+  get_metrics(h2o_model = "<h2o model object>")
+```
+
+```{r explore variable importance}
+
+# This will give you a data frame of top predictors
+# Note, the list_from_get_top_n_names_function should be from file 51 where you ran each bootstrapped model through the function. See file 51.
+
+top_preds_outcome <- list_from_get_top_n_names_function %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total / "<number of bootstraps>",
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+
+# Plot top predictors
+top_preds_outcome %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+
+```
+
