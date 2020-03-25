@@ -15,7 +15,7 @@ The purpose of this document is to create the models used for the exploration in
 strat_split <- function(df, strat_var = "h5mn8", train_prop = 0.90, train_out = TRUE){
   # df: input dataframe
   # strat_var: variable to stratify on
-  # split_prop_big: proption to split for train/testing
+  # train_prop: proption to split for train/testing
   # train_out: set to TRUE for training frame, set to FALSE for validation frame
   # returns: training or testing tibble
   
