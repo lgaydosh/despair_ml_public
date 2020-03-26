@@ -53,13 +53,13 @@ get_total_placement <- function(df){
 ```{r explore variable importance for suicide}
 # This will give you a data frame of top predictors
 
-top_preds_suicide <- variable_imps %>%
+top_preds_outcome <- variable_imps %>%
   get_total_placement() %>% 
   mutate(avg_place = total /2,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
 
 # Plot top predictors
-top_preds_suicide %>% 
+top_preds_outcome %>% 
   arrange(desc(total)) %>%
   ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
   geom_col(aes(fill = top_20)) +
@@ -76,7 +76,7 @@ top_preds_suicide %>%
 outcome <- c("h5mn8")
 
 # final features are the top variables extracted from the previous chunk
-final_features <- top_preds_suicide$variable
+final_features <- top_preds_outcome$variable
 tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
 model_tune_list <- rep(NA, nrow(tuning_param))
 
