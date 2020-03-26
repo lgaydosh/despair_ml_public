@@ -60,7 +60,7 @@ rf_model <- function(#training_frame,
     model_tune_list <- rep(NA, nrow(params))
     
     #initialize function parameters for h2o.randomForest
-    outputs <- "h5mn8"
+    outputs <- outcome
     inputs <- setdiff(predictor_list, "aid")
     
     #Training models on all combinations of parameters
