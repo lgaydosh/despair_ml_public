@@ -7,12 +7,19 @@ The purpose of this document is to create the models used for the exploration in
 
 ```{r load libraries}
 # these are the libraries needed to run the code below
+library(data.table)
+library(mlr)
+library(splitstackshape) #stratified function
+library(boot)
+library(tidyverse)
+library(rsample)
 ```
+
 
 ```{r convenience functions}
 
 # This function performs a stratified split
-strat_split <- function(df, strat_var = "h5mn8", train_prop = 0.90, train_out = TRUE){
+strat_split <- function(df, strat_var, split_prop, train_out = T){
   # df: input dataframe
   # strat_var: variable to stratify on
   # train_prop: proption to split for train/testing
@@ -20,16 +27,17 @@ strat_split <- function(df, strat_var = "h5mn8", train_prop = 0.90, train_out = 
   # returns: training or testing tibble
   
   # create stratified split
-  strat_list <- df %>% 
-    stratified(group = strat_var, size = train_prop, bothSets = TRUE)
+  splits <- stratified(df, strat_var, split_prop, bothSets = T)
+  train <- splits[[1]]
+  test <- splits[[2]]
   
-  # data frame to return
-  out <- if_else(train_out == TRUE, strat_list[[1]], strat_list[[2]])
+  # return tibble of training set if train_out == True
+  if(train_out == T){out <- train}
+  else{out<-test}
   
-  # return tibble
+  
   return(out)
 }
-
 
 
 # Get names of variables for top n predictors of decision tree
@@ -59,18 +67,45 @@ get_top_n_names <- function(model_h2o, top_n){
 # h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
 ```
 
-```{r create splits for training and validating}
 
+```{r create splits for training and testing on suicide_df}
 # Get training frame
-training_df <- df %>% 
-  strat_split()
+training_df <- suicide_df %>% 
+  strat_split(strat_var = c("h5mn8"),split_prop = 0.7, train_out = TRUE)
 
-# Get validation frame
-validate_df <- df %>% 
-  strat_split(train_out = FALSE)
+# Get testing frame
+testing_df <- suicide_df %>% 
+  strat_split(c("h5mn8"),0.7, FALSE)
 ```
 
-```{r build model}
+```{r build suicide model}
+
+# n number of bootstraps to run the model on
+n = 2 # 
+
+#create bootstraps list
+straps <- training_df %>%bootstraps(times = n, strata = c("h5mn8"))
+
+#lists to store results and models that are created on each bootstrap
+combined_models <- list()
+combined_performances <- list()
+variable_imps <- list()
+
+# These are the tuning parameters that we decide to tune.
+max_depths <- c(5,10,25)
+ntrees <- c(100,150,200)
+
+# Train the model on each of the bootstraps and get the performance 
+for(i in 1:length(straps$splits)){
+  results <- as.data.frame(straps$splits[[i]])%>%
+    rf_model(outcome = c("h5mn8"))
+  
+  combined_models[i] <- results[1]
+  combined_performances[i] <- results[2]
+  variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
+  
+}
+
 
 ```
 
