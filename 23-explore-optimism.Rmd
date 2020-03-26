@@ -230,7 +230,7 @@ cor_dat %>%
 
 ```
 
-The correlation plot shows that the variables that the 9 variables with high missingness are all positively correlated, some are especially highly correlated (`h5ss0a` and `h5ss0b` has 0.89 correlation, for instance). The way the correlations look seems to imply that sets of questions didn't apply or were overlooked. Further, the `order = "hclust"` option automatically clusters the variables together using heirarchical clustering. This ostensibly reveals two clusters, vertically split at the variable `h5ss0b`. To the right are the variables `h5pe2` and `h5ss0c`, to the left is everything else.
+The correlation plot shows that the 9 variables with high missingness are all positively correlated, some are especially highly correlated (`h5ss0a` and `h5ss0b` have 0.89 correlation, for instance). The way the correlations look seems to imply that sets of questions didn't apply or were overlooked. Further, the `order = "hclust"` option automatically clusters the variables together using heirarchical clustering. This ostensibly reveals two clusters, vertically split at the variable `h5ss0b`. To the right are the variables `h5pe2` and `h5ss0c`, to the left is everything else.
 
 # Explore outcome variables
 
