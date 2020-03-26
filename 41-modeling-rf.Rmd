@@ -61,7 +61,7 @@ rf_model <- function(#training_frame,
     
     #initialize function parameters for h2o.randomForest
     outputs <- "h5mn8"
-    inputs <- setdiff(data_subset_list, outcome)
+    inputs <- setdiff(predictor_list, "aid")
     
     #Training models on all combinations of parameters
     for(i in 1:nrow(params)){
