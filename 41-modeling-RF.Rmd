@@ -31,281 +31,275 @@ library(rsample)
 
 ```{r random forest model function}
 # Note: The steps are not in order because the function needed to be created first.
-rf_suicide <- function(#training_frame,         
+rf_model <- function(#training_frame,         
   #validation_frame，
   train,          # training set or bootstrap
   k = 5,          # ks of k fold
   max_depths_tune = c(100,150,200), # vector of max_depths to test on
-  ntree_tune = c(5,10,25) ) # vector of ntrees to test on
+  ntree_tune = c(5,10,25), # vector of ntrees to test on
+  outcome)
   {     
   
   
-  # create lists to save models and results
-  model_list <- list() 
-  results_list <- list()
+    # create lists to save models and results
+    model_list <- list() 
+    results_list <- list()
+    
   
-
-  # Step 3
-  # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
-  straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
-  
-  # pull out training and validation frames
-  training_frame <- as.h2o(straps_splits[[1]])
-  validation_frame <- as.h2o(straps_splits[[2]])
-  
-  # Step 4
-  # Create all combinations of tuning parameters
-  params <- expand.grid(max_depth = max_depths_tune, ntrees = ntree_tune)
-  model_tune_list <- rep(NA, nrow(params))
-  
-  #initialize function parameters for h2o.randomForest
-  outputs <- "h5mn8"
-  inputs <- setdiff(data_subset_list, c("h5mn8"))
-  
-  #Training models on all combinations of parameters
-  for(i in 1:nrow(params)){
+    # Step 3
+    # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
+    straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
+    
+    # pull out training and validation frames
+    training_frame <- as.h2o(straps_splits[[1]])
+    validation_frame <- as.h2o(straps_splits[[2]])
+    
+    # Step 4
+    # Create all combinations of tuning parameters
+    params <- expand.grid(max_depth = max_depths_tune, ntrees = ntree_tune)
+    model_tune_list <- rep(NA, nrow(params))
+    
+    #initialize function parameters for h2o.randomForest
+    outputs <- "h5mn8"
+    inputs <- setdiff(data_subset_list, outcome)
+    
+    #Training models on all combinations of parameters
+    for(i in 1:nrow(params)){
+      rf_i <- h2o.randomForest(
+        training_frame = training_frame,
+        x= inputs,
+        y= outputs, 
+        model_id = "rf_covType_v1",
+        max_depth = params[i,][[1]],
+        ntrees = params[i,][[2]], 
+        stopping_rounds = 2,
+        nfolds = 5,
+        fold_assignment = "Stratified",
+        score_each_iteration = T,
+        seed = 42
+      )
+      
+      #Test on validation frame
+      result <- h2o.performance(rf_i, as.h2o(validation_frame))
+      
+      #Pulling model metric (AUC)
+      model_tune_list[i] <- result@metrics$AUC
+    }
+    
+    # Pull the index of the tuning parameter which produced the highest AUC
+    best_index <- which(model_tune_list==max(model_tune_list))[1]
+    
+    #Train final model based on best tuning parameters
     rf_i <- h2o.randomForest(
       training_frame = training_frame,
-      x= inputs,
-      y= outputs, 
+      x=inputs,
+      y=outputs, 
       model_id = "rf_covType_v1",
-      max_depth = params[i,][[1]],
-      ntrees = params[i,][[2]], 
+      ntrees = params[best_index,2], 
+      max_depth = params[best_index,1],
       stopping_rounds = 2,
-      nfolds = 5,
+      nfolds = k,
       fold_assignment = "Stratified",
       score_each_iteration = T,
       seed = 42
     )
     
-    #Test on validation frame
-    result <- h2o.performance(rf_i, as.h2o(validation_frame))
     
-    #Pulling model metric (AUC)
-    model_tune_list[i] <- result@metrics$AUC
-  }
-  
-  # Pull the index of the tuning parameter which produced the highest AUC
-  best_index <- which(model_tune_list==max(model_tune_list))[1]
-  
-  #Train final model based on best tuning parameters
-  rf_i <- h2o.randomForest(
-    training_frame = training_frame,
-    x=inputs,
-    y=outputs, 
-    model_id = "rf_covType_v1",
-    ntrees = params[best_index,2], 
-    max_depth = params[best_index,1],
-    stopping_rounds = 2,
-    nfolds = k,
-    fold_assignment = "Stratified",
-    score_each_iteration = T,
-    seed = 42
-  )
-  
-  
-  return(list(rf_i, h2o.performance(rf_i, validation_frame)))
+    return(list(rf_i, h2o.performance(rf_i, validation_frame)))
 }
 
 ```
 
 
-# Creating the subset of the dataset we will be using for the model
-Note:
-1. Have not added age, race and sex/gender information in this subset as of yet. 
-2. Initially creating the model to predict suicidal ideation at wave 5. 
-3. Initially making the decision to remove all NA values in wave 5.
-
-```{r}
-
-# Step 1
-data_subset_list <- setdiff(predictor_list, "aid") %>% append("h5mn8") # list of variables to use 
-data_subsets <- joined_waves[data_subset_list] %>% na.omit() # subsetting the data based on the variables
-splits <- stratified(data_subsets, c("h5mn8"), 0.7, bothSets = T) 
-train <- splits[[1]]
-test <- splits[[2]]
-
-
-# Step 2
-n = 2 # input 
-straps <- train %>% bootstraps(times = n, strata = "h5mn8")
-
-combined_models <- vector(mode = "list", length = n)
-combined_performances <- vector(mode = "list", length = n)
-
-
-# These are the tuning parameters that we decide to tune.
-max_depths <- c(5,10,25)
-ntrees <- c(100,150,200)
-
-
-for(i in 1:length(straps$splits)){
-  results <- as.data.frame(straps$splits[[i]])%>%
-    rf_suicide()
-  
-  print(results)
-  
-  combined_models[i] <- results[1]
-  combined_performances[i] <- results[2]
-  
-}
-combined_models[[1]]
-```
 
 
 ```{r}
-first <- rep(NA,n)
-second <- rep(NA,n)
-third <- rep(NA,n)
-fourth <- rep(NA,n)
-fifth <- rep(NA,n)
-sixth <- rep(NA,n)
-seventh <- rep(NA,n)
-eighth <- rep(NA,n)
-ninth <- rep(NA,n)
-tenth <- rep(NA,n)
-
-
-
-for(i in 1:n){
-  first[i] <- data.frame(h2o.varimp(combined_models[[i]]))[1,1]
-  second[i] <- data.frame(h2o.varimp(combined_models[[i]]))[2,1]
-  third[i] <- data.frame(h2o.varimp(combined_models[[i]]))[3,1]
-  fourth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[4,1]
-  fifth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[5,1]
-  sixth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[6,1]
-  seventh[i] <- data.frame(h2o.varimp(combined_models[[i]]))[7,1]
-  eighth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[8,1]
-  ninth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[9,1]
-  tenth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[10,1]
-} 
-
-as.data.frame(table(first))
-as.data.frame(table(second)) %>% arrange(-Freq)
-as.data.frame(table(third)) %>% arrange(-Freq)
-as.data.frame(table(fourth)) %>% arrange(-Freq)
-as.data.frame(table(fifth)) %>% arrange(-Freq)
-as.data.frame(table(seventh)) %>% arrange(-Freq)
-as.data.frame(table(eighth)) %>% arrange(-Freq)
-as.data.frame(table(ninth)) %>% arrange(-Freq)
-as.data.frame(table(tenth)) %>% arrange(-Freq)
-
-```
-## First Position
-```{r}
-as.data.frame(table(first)) %>% 
-  ggplot(aes(x = first, y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-## Second Position
-```{r}
-as.data.frame(table(second)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(second, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-## Third Position
-```{r}
-as.data.frame(table(third)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(third, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-## Fourth Position
-```{r}
-as.data.frame(table(fourth)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(fourth, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-## Fifth Position
-
-```{r}
-as.data.frame(table(fifth)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(fifth, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-
-```{r}
-data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth)))) %>% 
-  ggplot(aes(x = reorder(Var1, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-
-## Final Model
-This is created based on the top features extracted from the previous section.
-```{r}
-final_features <- c("h5ss0b", "h5ss0a", "h5pe1", "h5id6g", "h5ss0d", "h5pe3", "h5pe2", "h5ss0c", "h4pe7", "h1fs17", "h5id6i", "h4pe14", "h4mh27", "h4pe23","h4pe22", "h1fs11", "h4pe31", "h4pe30", "h4mh24", "h3sp8")
-## These features will be extracted from the previous section - hard coded for now. 
-
-tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
-model_tune_list <- rep(NA, nrow(tuning_param))
-
-for(i in 1:nrow(tuning_param)){
-  rf_i <- h2o.randomForest(
-    training_frame = as.h2o(train),
-    x=final_features,
-    y="h5mn8", 
-    model_id = "rf_covType_v1",
-    max_depth = tuning_param[i,][[1]],
-    ntrees = tuning_param[i,][[2]], 
-    stopping_rounds = 2,
-    nfolds = 5,
-    fold_assignment = "Stratified",
-    score_each_iteration = T,
-    seed = 42
-  )
-  
-  result <- h2o.performance(rf_i, as.h2o(train))
-  
-  model_tune_list[i] <- result@metrics$AUC
-}
-
-best_index <- which(model_tune_list==max(model_tune_list))[1]
-
-
-rf_final_model <- h2o.randomForest(
-  training_frame = as.h2o(train),
-  x=final_features,
-  y="h5mn8", 
-  model_id = "rf_covType_v1",
-  ntrees = tuning_param[best_index,][[2]], 
-  max_depth = tuning_param[best_index,][[1]],
-  stopping_rounds = 2,
-  nfolds = 5,
-  fold_assignment = "Stratified",
-  score_each_iteration = T,
-  seed = 42
-)
-rf_final_model
-```
-
-```{r}
-h2o.varimp(rf_final_model)
-```
-
-```{r}
-perf <- h2o.performance(rf_final_model, as.h2o(test))
-perf
-```
-
-```{r}
-plot(perf,type = "roc")
-```
-
-```{r}
-h2o.confusionMatrix(perf)
+# # Creating the subset of the dataset we will be using for the model
+# #Note:
+# #1. Have not added age, race and sex/gender information in this subset as of yet. 
+# #2. Initially creating the model to predict suicidal ideation at wave 5. 
+# #3. Initially making the decision to remove all NA values in wave 5.
+# # Step 1
+# data_subset_list <- setdiff(predictor_list, "aid") %>% append("h5mn8") # list of variables to use 
+# data_subsets <- joined_waves[data_subset_list] %>% na.omit() # subsetting the data based on the variables
+# splits <- stratified(data_subsets, c("h5mn8"), 0.7, bothSets = T) 
+# train <- splits[[1]]
+# test <- splits[[2]]
+# 
+# 
+# # Step 2
+# n = 2 # input 
+# straps <- train %>% bootstraps(times = n, strata = "h5mn8")
+# 
+# combined_models <- vector(mode = "list", length = n)
+# combined_performances <- vector(mode = "list", length = n)
+# 
+# 
+# # These are the tuning parameters that we decide to tune.
+# max_depths <- c(5,10,25)
+# ntrees <- c(100,150,200)
+# 
+# 
+# for(i in 1:length(straps$splits)){
+#   results <- as.data.frame(straps$splits[[i]])%>%
+#     rf_suicide()
+#   
+#   print(results)
+#   
+#   combined_models[i] <- results[1]
+#   combined_performances[i] <- results[2]
+#   
+# }
+# combined_models[[1]]
+# 
+# typeof(data_subsets)
+# 
+# first <- rep(NA,n)
+# second <- rep(NA,n)
+# third <- rep(NA,n)
+# fourth <- rep(NA,n)
+# fifth <- rep(NA,n)
+# sixth <- rep(NA,n)
+# seventh <- rep(NA,n)
+# eighth <- rep(NA,n)
+# ninth <- rep(NA,n)
+# tenth <- rep(NA,n)
+# 
+# 
+# 
+# for(i in 1:n){
+#   first[i] <- data.frame(h2o.varimp(combined_models[[i]]))[1,1]
+#   second[i] <- data.frame(h2o.varimp(combined_models[[i]]))[2,1]
+#   third[i] <- data.frame(h2o.varimp(combined_models[[i]]))[3,1]
+#   fourth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[4,1]
+#   fifth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[5,1]
+#   sixth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[6,1]
+#   seventh[i] <- data.frame(h2o.varimp(combined_models[[i]]))[7,1]
+#   eighth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[8,1]
+#   ninth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[9,1]
+#   tenth[i] <- data.frame(h2o.varimp(combined_models[[i]]))[10,1]
+# } 
+# 
+# as.data.frame(table(first))
+# as.data.frame(table(second)) %>% arrange(-Freq)
+# as.data.frame(table(third)) %>% arrange(-Freq)
+# as.data.frame(table(fourth)) %>% arrange(-Freq)
+# as.data.frame(table(fifth)) %>% arrange(-Freq)
+# as.data.frame(table(seventh)) %>% arrange(-Freq)
+# as.data.frame(table(eighth)) %>% arrange(-Freq)
+# as.data.frame(table(ninth)) %>% arrange(-Freq)
+# as.data.frame(table(tenth)) %>% arrange(-Freq)
+# 
+# ## First Position
+# 
+# as.data.frame(table(first)) %>% 
+#   ggplot(aes(x = first, y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# ## Second Position
+# 
+# as.data.frame(table(second)) %>% 
+#   arrange(-Freq) %>% 
+#   ggplot(aes(x = reorder(second, Freq), y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# 
+# ## Third Position
+# 
+# as.data.frame(table(third)) %>% 
+#   arrange(-Freq) %>% 
+#   ggplot(aes(x = reorder(third, Freq), y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# ## Fourth Position
+# 
+# as.data.frame(table(fourth)) %>% 
+#   arrange(-Freq) %>% 
+#   ggplot(aes(x = reorder(fourth, Freq), y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# 
+# ## Fifth Position
+# 
+# 
+# as.data.frame(table(fifth)) %>% 
+#   arrange(-Freq) %>% 
+#   ggplot(aes(x = reorder(fifth, Freq), y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# 
+# 
+# 
+# data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth)))) %>% 
+#   ggplot(aes(x = reorder(Var1, Freq), y = Freq))+
+#   geom_col() +
+#   coord_flip()
+# 
+# 
+# 
+# 
+# 
+# 
+# ## Final Model
+# #This is created based on the top features extracted from the previous section.
+# 
+# final_features <- c("h5ss0b", "h5ss0a", "h5pe1", "h5id6g", "h5ss0d", "h5pe3", "h5pe2", "h5ss0c", "h4pe7", "h1fs17", "h5id6i", "h4pe14", "h4mh27", "h4pe23","h4pe22", "h1fs11", "h4pe31", "h4pe30", "h4mh24", "h3sp8")
+# ## These features will be extracted from the previous section - hard coded for now. 
+# 
+# tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
+# model_tune_list <- rep(NA, nrow(tuning_param))
+# 
+# for(i in 1:nrow(tuning_param)){
+#   rf_i <- h2o.randomForest(
+#     training_frame = as.h2o(train),
+#     x=final_features,
+#     y="h5mn8", 
+#     model_id = "rf_covType_v1",
+#     max_depth = tuning_param[i,][[1]],
+#     ntrees = tuning_param[i,][[2]], 
+#     stopping_rounds = 2,
+#     nfolds = 5,
+#     fold_assignment = "Stratified",
+#     score_each_iteration = T,
+#     seed = 42
+#   )
+#   
+#   result <- h2o.performance(rf_i, as.h2o(train))
+#   
+#   model_tune_list[i] <- result@metrics$AUC
+# }
+# 
+# best_index <- which(model_tune_list==max(model_tune_list))[1]
+# 
+# 
+# rf_final_model <- h2o.randomForest(
+#   training_frame = as.h2o(train),
+#   x=final_features,
+#   y="h5mn8", 
+#   model_id = "rf_covType_v1",
+#   ntrees = tuning_param[best_index,][[2]], 
+#   max_depth = tuning_param[best_index,][[1]],
+#   stopping_rounds = 2,
+#   nfolds = 5,
+#   fold_assignment = "Stratified",
+#   score_each_iteration = T,
+#   seed = 42
+# )
+# rf_final_model
+# 
+# h2o.varimp(rf_final_model)
+# 
+# perf <- h2o.performance(rf_final_model, as.h2o(test))
+# perf
+# 
+# plot(perf,type = "roc")
+# 
+# h2o.confusionMatrix(perf)
 ```
 
 

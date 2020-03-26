@@ -31,7 +31,7 @@ get_metrics <- function(df, h2o_model){
   
   # return metric tibble
   return(metrics)
-                    
+  
 }
 
 
@@ -50,21 +50,12 @@ get_total_placement <- function(df){
 }
 ```
 
-```{r explore results}
-
-# get results for testing frame
-results <- testing_frame %>% 
-  get_metrics(h2o_model = "<h2o model object>")
-```
-
-```{r explore variable importance}
-
+```{r explore variable importance for suicide}
 # This will give you a data frame of top predictors
-# Note, the list_from_get_top_n_names_function should be from file 51 where you ran each bootstrapped model through the function. See file 51.
 
-top_preds_outcome <- list_from_get_top_n_names_function %>%
+top_preds_outcome <- variable_imps %>%
   get_total_placement() %>% 
-  mutate(avg_place = total / "<number of bootstraps>",
+  mutate(avg_place = total /2,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
 
 # Plot top predictors
@@ -81,3 +72,54 @@ top_preds_outcome %>%
 
 ```
 
+```{r final random forest model for suicide ideation}
+outcome <- c("h5mn8")
+
+# final features are the top variables extracted from the previous chunk
+final_features <- top_preds_outcome$variable
+tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
+model_tune_list <- rep(NA, nrow(tuning_param))
+
+for(i in 1:nrow(tuning_param)){
+  rf_i <- h2o.randomForest(
+    training_frame = as.h2o(training_df),
+    x=final_features,
+    y= outcome, 
+    model_id = "rf_covType_v1",
+    max_depth = tuning_param[i,][[1]],
+    ntrees = tuning_param[i,][[2]], 
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = "Stratified",
+    score_each_iteration = T,
+    seed = 42
+  )
+  
+  result <- h2o.performance(rf_i, as.h2o(training_df))
+  
+  model_tune_list[i] <- result@metrics$AUC
+}
+
+best_index <- which(model_tune_list==max(model_tune_list))[1]
+
+
+rf_final_model <- h2o.randomForest(
+  training_frame = as.h2o(training_df),
+  x=final_features,
+  y=outcome, 
+  model_id = "rf_covType_v1",
+  ntrees = tuning_param[best_index,][[2]], 
+  max_depth = tuning_param[best_index,][[1]],
+  stopping_rounds = 2,
+  nfolds = 5,
+  fold_assignment = "Stratified",
+  score_each_iteration = T,
+  seed = 42
+)
+```
+
+```{r explore results}
+# get results for testing frame
+results <- testing_df %>% 
+  get_metrics(h2o_model = rf_final_model)
+```

@@ -13,7 +13,7 @@ Convenience functions are smaller functions you can string together to make bigg
 ```{r convenience functions}
 
 # This function is for subsetting the data by outcome and predictors
-get_outcomes_df <- function(df, outcome = "h5mn8", predictors = predictor_vars){
+get_outcomes_df <- function(df, outcome, predictors){
   # df: dataframe that has all data in it
   # outcome: outcome variable of interest
   # predictor_vars: predictor variables of interest
@@ -21,7 +21,7 @@ get_outcomes_df <- function(df, outcome = "h5mn8", predictors = predictor_vars){
   
   # create tibble to return
  out <- df %>%
-   select(outcome, predictor_vars)
+   dplyr::select(outcome, predictors)
  
  # return tibble
  return(out)
@@ -33,17 +33,20 @@ This chunk should be where you create the tibbles you plan to use. The big_df in
 ```{r tibbles for different outcomes}
 
 # Tibble for first outcome with all of its predictors
-outcome1_df <- big_df %>% 
-  get_outcomes_df(outcome = "<outcome 1>", 
-                  predictors = "<predictor variables for outcome 1>")
+suicide_df <- joined_waves %>%
+  get_outcomes_df(outcome = "h5mn8", 
+                  predictors = setdiff(predictor_list, "aid"))
 
+```
+
+```{r}
 # Tibble for second outcome with all its predictors
-outcome2_df <- big_df %>% 
+marijuana_df <- joined_waves %>% 
   get_outcomes_df(outcome = "<outcome 2>", 
                   predictors = "<predictor variables for outcome 2>")
 
 # Tibble for third outcome with all its predictors
-outcome3_df <- big_df %>% 
+alhocol_df <- joined_waves %>% 
   get_outcomes_df(outcome = "<outcome 3>", 
                   predictors = "<predictor variables for outcome 3>")
 ```
