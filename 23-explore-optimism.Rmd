@@ -1,36 +1,41 @@
 ---
 title: "23-explore-optimism"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
 editor_options: 
   chunk_output_type: inline
 ---
 
-#Brief background and purpose
+# Purpose
 
 The purpose of this document is to perform EDA on the optimism outcome variables. Additionally, this is meant to serve primarily as a teaching example for the master's students and help to focus and guide their EDA for refactoring their own code. For the sake of this exploration, we'll focus in on `h4pe7` ("I am always optimistic about my future") after looking generally at missingness in the data. 
 
-The optimism variables are:
-  
-  Wave 4:
-    1. `hpe7` : I'm always optimistic about my future
-    2. `h4pe15`: I hardly ever expect things to go my way
-    3. `h4pe23`: I expect more good things to happen to me than bad
-    4. `h4pe31`: I rarely count on good things happening to me
-    
-  Wave 5:
-    1. `h5pe1`: I'm always optimistic about my future
-    2. `h5pe2`: I hardly ever expect things to go my way
-    3. `h5pe3`: I expect more good things to happen to me than bad
+The optimism variables are: \ 
+   
+  **Wave 4**:\
+    1. `hpe7` : I'm always optimistic about my future \
+    2. `h4pe15`: I hardly ever expect things to go my way \
+    3. `h4pe23`: I expect more good things to happen to me than bad \
+    4. `h4pe31`: I rarely count on good things happening to me \
+    \
+  **Wave 5**:\
+    1. `h5pe1`: I'm always optimistic about my future \
+    2. `h5pe2`: I hardly ever expect things to go my way \
+    3. `h5pe3`: I expect more good things to happen to me than bad \
 
 
-#Libraries and data import
+# Libraries and data import
 
 ```{r load libraries}
 # Load required libraries
-librarian::shelf(tidyverse, haven, DataExplorer, tictoc, janitor)
+librarian::shelf(tidyverse, haven, DataExplorer, tictoc, janitor, quiet = TRUE)
 ```
 
-```{r read in data}
+```{r read in data, cache=TRUE}
 
 # Create path names - note that we only need waves 4 and 5 for exploring optimism
 wave_files <- str_c("/Volumes/gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave"
@@ -45,7 +50,9 @@ wave_data <- wave_files %>%
 toc()
 ```
 
-```{r join data}
+Reading in the data takes approximately 2 minutes.
+
+```{r join data, cache=TRUE}
 # Join data into a single data frame - return all rows from wave 4 and all columns from both
 data_combined <- left_join(wave_data[[1]], 
                            wave_data[[2]], 
@@ -58,9 +65,9 @@ not_joined <- anti_join(wave_data[[1]], wave_data[[2]], by = "AID")
 
 Note, there are 4787 unique AID values from wave 4 that are not present in wave 5. For the sake of this exploration the dropped values will be ignored. 
 
-#Selecting Variables
+# Selecting Variables
 
-```{r vectors of vars to select}
+```{r vectors of vars to select, echo=FALSE}
 
 # From file 10
 
@@ -118,7 +125,7 @@ predictor_list <- c("h4id5j",
          "h5id6g")
 ```
 
-```{r brief exploration of variable sets}
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
 
 # all optimism variables in predictor list
 optimism_list %in% predictor_list
@@ -130,18 +137,17 @@ missing_preds <- setdiff(predictor_list, names(data_combined))
 preds_select <- setdiff(predictor_list, missing_preds)
 ```
 
-
-Note, all optimism variables are already included in the "predictor list" from file 10, so the optimism variables vector is superfluous.
+Note, all optimism variables are already included in the `predictor_list` from file 10, so the optimism variables vector is superfluous.
 
 Additionally, 19 variables are not in wave 4 or 5 (see `missing_preds`).
 
-```{r select variables of interest}
+```{r select variables of interest, warning=FALSE, include=FALSE}
 # Note: preds_select is external vector from above code chunk
 final_data <- data_combined %>%
-  select(aid, preds_select)
+  select(aid, all_of(preds_select))
 ```
 
-#Begin to understand the dataset with introductory plot
+# Begin to understand the dataset with introductory plot
 
 ```{r}
 final_data %>% 
@@ -150,7 +156,7 @@ final_data %>%
 
 The introductory plot shows us that that we need to be careful about using `drop_na()` because that will be dropping approximately 1/3 of all observations. Further, the introductory plot shows that it all outcomes are coded as continuous variables, which will be fine for this exploratory analysis, but because all data is discrete, all outcomes should probably be converted to factors.
 
-#Missing value exploration
+# Missing value exploration
 
 ```{r Explore missing data}
 
@@ -159,7 +165,7 @@ final_data %>%
   plot_missing()
 ```
 
-From the `plot_missing()` we see that there are 9 variables with approximately 30% missingness. How many people have missing values across multiple variables?
+From `plot_missing()` we see that there are 9 variables with approximately 30% missingness. How many people have missing values across multiple variables?
 
 ```{r how many people have missing values across multiple variables}
 # Gain insight into who has these missing values. 
@@ -177,7 +183,7 @@ missing_vars <- missing_counts %>% pull(var)
 
 # Get total missingness by each individual across all variables
 total_missing <- final_data %>% 
-  select(missing_vars) %>% 
+  select(all_of(missing_vars)) %>% 
   rowwise() %>% 
   is.na() %>%
   rowSums()
@@ -197,15 +203,16 @@ final_data %>%
   theme_dark()
 ```
 
-From the barplot we see that just under 5000 people have 9 variables missing, just over 10,000 have no missing values, and fewer than 250 people are missing 1, 2, 3, 4, 5, or 6. Using drop_na() will result in too much missing information without explanation for why approximately 5000 people are missing those variables.
+From the barplot we see that just under 5000 people have 9 variables missing, just over 10,000 have no missing values, and fewer than 250 people are missing 1, 2, 3, 4, 5, or 6. Using `drop_na()` will result in too much missing information without explanation for why approximately 5000 people are missing those variables.
 
-Additional questions possible to answer in iteration:
-  1. Are these variables redundant to each other?
-  2. Do they cluster together? If so, how?
-  3. Are they predictive of each other?
+Additional questions possible to answer in iteration: \
+
+  1. Are these variables redundant to each other? \
+  2. Do they cluster together? If so, how? \
+  3. Are they predictive of each other? \
   4. Are they correlated?
   
-```{r correlation plot among variables with high missingness}
+```{r correlation plot among variables with high missingness, cache=TRUE}
 
 # replace all missing values with 99 for the sake of exploring correlation
 cor_dat <- final_data %>% 
@@ -215,11 +222,15 @@ cor_dat <- final_data %>%
 
 # Correlation plot of missing variables
 cor_dat %>% 
-  corrplot::corrplot(method = "number", type = "upper", order = "hclust", diag = FALSE)
+  corrplot::corrplot(method = "color", 
+                     type = "upper", 
+                     order = "hclust", 
+                     diag = FALSE, 
+                     addCoef.col = "black")
 
 ```
 
-The correlation plot shows that the variables that the 9 variables with high missingness are all positively correlated, some are especially highly correlated (`h5ss0a` and `h5ss0b` has 0.90 correlation, for instance). The way the correlations look seems to imply that sets of questions didn't apply or were overlooked.
+The correlation plot shows that the variables that the 9 variables with high missingness are all positively correlated, some are especially highly correlated (`h5ss0a` and `h5ss0b` has 0.89 correlation, for instance). The way the correlations look seems to imply that sets of questions didn't apply or were overlooked. Further, the `order = "hclust"` option automatically clusters the variables together using heirarchical clustering. This ostensibly reveals two clusters, vertically split at the variable `h5ss0b`. To the right are the variables `h5pe2` and `h5ss0c`, to the left is everything else.
 
 # Explore outcome variables
 
@@ -255,7 +266,7 @@ h5pe3_change_plot <- final_data %>%
 gridExtra::grid.arrange(h5pe1_change_plot, h5pe2_change_plot, h5pe3_change_plot)
 ```
 
-We see that moving from wave 4 to wave 5 there was a scale change. Looking vertically (starting on the X axis and going vertically on the Y), we see that few values change in the extreme. Additionally, regardless of the value of h5pe1 and h5pe3, the values from wave 4 primarily remain below 4. For h5pe2, the the data primarily remain at 5 or below.
+This plot explores the change across the waves 4 and 5 for the same question. The wave 4 outcome is on the y-axis and the wave 5 outcome is on the x-axis. We see that moving from wave 4 to wave 5 there was a scale change. Looking vertically (starting on the X axis and going vertically on the Y), we see that few values change in the extreme. Additionally, regardless of the value of `h5pe1` and `h5pe3`, the values from wave 4 primarily remain below 4. For `h5pe2`, the the data primarily remain at 5 or below.
 
 # Look at predictor variables briefly
 ```{r histograms of predictors and outcomes}
@@ -280,7 +291,7 @@ All predictors have variability - no predictor has only a single observed value.
 Additionally, the distributions going from the wave 4 to wave 5 predictors that are the same (see above under brief background and purpose) appear similar, though many values are missing in the wave 5 predictors.
 
 # Look at correlation of predictor variables with outcome of interest
-```{r correlation funnel for variables most of interest}
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
 # Plot correlation funnel h4pe7 variable. Note, all missing values are dropped.
 final_data %>% 
   select(-aid) %>% 
@@ -289,3 +300,13 @@ final_data %>%
   correlationfunnel::plot_correlation_funnel()
 ```
 
+The correlation funnel above shows us that the most correlated variables with `h4pe7` are `h4pe23` and `h5pe1`, which make sense because they're both questions regarding optimism about the future. At the other end of the spectrum, we see that the least correlated variable is `h4mh18`, "How often was the following true during the past seven days? You were bothered by things that usually don't bother you." The penultimate variable, `h4id5j` appears to have almost identical correlated with `h4mh27` ("How often was the following true during the past seven days? You felt that people disliked you.") and `h4mh23` ("How often was the following true during the past seven days? You felt that you were too tired to do things."), which makes intuitive sense because these questions are dealing with unease and discomfort in the past week. 
+
+Additional questions to ask and explore as needed when iterating:
+
+  1. What does the correlation funnel tell us for the other optimism variables? \
+  2. Are there observations that cluster together? (k-means, heirarchical, pca). \
+  3. How does the outcome change across different clusters / groups? What's the variability? \
+  4. How does heirarchical clustering compare to k-means clustering compare to PCA? \ 
+  
+  <br><br><br><br><br><br>
