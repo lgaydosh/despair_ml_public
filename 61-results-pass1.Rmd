@@ -4,13 +4,11 @@ output: html_document
 ---
 
 The purpose of this document is to explore the results of the models built in the 50 series.
-
 ```{r load libraries}
 # These are libraries needed to run the code below
 ```
 
 ```{r convenience functions}
-
 # This function returns the metric from an h20 model fit
 get_metrics <- function(df, h2o_model){
   # df: training or testing frame
@@ -33,27 +31,12 @@ get_metrics <- function(df, h2o_model){
   return(metrics)
   
 }
-
-
-# Get total value based on placement of variable importance
-get_total_placement <- function(df){
-  # df: a data frame returned from the get_top_n_names function
-  # returns: a data frame grouped by all variables with sum total of placement
-  
-  out <- df %>%
-    bind_rows() %>% 
-    group_by(variable) %>% 
-    summarise(total = sum(placement))
-  
-  # return tibble
-  return(out)
-}
 ```
 
 ```{r explore variable importance for suicide}
 # This will give you a data frame of top predictors
 
-top_preds_outcome <- variable_imps %>%
+top_preds_outcome <- suicide_out[[3]] %>%
   get_total_placement() %>% 
   mutate(avg_place = total /2,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
@@ -77,7 +60,7 @@ outcome <- c("h5mn8")
 
 # final features are the top variables extracted from the previous chunk
 final_features <- top_preds_outcome$variable
-tuning_param <- expand.grid(max_depth = c(7,8,9,10), ntrees = c(100,150,200,250))
+tuning_param <- expand.grid(max_depth = c(7,8,9 ,10), ntrees = c(100,150,200,250))
 model_tune_list <- rep(NA, nrow(tuning_param))
 
 for(i in 1:nrow(tuning_param)){
