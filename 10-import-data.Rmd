@@ -266,7 +266,7 @@ outcome_vars_list <- c("aid","h1su1","h3to130","h4se1","h5mn8", "h1to32","h3to11
 # List of suicidal ideation variables
 # Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
 
-suicidal_id_outcome_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
+suicidal_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
 
 # List of variables to indicate marijuana usage in the last 30 days
 marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
@@ -282,7 +282,7 @@ marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #
 outcome_vars <- joined_waves[which(colnames(joined_waves) %in% outcome_vars_list)] 
 
 # Subset of data with all suicidal ideation variables
-suicidal_id_outcome <- outcome_vars[suicidal_id_outcome_list]
+suicidal_id_outcome <- outcome_vars[suicidal_list]
 
 # Subset of data with all marijuana usage in last 30 days variables                            
 marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
