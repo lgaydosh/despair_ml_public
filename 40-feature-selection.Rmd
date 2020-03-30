@@ -13,7 +13,7 @@ output: html_notebook
 # - look into how feature selection would work for the lasso regression model
 
 
-#Get names of variables for top n predictors of random forest
+# Get names of variables for top n predictors of random forest
 # This should be called in the for loop after building the model on each bootstrap. 
 # Save the result in a list - see example below
 get_top_n_names <- function(model_h2o, top_n){
