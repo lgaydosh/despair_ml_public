@@ -3,8 +3,7 @@ title: "41-modeling-RF"
 output: html_notebook
 ---
 
-The purpose of this document is to build a randomforest that models the outcomes: suicidal ideation, marijuana usage and alcohol abuse. 
-
+The purpose of this document is to build bootstrap training data n number of times and train n different random forest models and extract 
 #Steps Taken
 
 1. Splitting the data. [x]
@@ -30,7 +29,13 @@ library(rsample)
 ```{r random forest model function}
 # This function gets the best features for the random fores by bootstrapping it n number of times
 # Each bootstrapped model is then used to create 
-rf_feature_selection <- function(training_df, n, k = 5, max_depths_tune = c(100,150,200), ntree_tune = c(5,10,25), outcome, top_n){
+rf_feature_selection <- function(training_df, 
+                                 n = 2, 
+                                 k = 5, 
+                                 max_depths_tune = c(100,150,200), 
+                                 ntree_tune = c(5,10,25), 
+                                 outcome, 
+                                 top_n = 20){
   # training_df : training data frame sent in after initial 70-30 split
   # n : n number of bootstrapped
   # k : k folds in cross-validation
@@ -45,7 +50,7 @@ rf_feature_selection <- function(training_df, n, k = 5, max_depths_tune = c(100,
   
   
   # Helper function to create bootstrapped models
-  boot_model <- function(train){  
+  boot_model <- function(train, outcome = outcome, max_depths_tune = max_depths_tune, ntrees_tune = ntree_tune ){  
     # train : bootstrapped training frame sent in to be created a model with
     
     # create lists to save models and results
@@ -125,7 +130,7 @@ rf_feature_selection <- function(training_df, n, k = 5, max_depths_tune = c(100,
   # Train the model on each of the bootstraps and get the performance 
   for(i in 1:length(straps$splits)){
     results <- as.data.frame(straps$splits[[i]])%>%
-      boot_model(outcome = outcome, max_depths = max_depths_tune, ntrees = ntree_tune)
+      boot_model(outcome = outcome, max_depths_tune = max_depths_tune, ntrees_tune = ntree_tune)
     
     combined_models[[i]] <- results[[1]]
     combined_performances[[i]] <- results[[2]]
