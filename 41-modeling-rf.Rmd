@@ -17,8 +17,6 @@ The purpose of this document is to build a randomforest that models the outcomes
 5. Saving all models and the performance metrics into a list. [x]
 6. Evaluation of all model parameters and the stability of those parameters.  
 
-
-
 ```{r load libraries}
 library(data.table)
 library(mlr)
@@ -30,22 +28,30 @@ library(rsample)
 
 
 ```{r random forest model function}
-# Note: The steps are not in order because the function needed to be created first.
-rf_model <- function(#training_frame,         
-  #validation_frame，
-  train,          # training set or bootstrap
-  k = 5,          # ks of k fold
-  max_depths_tune = c(100,150,200), # vector of max_depths to test on
-  ntree_tune = c(5,10,25), # vector of ntrees to test on
-  outcome)
-  {     
+# This function gets the best features for the random fores by bootstrapping it n number of times
+# Each bootstrapped model is then used to create 
+rf_feature_selection <- function(training_df, n, k = 5, max_depths_tune = c(100,150,200), ntree_tune = c(5,10,25), outcome, top_n){
+  # training_df : training data frame sent in after initial 70-30 split
+  # n : n number of bootstrapped
+  # k : k folds in cross-validation
+  # max_depths_tune : tuning parameters to test for the max depth
+  # ntree_tune : tuning parameters to test for number of trees in the random forest
+  # outcome : name of the outcome variable
+  # top_n : top n important variables to be extracted from the models generated
+  # return : a list of three lists: 
+  #          list 1 - all models created
+  #          list 2 - all model performances
+  #          list 3 - all dataframes of variable importances with the top_n variables in it
   
   
+  # Helper function to create bootstrapped models
+  boot_model <- function(train){  
+    # train : bootstrapped training frame sent in to be created a model with
+    
     # create lists to save models and results
     model_list <- list() 
     results_list <- list()
     
-  
     # Step 3
     # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
     straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
@@ -104,8 +110,36 @@ rf_model <- function(#training_frame,
       seed = 42
     )
     
-    
     return(list(rf_i, h2o.performance(rf_i, validation_frame)))
+  }
+  
+  #create bootstraps list
+  straps <- training_df %>%bootstraps(times = n, strata = outcome)
+  
+  #lists to store results and models that are created on each bootstrap
+  combined_models <- list()
+  combined_performances <- list()
+  variable_imps <- list()
+  
+  
+  # Train the model on each of the bootstraps and get the performance 
+  for(i in 1:length(straps$splits)){
+    results <- as.data.frame(straps$splits[[i]])%>%
+      boot_model(outcome = outcome, max_depths = max_depths_tune, ntrees = ntree_tune)
+    
+    combined_models[[i]] <- results[[1]]
+    combined_performances[[i]] <- results[[2]]
+    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
+    
+  }
+  
+  
+  return(list(combined_models, combined_performances, variable_imps))
+  
 }
 
 ```
+
+
+
+
