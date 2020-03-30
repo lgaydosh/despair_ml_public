@@ -102,11 +102,11 @@ get_outcomes_df <- function(df, outcome, predictors){
   # returns: tibble with only outcome and predictors of interest
   
   # create tibble to return
- out <- df %>%
-   dplyr::select(outcome, predictors)
- 
- # return tibble
- return(out)
+  out <- df %>%
+    dplyr::select(outcome, predictors)
+  
+  # return tibble
+  return(out)
 }
 
 
@@ -258,7 +258,7 @@ suicide_df <- joined_waves %>%
   get_outcomes_df(outcome = "h5mn8", 
                   predictors = setdiff(predictor_list, "aid"))
 ```
- 
+
 # Lists of Relevant Outcome Variables
 ```{r lists of relevant outcome variables}
 outcome_vars_list <- c("aid","h1su1","h3to130","h4se1","h5mn8", "h1to32","h3to110","h4to71","h5to21")
