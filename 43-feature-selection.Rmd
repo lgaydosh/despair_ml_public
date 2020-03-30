@@ -29,17 +29,18 @@ get_outcomes_df <- function(df, outcome, predictors){
 
 ```
 
-This chunk should be where you create the tibbles you plan to use. The big_df in my example should be a data frame with all of your variables and waves. 
-```{r tibbles for different outcomes}
+```{r tibble for the suicide outcome}
+
+suicide_w5 <- suicidal_list[5] # suicide indicator from wave 5
 
 # Tibble for first outcome with all of its predictors
 suicide_df <- joined_waves %>%
-  get_outcomes_df(outcome = "h5mn8", 
+  get_outcomes_df(outcome = suicide_w5, 
                   predictors = setdiff(predictor_list, "aid"))
 
 ```
 
-```{r}
+```{r tibbles for different outcomes}
 # Tibble for second outcome with all its predictors
 marijuana_df <- joined_waves %>% 
   get_outcomes_df(outcome = "<outcome 2>", 
