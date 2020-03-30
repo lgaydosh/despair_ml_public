@@ -17,7 +17,6 @@ library(rsample)
 
 
 ```{r convenience functions}
-
 # This function performs a stratified split
 strat_split <- function(df, strat_var, split_prop, train_out = T){
   # df: input dataframe
@@ -34,37 +33,23 @@ strat_split <- function(df, strat_var, split_prop, train_out = T){
   # return tibble of training set if train_out == True
   if(train_out == T){out <- train}
   else{out<-test}
-  
-  
   return(out)
 }
 
-
-# Get names of variables for top n predictors of decision tree
-# This should be called in the for loop after building the model on each bootstrap. 
-# Save the result in a list - see example below
-get_top_n_names <- function(model_h2o, top_n){
-  # model_h2o: The h2o model object
-  # top_n: The number of predictors to look at
-  # return: data frame of variable importance
+# Get total value based on placement of variable importance
+get_total_placement <- function(df){
+  # df: a data frame returned from the get_top_n_names function
+  # returns: a data frame grouped by all variables with sum total of placement
   
-  # get names for top_n predictors
-  out <- h2o.varimp(model_h2o)[1:top_n,1] %>% 
-    as.data.frame() %>% 
-    mutate_all(as.character)
+  out <- df %>%
+    bind_rows() %>% 
+    group_by(variable) %>% 
+    summarise(total = sum(placement))
   
-  # add row_index
-  out <- out %>% mutate(placement = as.numeric(rownames(out)))
-  
-  # rename the period as variable name
-  names(out) <- c("variable", "placement")
-  
-  # return top_n predictors 
+  # return tibble
   return(out)
 }
 
-# Example
-# h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
 ```
 
 
@@ -78,35 +63,11 @@ testing_df <- suicide_df %>%
   strat_split(c("h5mn8"),0.7, FALSE)
 ```
 
-```{r build suicide model}
 
-# n number of bootstraps to run the model on
-n = 2 # 
-
-#create bootstraps list
-straps <- training_df %>%bootstraps(times = n, strata = c("h5mn8"))
-
-#lists to store results and models that are created on each bootstrap
-combined_models <- list()
-combined_performances <- list()
-variable_imps <- list()
-
-# These are the tuning parameters that we decide to tune.
-max_depths <- c(5,10,25)
-ntrees <- c(100,150,200)
-
-# Train the model on each of the bootstraps and get the performance 
-for(i in 1:length(straps$splits)){
-  results <- as.data.frame(straps$splits[[i]])%>%
-    rf_model(outcome = c("h5mn8"))
-  
-  combined_models[i] <- results[1]
-  combined_performances[i] <- results[2]
-  variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
-  
-}
-
-
+```{r test suicide model}
+# suicide_w5 was created earlier - it is the suicide indicator at wave 5
+suicide_out <- training_df %>% 
+  rf_feature_selection(outcome = suicide_w5)
 ```
 
 
