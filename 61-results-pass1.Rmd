@@ -20,12 +20,18 @@ get_metrics <- function(df, h2o_model){
   # calculate result
   result <- h2o.performance(model = h2o_model, newdata = h2o_df)
   
+  # Quick convenience function to check null values
+  # Note, intentionally not using if_else() to avoid strictness of if_else
+  check_null <- function(...) ifelse(is.null(...), NA, ...)
+  
   # get metrics of interest
-  metrics <- tibble(auc = result@metrics$AUC, 
-                    mse = result@metrics$MSE, 
-                    rmse = result@metrics$RMSE,
-                    r2 = result@metrics$r2,
-                    logloss = result@metrics$logloss)
+  metrics <- tibble(auc = check_null(result@metrics$AUC), 
+                    mse = check_null(result@metrics$MSE),
+                    rmse = check_null(result@metrics$RMSE),
+                    r2 = check_null(result@metrics$r2),
+                    logloss = check_null(result@metrics$logloss), 
+                    mean_resid_deviance = check_null(result@metrics$mean_residual_deviance),
+                    mae = check_null(result@metrics$mae))
   
   # return metric tibble
   return(metrics)
