@@ -37,6 +37,45 @@ get_metrics <- function(df, h2o_model){
   return(metrics)
   
 }
+
+get_h2o_metric_set <- function(df, model_list){
+  # df: Training or testing frame
+  # model_list: list of h2o model objects
+  # return: tibble with all applicable metrics for each model tested on df
+
+  # get metric set
+  metric_set <- model_list %>%
+  map_df(get_metrics, df = df) %>% 
+  mutate(model = factor(1:length(model_list))) %>% 
+  select(model, everything())
+   
+  # return metric set
+  return(metric_set)
+}
+
+plot_h2o_metric_set <- function(df, model_list){
+  # df: Training or testing frame
+  # model_list: list of h2o model objects
+  # return: ggplot object (scatterplot) comparing all models across all applicable metrics
+
+  # Get metrics
+  df_metrics <- get_h2o_metric_set(df, model_list)
+  
+  # pivot metrics to put in tidy format and plot
+  df_metrics %>% 
+    pivot_longer(cols = -model,
+                 names_to = "metric",
+                 values_to = "metric_val") %>% 
+    drop_na() %>% 
+    ggplot() +
+    geom_point(aes(x = metric, y = metric_val, color = model), size = 3) +
+    xlab("Metric") +
+    ylab("Metric Value") +
+    ggtitle("Model Comparison Plot") +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_text(size = 11))
+}
 ```
 
 ```{r explore variable importance for suicide}
@@ -112,3 +151,10 @@ rf_final_model <- h2o.randomForest(
 results <- testing_df %>% 
   get_metrics(h2o_model = rf_final_model)
 ```
+
+```{r plot model results}
+# Plot model results
+# Note, to actually make the comparison, just include the glm_model in the list
+plot_h2o_metric_set(df = testing_df, model_list = list(rf_final_model))
+```
+
