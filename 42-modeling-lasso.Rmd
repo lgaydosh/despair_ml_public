@@ -2,56 +2,67 @@
 title: "42-modeling-Lasso"
 output: html_notebook
 ---
-Run 41-modeling-RF first
 
-```{r lasso logistic model function}  
-lasso_suicide <- function(#training_frame,         
-                          #validation_frame，
-                          train,
-                          k = 5,               # ks of k fold
-                          lambda_tune){     
 
-  lambda_tune = seq(0.1,1,0.1)
+
+
+```{r lasso logistic model function}
+# This function gets the best features for the random forest by bootstrapping it n number of times
+# Each bootstrapped model is then used to create 
+lasso_feature_selection <- function(training_df,
+                                    n = 2,
+                                    k = 5,
+                                    lambda_tune = seq(0,0.02,0.002),
+                                    outcome,
+                                    top_n = 20){     
+  
+boot_model <- function(train, outcome = outcome, lambda_tune = lambda_tune){  
+
+  straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
+  
+  training_frame <- as.h2o(straps_splits[[1]])
+  validation_frame <- as.h2o(straps_splits[[2]])
   
   
-  straps_splits <- stratified(as.data.frame(train), c("h5mn8"), 0.9, bothSets = T) 
-  # 
-   training_frame <- straps_splits[[1]]
-   validation_frame <- straps_splits[[2]]
-  
-  
-  
-  
-  params <- as.matrix(lambda_tune)
-  
+  params <- expand.grid(lambda = lambda_tune)
   model_tune_list <- rep(NA, nrow(params))
+  
+  outputs <- outcome
+  inputs <- setdiff(predictor_list, "aid")
   
   for(i in 1:nrow(params)){
     lasso_i <- h2o.glm(
-      x=setdiff(data_subset_list, c("h5mn8")),
-      y="h5mn8", 
-      training_frame = as.h2o(training_frame),
-      lambda = params[i],
+      x=inputs,
+      y=outputs, 
+      training_frame = training_frame,
+      lambda = params[i,][[1]],
       family = "binomial",
-      alpha = 1,
+      alpha = 1, # for Lasso
       nfolds = 5,
       fold_assignment = "Stratified",
       score_each_iteration = T,
       seed = 42
     )
+    
     
     result <- h2o.performance(lasso_i, as.h2o(validation_frame))
     
     model_tune_list[i] <- result@metrics$AUC
+    
+    
   }
+  
+
   
   best_index <- which(model_tune_list==max(model_tune_list))[1]
   
+  
+  
   lasso_i <- h2o.glm(
-      x=setdiff(data_subset_list, c("h5mn8")),
-      y="h5mn8", 
-      training_frame = as.h2o(training_frame),
-      lambda = params[i],
+      x=inputs,
+      y=outputs, 
+      training_frame = training_frame,
+      lambda = params[best_index,1],
       family = "binomial",
       alpha = 1,
       nfolds = 5,
@@ -59,116 +70,67 @@ lasso_suicide <- function(#training_frame,
       score_each_iteration = T,
       seed = 42
     )
-
-  return(list(lasso_i, h2o.performance(lasso_i, as.h2o(validation_frame))))
-}
-
-```
-
-
-
-
-```{r}
-combined_models_lasso <- vector(mode = "list", length = n)
-combined_performances_lasso <- vector(mode = "list", length = n)
-
-
-for(i in 1:length(straps)){
-  results <- as.data.frame(straps$splits[[i]])%>% 
-    lasso_suicide()
+  return(list(lasso_i, h2o.performance(lasso_i, validation_frame)))
   
-  combined_models_lasso[i] <- results[1]
-  combined_performances_lasso[i] <- results[2]
+  
+}
+  
+
+
+  # importance variable selection:
+  get_top_n_names <- function(model_h2o, top_n){
+
+  n_coeff = abs(model_h2o@model$coefficients)    #################Not sure which to use
+  
+  VI = abs(n_coeff[-length(n_coeff)])
+  glm.VI = VI[order(VI,decreasing=T)] 
+  
+  out <- glm.VI[1:top_n,1] %>% 
+    as.data.frame() %>% 
+    mutate_all(as.character)
+  out <- out %>% mutate(placement = as.numeric(rownames(out)))
+  
+  # rename the period as variable name
+  names(out) <- c("variable", "placement")
+  
+  # return top_n predictors 
+  return(out)
+  }
+
+
+
+  straps <- training_df %>%bootstraps(times = n, strata = outcome)
+  
+  #lists to store results and models that are created on each bootstrap
+  combined_models <- list()
+  combined_performances <- list()
+  variable_imps <- list()
+  
+  
+  # Train the model on each of the bootstraps and get the performance 
+  for(i in 1:length(straps$splits)){
+    results <- as.data.frame(straps$splits[[i]])%>%
+      boot_model(outcome = outcome, lambda_tune = lambda_tune)
+    
+    combined_models[[i]] <- results[[1]]
+    #print(str(results[[1]])) #############
+    combined_performances[[i]] <- results[[2]]
+    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)  
+    
+  }
+  
+  
+  
+  
+  return(list(combined_models, combined_performances, variable_imps))   ############
+
+
 
 }
-
-#results[1]
-combined_models_lasso[1]
-combined_performances_lasso[1]
-```
-
-```{r}
-first <- rep(NA,n)
-second <- rep(NA,n)
-third <- rep(NA,n)
-fourth <- rep(NA,n)
-fifth <- rep(NA,n)
-sixth <- rep(NA,n)
-seventh <- rep(NA,n)
-eighth <- rep(NA,n)
-ninth <- rep(NA,n)
-tenth <- rep(NA,n)
-for(i in 1:n){
-  first[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[1,1]
-  second[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[2,1]
-  third[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[3,1]
-  fourth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[4,1]
-  fifth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[5,1]
-  sixth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[6,1]
-  seventh[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[7,1]
-  eighth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[8,1]
-  ninth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[9,1]
-  tenth[i] <- data.frame(h2o.varimp(combined_models_lasso[[i]]))[10,1]
-} 
-
-as.data.frame(table(first))
-as.data.frame(table(second)) %>% arrange(-Freq)
-as.data.frame(table(third)) %>% arrange(-Freq)
-as.data.frame(table(fourth)) %>% arrange(-Freq)
-as.data.frame(table(fifth)) %>% arrange(-Freq)
-as.data.frame(table(seventh)) %>% arrange(-Freq)
-as.data.frame(table(eighth)) %>% arrange(-Freq)
-as.data.frame(table(ninth)) %>% arrange(-Freq)
-as.data.frame(table(tenth)) %>% arrange(-Freq)
-
-```
-## First Position
-```{r}
-as.data.frame(table(first)) %>% 
-  ggplot(aes(x = first, y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-## Second Position
-```{r}
-as.data.frame(table(second)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(second, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-## Third Position
-```{r}
-as.data.frame(table(third)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(third, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-## Fourth Position
-```{r}
-as.data.frame(table(fourth)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(fourth, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
-```
-
-## Fifth Position
-
-```{r}
-as.data.frame(table(fifth)) %>% 
-  arrange(-Freq) %>% 
-  ggplot(aes(x = reorder(fifth, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
 ```
 
 
 ```{r}
-data.frame(table(as.matrix(rbind(first, second, third, fourth, fifth, sixth, seventh, eighth, ninth, tenth)))) %>% 
-  ggplot(aes(x = reorder(Var1, Freq), y = Freq))+
-  geom_col() +
-  coord_flip()
+lasso_feature_selection(training_df,outcome = "h5mn8")
 ```
+
