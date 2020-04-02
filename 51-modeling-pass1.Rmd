@@ -67,7 +67,7 @@ testing_df <- suicide_df %>%
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 suicide_out <- training_df %>% 
-  rf_feature_selection(outcome = suicide_w5)
+  model_feature_selection("RF",outcome = suicide_w5)
 ```
 
 

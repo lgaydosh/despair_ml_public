@@ -4,15 +4,158 @@ output: html_notebook
 ---
 
 ```{r load libraries}
-
+library(data.table)
+library(mlr)
+library(splitstackshape) #stratified function
+library(boot)
+library(tidyverse)
+library(rsample)
 ```
 
 ```{r convenience functions}
 
-# @Marina - create combined function here which lets you choose which model to implement
-# - look into how feature selection would work for the lasso regression model
+##################
+  # Helper function to create bootstrapped models for RF models
+  boot_model_rf <- function(train, outcome, max_depths_tune, ntrees_tune, nfolds){  
+    # train : bootstrapped training frame sent in to be created a model with
+
+    # Step 3
+    # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
+    straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
+    
+    # pull out training and validation frames
+    training_frame <- as.h2o(straps_splits[[1]])
+    validation_frame <- as.h2o(straps_splits[[2]])
+    
+    # Step 4
+    # Create all combinations of tuning parameters
+    params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune)
+    model_tune_list <- rep(NA, nrow(params))
+    
+    #initialize function parameters for h2o.randomForest
+    outputs <- outcome
+    inputs <- setdiff(predictor_list, "aid")
+    
+    #Training models on all combinations of parameters
+    for(i in 1:nrow(params)){
+      rf_i <- h2o.randomForest(
+        training_frame = training_frame,
+        x= inputs,
+        y= outputs, 
+        model_id = "rf_covType_v1",
+        max_depth = params[i,][[1]],
+        ntrees = params[i,][[2]], 
+        stopping_rounds = 2,
+        nfolds = nfolds,
+        fold_assignment = "Stratified",
+        score_each_iteration = T,
+        seed = 42
+      )
+      
+      #Test on validation frame
+      result <- h2o.performance(rf_i, as.h2o(validation_frame))
+      
+      #Pulling model metric (AUC)
+      model_tune_list[i] <- result@metrics$AUC
+    }
+    
+    # Pull the index of the tuning parameter which produced the highest AUC
+    best_index <- which(model_tune_list==max(model_tune_list))[1]
+    
+  
+    
+    #Train final model based on best tuning parameters
+    rf_i <- h2o.randomForest(
+      training_frame = training_frame,
+      x=inputs,
+      y=outputs, 
+      model_id = "rf_covType_v1",
+      ntrees = params[best_index,2], 
+      max_depth = params[best_index,1],
+      stopping_rounds = 2,
+      nfolds = nfolds,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 42
+    )
+    
+    return(list(rf_i, h2o.performance(rf_i, validation_frame)))
+  }
 
 
+
+#####################
+# Helper function to create bootstrapped models for Lasso 
+boot_model_lasso <- function(train, outcome, lambda_tune, nfolds){  
+  # train : bootstrapped training frame sent in to be created a model with
+
+    
+  # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
+  straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
+  
+  training_frame <- as.h2o(straps_splits[[1]])
+  validation_frame <- as.h2o(straps_splits[[2]])
+  
+  # Create all combinations of tuning parameters
+  params <- expand.grid(lambda = lambda_tune)
+  model_tune_list <- rep(NA, nrow(params))
+  
+  #initialize function parameters for h2o.randomForest
+  outputs <- outcome
+  inputs <- setdiff(predictor_list, "aid")
+  
+  #Training models on all combinations of parameters
+  for(i in 1:nrow(params)){
+    lasso_i <- h2o.glm(
+      training_frame = training_frame,
+      x=inputs,
+      y=outputs,
+      model_id = NULL,
+      lambda = params[i,][[1]],
+      family = "binomial",
+      alpha = 1, # for Lasso
+      nfolds = nfolds,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 42
+    )
+    
+    #Test on validation frame
+    result <- h2o.performance(lasso_i, as.h2o(validation_frame))
+    
+    #Pulling model metric (AUC)
+    model_tune_list[i] <- result@metrics$AUC
+    
+    
+  }
+  
+
+  # Pull the index of the tuning parameter which produced the highest AUC
+  best_index <- which(model_tune_list==max(model_tune_list))[1]
+  
+  
+  #Train final model based on best tuning parameters
+  lasso_i <- h2o.glm(
+      x=inputs,
+      y=outputs, 
+      training_frame = training_frame,
+      lambda = params[best_index,1],
+      family = "binomial",
+      alpha = 1,
+      nfolds = nfolds,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 42
+    )
+  return(list(lasso_i, h2o.performance(lasso_i, validation_frame)))
+  
+  
+}
+
+
+
+
+############################
 # Get names of variables for top n predictors of random forest
 # This should be called in the for loop after building the model on each bootstrap. 
 # Save the result in a list - see example below
@@ -39,6 +182,66 @@ get_top_n_names <- function(model_h2o, top_n){
 # Example
 # h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
 
+
+
+
+
+
+######################
+# Convinient function to select from either "RF" or "Lasso"; seperate functions can be found in 41-modeling-rf and 42-modeling-lasso.
+## return : a list of three lists: 
+  #          list 1 - all models created
+  #          list 2 - all model performances
+  #          list 3 - all dataframes of variable importances with the top_n
+model_feature_selection <- function(training_df,
+                                    model_type,
+                                    n = 2,
+                                    k = 5,
+                                    lambda_tune = seq(0,0.02,0.002),
+                                    max_depths_tune = c(100,150,200), 
+                                    ntree_tune = c(5,10,25), 
+                                    outcome,
+                                    top_n = 20){
+  # training_df : training data frame sent in after initial 70-30 split
+  # n : n number of bootstrapped
+  # k : k folds in cross-validation
+  # lambda_tune : tuning parameters to test for lambda
+  # max_depths_tune : tuning parameters to test for the max depth
+  # ntree_tune : tuning parameters to test for number of trees in the random forest
+  # outcome : name of the outcome variable
+  # top_n : top n important variables to be extracted from the models generated
+  
+  straps <- training_df %>%bootstraps(times = n, strata = outcome)
+
+  combined_models <- list()
+  combined_performances <- list()
+  variable_imps <- list()
+  
+  
+  for(i in 1:length(straps$splits)){
+    
+    if (model_type == "RF"){
+      results <- as.data.frame(straps$splits[[i]])%>%
+      boot_model_rf(outcome = outcome, max_depths_tune = max_depths_tune, ntrees_tune = ntree_tune, nfolds = k)
+    }
+    else if (model_type == "Lasso"){
+      results <- as.data.frame(straps$splits[[i]])%>%
+      boot_model_lasso(outcome = outcome, lambda_tune = lambda_tune, nfolds = k)      
+    }
+    combined_models[[i]] <- results[[1]]
+    combined_performances[[i]] <- results[[2]]
+    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
+    
+  }
+  
+  
+  
+  
+  return(list(combined_models, combined_performances, variable_imps))
+
+
+
+}
 
 ```
 
