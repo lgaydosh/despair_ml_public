@@ -1,0 +1,308 @@
+---
+title: "10-import-data"
+output:
+  html_document: 
+    code_folding: show
+    theme: cosmo
+    toc: yes
+    toc_depth: 5
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+Note: See bottom of file for description of data
+
+# Libraries
+```{r load libraries }
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample, h2o)
+```
+
+```{r initializing h2o }
+h2o.init(nthreads = -1,
+         max_mem_size = "8G")  
+```
+
+```{r loading all wave files }
+# while running this make sure all the waves are being loaded into the dataset
+files <- choose.files(default = "", caption = "Select files",
+                      multi = TRUE, filters = Filters,
+                      index = nrow(Filters))
+
+for (i in 1:length(files)){
+  assign(paste0('wave',i), read_xpt(files[i] ))
+}
+```
+
+Run below chunk to import the constructed variable for race
+```{r loading race (constructed) variable }
+race_file <- choose.files(default = "", caption = "Select files",
+                          multi = TRUE, filters = Filters,
+                          index = nrow(Filters))
+race <- read_xpt(race_file) %>% clean_names()
+```
+
+# Joined Wave Data
+
+1. Skipping wave 2
+2. Keeping only the observations that are present in all waves 1,3,4, and 5.
+3. Doing a full join because of issues with factoring and creating the right number of labels for the variables. This will be used to later to filter after we have created the data subsets.
+4. Construction of age variable at each wave
+[Interview Completion Date](https://www.cpc.unc.edu/projects/addhealth/documentation/ace/tool/variablecollection?VariableCollectionId=2416) 
+- variables IYEARX, IMONTHX, IDAYX 
+- where X is the number of the wave (e.g. 1,3,4,5)
+
+[Date of Birth](https://www.cpc.unc.edu/projects/addhealth/documentation/ace/tool/variablecollection?VariableCollectionId=2) 
+- variables h1gi1m - month, h1gi1y - year
+
+```{r convenience functions}
+# This function will be used to join all the waves together. Potential option to join all waves together. 
+# Note functionality to convert variables into factors - very hacky - may need to be fixed and/or talked about
+join_waves <- function(wave1,wave2,wave3,wave4,wave5, inner = T){
+  # wave1-wave5 : all the wave files loaded from the previous chunks
+  # inner : If True, returns the inner join of all waves - subjects that were present in all waves, else returns an outer join
+  # return : Inner or outer join of all waves
+  
+  all_wave_sbjs <- intersect(intersect(intersect(wave1$AID, wave3$AID), wave4$AID), wave5$AID)
+  
+  joined_waves <-  wave1 %>%
+    #inner_join(wave2, by = "AID") %>%
+    full_join(wave3, by = "AID") %>%
+    full_join(wave4, by = "AID") %>%
+    full_join(wave5, by = "AID") %>% 
+    clean_names() %>% 
+    mutate_at(vars(starts_with("h")|starts_with("r")|starts_with("m")), as.factor) %>% # Subject to change, this is under the assumption that essentially all the variables we are working with will be starting with 'h', 'r' or 'm'
+    filter(aid %in% all_wave_sbjs, inner == T)
+}
+
+
+# This function will be used to add age and race demographic into the data
+add_demographics <- function(df){
+  # df : joined waves input
+  # return : new data frame with race and age information at each wave. 
+  #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
+  # race info consists of three variables - mulrace1, race1, race1rul
+  df %>% 
+    mutate(birth_in_months = (as.double(paste("19",h1gi1y,sep=""))*12 )+ as.double(h1gi1m)) %>% 
+    mutate(age_w1 = floor((((as.double(paste("19",iyear,sep=""))*12 )+imonth) - birth_in_months)/12) ) %>% 
+    mutate(age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12)) %>% 
+    mutate(age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12)) %>% 
+    mutate(age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
+    left_join(race, by ="aid") %>% 
+    dplyr::select(-one_of(c('birth_in_months'))) 
+}
+
+
+# This function is for subsetting the data by outcome and predictors
+get_outcomes_df <- function(df, outcome, predictors){
+  # df: dataframe that has all data in it
+  # outcome: outcome variable of interest
+  # predictor_vars: predictor variables of interest
+  # returns: tibble with only outcome and predictors of interest
+  
+  # create tibble to return
+  out <- df %>%
+    dplyr::select(outcome, predictors)
+  
+  # return tibble
+  return(out)
+}
+
+
+# Function to Check Existence of Variable in Data
+# Use this function to check if a certain variable exists in a given. 
+var_in_df <- function(df, varname){
+  # df : dataframe to check in
+  # varname : varaible to check for
+  # return : Bool indicatind if the variable exists in the dataframe or not
+  any(colnames(df) == varname)
+}
+## Examples of Usage : joined_waves %>% var_in("h4id5j")
+
+
+# Function to check the counts by categories in the variables
+count_response_by_variable <- function(df, ...){
+  # df : dataframe where the variable exists
+  # ... : variable you want to check the counts of - sent in as a string
+  df %>% group_by_(...) %>% summarise(n = n())
+}
+
+# Example of usage
+# Tibble for first outcome with all of its predictors
+# suicide_df <- joined_waves %>%
+#   get_outcomes_df(outcome = "h5mn8", 
+#                   predictors = setdiff(predictor_list, "aid"))
+
+
+```
+
+
+```{r join waves and add demographics}
+joined_waves <- join_waves(wave1,wave2,wave3,wave4,wave5, inner = T) %>% 
+  add_demographics()
+```
+
+
+
+# Lists of Relevant Predictor Variables
+These will be later used to create subsets of the data. 
+```{r vector lists of relevant predictor variables}
+predictor_list <- c(
+                    "h1fs1", "h1fs3", "h1fs4", "h1fs5", "h1fs15", "h1fs7", "h1fs6","h1fs11", "h1fs16", "h1fs17",
+                    "h3sp5", "h3sp6", "h3sp7", "h3sp8", "h3sp9", "h3sp10", "h3sp11", "h3sp12", "h3sp13",
+                    "h4id5j", "h4pe6", "h4pe14", "h4pe22", "h4pe30", "h4pe7", "h4pe15", "h4pe23", "h4pe31", "h4mh18",
+                    "h4mh19", "h4mh20", "h4mh21", "h4mh22", "h4mh23", "h4mh24", "h4mh25", "h4mh26", "h4mh27",
+                    "h5id6i", "h5pe1", "h5pe2", "h5pe3",
+                    "h5ss0a", "h5ss0b", "h5ss0c", "h5ss0d", "h4id5h", "h5id6g"
+                    )
+```
+
+
+# List of all Anxiety Variables - Note only wave 4 is being looked at for Anxiety measures
+anxiety_list <- c("aid","h4pe6","h4pe14","h4pe22","h4pe30")
+diagnosed_anxiety_list <- c("aid","h4id5j","h5id6i")
+
+
+# List of all Optimism Variables
+optimism_list <- c("aid", "h4pe7","h5pe1","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3")
+
+
+# List of all Depression Variables
+depression_list <- c("aid",
+                     "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
+                     "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
+                     "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
+                     "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d")                                          # Wave 5 ~ 5 vars
+
+diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
+
+# List of all Demographic Variable
+demographic_list <- c("aid","race1","mulrace1","race1rul","bio_sex")
+
+# Note: Look into importing these later
+#c4var009,
+#c4var010,
+#c4var002
+```
+
+
+# Different Tibbles of Interest
+Using the lists generated in the above chunk to create subsets of data to work with. 
+Using `get_outcomes` function 
+
+```{r predictor subsets of interests}
+# Note these subsets are used for easy visualization in the later parts
+
+#Subset of data with all predictor variables
+predictor_vars <- joined_waves[which(colnames(joined_waves) %in% predictor_list)] 
+#Subset of data with all anxiety variables
+anxiety <- predictor_vars[anxiety_list]
+diag_anxiety <- predictor_vars[diagnosed_anxiety_list]
+
+#Subset of all depression variables
+depression<- predictor_vars[depression_list]
+diag_depression <- predictor_vars[diagnosed_depression_list]
+
+#Subset of data with all optimism variables
+optimism <- predictor_vars[optimism_list]
+
+```
+
+```{r tibbles of interest for training}
+# Tibble for first outcome with all of its predictors
+suicide_df <- joined_waves %>%
+  get_outcomes_df(outcome = "h5mn8", 
+                  predictors = setdiff(predictor_list, "aid"))
+```
+
+# Lists of Relevant Outcome Variables
+```{r lists of relevant outcome variables}
+outcome_vars_list <- c("aid","h1su1","h3to130","h4se1","h5mn8", "h1to32","h3to110","h4to71","h5to21")
+
+# List of suicidal ideation variables
+# Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
+
+suicidal_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
+
+# List of variables to indicate marijuana usage in the last 30 days
+marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
+
+```
+
+
+# Outcome Variables Across All Waves Except Wave 2
+```{r outcome subsets of intetest}
+# Note these subsets are used for easy visualization in the later parts
+
+# Subset of all combined outcomes
+outcome_vars <- joined_waves[which(colnames(joined_waves) %in% outcome_vars_list)] 
+
+# Subset of data with all suicidal ideation variables
+suicidal_id_outcome <- outcome_vars[suicidal_list]
+
+# Subset of data with all marijuana usage in last 30 days variables                            
+marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
+```
+
+
+# Data
+
+All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
+
+## Data Description/ Fields
+
+Measures used:
+
+Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
+
+*	Suicidal ideation at Wave IV
+
++	Thoughts of suicide in the last 12 months
+
+*	Alcohol use at Wave IV
+
++	Days drank alcohol in last 12 months
+
++	Drinks each time in last 12 months
+
++	Days drank alcohol in last 3 months
+
++	Drinks each time in last 3 months
+
++	Occasions of more than 4/5 drinks in a row in last 12 months
+
++	DSM4 lifetime diagnosis of alcohol abuse or dependence
+
+*	Marijuana use at Wave IV
+
++	Times used in last 30 days
+
++	DSM4 lifetime diagnosis of cannabis abuse or dependence
+
+*	Illegal drug use at Wave IV
+
++	DSM4 lifetime diagnosis of other drug use/dependence
+
++	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
+
+*	Prescription drug abuse at Wave IV
+
++	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
+
+Key independent variables: measures of cognitive and emotional despair
+
+*	Cognitive despair
+
++	Wave III personality measures of self-consciousness, persistence
+
+*	Emotional despair
+
++	Wave I – III CES-D items
+
+Other variables: 
+
+*	Demographic controls for age at Wave IV, sex, race/ethnicity
+
+*	Wave I – III predictors
+

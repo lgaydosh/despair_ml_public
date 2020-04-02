@@ -11,72 +11,281 @@ editor_options:
   chunk_output_type: inline
 ---
 
-Note: See bottom of file for description of data
+# Importing data
+The purpose of this file is to contain all of the functions required or used to generate the dataset which will be investigated.  What follows are functions to import and generate data, and also pre-constructed lists for a simplified selection of features from the dataset.
 
-# Libraries
 ```{r load libraries }
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample, h2o)
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman"))
+  install.packages("pacman")
+
+# Load libraries required for this file
+pacman::p_load(tidyverse, janitor, haven)
 ```
 
-```{r initializing h2o }
-h2o.init(nthreads = -1,
-         max_mem_size = "8G")  
-```
+## Public helper functions
+These functions are helpers in case you need to know something about your dataframe more than what is provided in the general loading/joining interface.  Use as desired!
 
-```{r loading all wave files }
-# while running this make sure all the waves are being loaded into the dataset
-files <- choose.files(default = "", caption = "Select files",
-                      multi = TRUE, filters = Filters,
-                      index = nrow(Filters))
-
-for (i in 1:length(files)){
-  assign(paste0('wave',i), read_xpt(files[i] ))
+```{r generate unique list of vars from df}
+# Return all unique values of var_name in data frames
+get_unique_varnames <- function(df_list, var_name='aid'){
+  # df_list : list of dataframes
+  # var_name: variable of interest.  Expected in all lowercase letters
+  # returns: list of distinct values of variable of interest across list of dataframes
+  if(length(df_list)==0)
+    stop("You didn't pass in any dataframes!")
+  
+  # Get list of var_names
+  var_list <- df_list %>%
+              bind_rows() %>%
+              select(var_name)
+  
+  # Return the unique ones
+  return (distinct(var_list))
 }
 ```
 
-Run below chunk to import the constructed variable for race
-```{r loading race (constructed) variable }
-race_file <- choose.files(default = "", caption = "Select files",
-                          multi = TRUE, filters = Filters,
-                          index = nrow(Filters))
-race <- read_xpt(race_file) %>% clean_names()
+```{r check variable existence}
+# Function to Check Existence of Variable in Data
+# Use this function to check if a certain variable exists in a given. 
+var_in_df <- function(df, varname){
+  # df : dataframe to check in
+  # varname : varaible to check for
+  # return : Bool indicatind if the variable exists in the dataframe or not
+  any(colnames(df) == varname)
+}
+## Examples of Usage : joined_waves %>% var_in("h4id5j")
 ```
 
-# Joined Wave Data
-
-1. Skipping wave 2
-2. Keeping only the observations that are present in all waves 1,3,4, and 5.
-3. Doing a full join because of issues with factoring and creating the right number of labels for the variables. This will be used to later to filter after we have created the data subsets.
-4. Construction of age variable at each wave
-[Interview Completion Date](https://www.cpc.unc.edu/projects/addhealth/documentation/ace/tool/variablecollection?VariableCollectionId=2416) 
-- variables IYEARX, IMONTHX, IDAYX 
-- where X is the number of the wave (e.g. 1,3,4,5)
-
-[Date of Birth](https://www.cpc.unc.edu/projects/addhealth/documentation/ace/tool/variablecollection?VariableCollectionId=2) 
-- variables h1gi1m - month, h1gi1y - year
-
-```{r convenience functions}
-# This function will be used to join all the waves together. Potential option to join all waves together. 
-# Note functionality to convert variables into factors - very hacky - may need to be fixed and/or talked about
-join_waves <- function(wave1,wave2,wave3,wave4,wave5, inner = T){
-  # wave1-wave5 : all the wave files loaded from the previous chunks
-  # inner : If True, returns the inner join of all waves - subjects that were present in all waves, else returns an outer join
-  # return : Inner or outer join of all waves
-  
-  all_wave_sbjs <- intersect(intersect(intersect(wave1$AID, wave3$AID), wave4$AID), wave5$AID)
-  
-  joined_waves <-  wave1 %>%
-    #inner_join(wave2, by = "AID") %>%
-    full_join(wave3, by = "AID") %>%
-    full_join(wave4, by = "AID") %>%
-    full_join(wave5, by = "AID") %>% 
-    clean_names() %>% 
-    mutate_at(vars(starts_with("h")|starts_with("r")|starts_with("m")), as.factor) %>% # Subject to change, this is under the assumption that essentially all the variables we are working with will be starting with 'h', 'r' or 'm'
-    filter(aid %in% all_wave_sbjs, inner == T)
+```{r count responses by variable of interest}
+# Function to check the counts by categories in the variables
+count_response_by_variable <- function(df, ...){
+  # df : dataframe where the variable exists
+  # ... : variable you want to check the counts of - sent in as a string
+  df %>%
+    group_by_(...) %>% 
+    summarise(n = n())
 }
 
+# Example of usage
+# Tibble for first outcome with all of its predictors
+# suicide_df <- joined_waves %>%
+#   get_outcomes_df(outcome = "h5mn8", 
+#                   predictors = setdiff(predictor_list, "aid"))
+```
 
+## Private helper functions
+These helper functions are used within the publicly available functions.  Usage of these functions directly should be avoided.
+
+## Public functions for loading data
+These functions provide the overall functionality for loading a single file, multiple wave files, or multiple files in general using the dialog chooser.  Keep in mind that you can only use the dialog chooser on windows.  Use all functions as desired!
+
+```{r load single file}
+# This helper loads a single file given a full filepath f_path;
+
+load_file <- function(f_path, use_clean_names = TRUE) {
+  # f_path : filepath of AddHealth xpt file
+  # returns: tibble of read data
+  
+  # Read the data
+  read_data <- read_xpt(f_path)
+  
+  # Figure out what kind of data it is (currently race or a wave file)
+  f_name = basename(f_path)
+  
+  # If it's wave data, extract the wave number and append it to the end of the dataframe.  Otherwise, read as normal.
+  # We need to think through the consequences of this action.
+  # if (str_extract(f_name, 'wave') == 'wave') {
+  #   
+  #   wave_no = parse_number(f_name)
+  #   
+  #   read_data <- read_data %>%
+  #     mutate(wave_no = wave_no)
+  # }
+  
+    # If you want clean names
+  if(use_clean_names){
+  read_data <- read_data %>%
+              clean_names()
+  }
+  
+  return(read_data)
+}
+```
+
+```{r load using file chooser}
+# This function allows choosing of files from a file chooser; returns a list containing the files.  Only available for Windows.
+
+load_using_chooser <- function(use_clean_names = TRUE) {
+  # use_clean_names: boolean of whether to fix column names
+  # returns: list of tibbles of read data
+  
+  # Generate useful error for users not on Windows
+  if(.Platform$OS.type != 'windows')
+    stop(str_c("Sorry, this functionality isn't available on ", .Platform$OS.type))
+  
+  # Generate file chooser so wave or other data can be selected via GUI
+  files <- choose.files(
+    default = "",
+    caption = "Select files",
+    multi = TRUE,
+    filters = Filters,
+    index = nrow(Filters)
+  )
+  
+  # Load data; returned as list of tibbles
+  file_data <- files %>%
+              map(load_file, use_clean_names)
+  
+  return(file_data)
+}
+```
+
+```{r load all wave files easily}
+# This function allows loading of files from a set location based on the waves of interest.
+
+load_waves <- function(wave_no_list, use_clean_names = TRUE, filebase='~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth'){
+  # wave_no_list : list of waves you want to load
+  # use_clean_names: boolean of whether to fix (e.g., lowercase) column names
+  # filebase : custom filepath for your local filesystem if needed; directly precedes .../Gaydosh/Core Files/...
+  # returns: list of tibbles of wave files
+  
+  # Default file ending
+  file_end = '/Gaydosh/Core Files/In Home Interview Files/wave'
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
+  
+  # Generate wave file list
+  files <- str_c(filepath, wave_no_list, ".xpt")
+  
+  # Load data; returned as lists
+  file_data <- files %>%
+              map(load_file, use_clean_names)
+  
+  return(file_data)
+}
+```
+
+## Public functions for joining data and selection of data
+These functions allow for joining data using different types of joins, and also allow for subsets of the data to be selected based on the input features
+TODO:  We may need to think about what happens with the suffix - how will repeated variables (although we don't have that problem) be renamed?
+TODO:  If you have names that are repeated, this will not work correctly because the variables will have repeated names (e.g., `h1fs1.x`) which won't match `h1fs1`.
+TODO:  `get_working_dataset` requires assistance in determining how we can figure out which variables are factors without the codebook; note that somehow the `mutate_at` statement doesn't work in its current formulation (using | bars instead of commas) on ACCRE...
+
+```{r perform join of data in an expedited way}
+#This function returns the dataset with the selected predictors based on your join strategy.  However, with this function, you cannot easily retrieve the rows you left out without another join.
+
+get_working_dataset_exp <- function(df_list, feature_list = NULL, join_type = 'inner', by='aid'){
+  # df_list : list of dataframes
+  # feature_list : list of desired features.  If null, select all features.
+  # join_type : type of join you'd like to perform
+  # by: key on which the join should be performed
+  # returns: full joined tibble with selected features
+  
+  # Obtain correct join type based on inputs
+  if(join_type=='inner')
+    jtype <- inner_join
+  else if(join_type=='left')
+    jtype <- left_join
+  else if(join_type=='right')
+    jytpe <- right_join
+  else if(join_type=='full')
+    jtype <- full_join
+  else{
+    stop(str_c('Join type', by, 'is not supported.', sep=' '))
+  }
+  
+  # Do the join
+  ds <- reduce(df_list, jtype, by=by)
+  
+  # Remedy null feature list if null
+  if (is.null(feature_list)){
+    feature_list = colnames(ds)
+  }
+  
+  # Make sure all values in feature list are in the column names
+  missing_features <- setdiff(feature_list, colnames(ds))
+  
+  if(length(missing_features) != 0){
+    stop('The following features are missing in the set of dataframes you passed in: ', str_c(missing_features, collapse=', '))
+  }
+  
+  # Fix factor issues and select features
+  ds <- ds %>% 
+    mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as.factor) %>%
+    select(feature_list)
+  
+  return(ds)
+}
+
+```
+
+This function has the same problems as `get_working_dataset_exp`.  However, this function may end up being more useful depending on the file format that we decide to save the fully joined data in (if we can).  The reading of the remote file is still TODO.
+TODO: Something is strange with my mutate_at function; it can only work with commas and not bars.
+
+```{r perform join of data}
+# This functions generates the data by starting with an outright full join of the data
+
+get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = 'inner', by='aid', load_join=FALSE){
+  # df_list : list of dataframes
+  # feature_list : list of desired features.  If null, select all features.
+  # join_type : type of join you'd like to perform
+  # by: key on which the join should be performed
+  # load_join: if true, the fully joined data will be loaded (TODO)
+  # returns: full joined tibble with selected features
+  
+  # Do the full join
+  if(load_join){
+    # Here, we want to load the joined data from file if possible and contractually acceptable.
+  }
+  else
+    ds <- reduce(df_list, full_join, by=by)
+  
+  # Extract AIDs from each df
+  aid_lists <- map(df_list, ~ select(., 'aid'))
+  
+  # Obtain correct join type based on inputs
+  if(join_type=='inner')
+    aids <- reduce(aid_lists, intersect)
+  else if(join_type=='left')
+    aids <- reduce(aid_lists[1], union)
+  else if(join_type=='right')
+    aids <- reduce(aid_lists[len(aid_list)], union)
+  else if(join_type=='full')
+    aids <- reduce(aid_lists, union)
+  else{
+    stop(str_c('Join type', by, 'is not supported.', sep=' '))
+  }
+  
+  # Filter out aids
+  ds <- ds %>%
+    filter(aid %in% aids$aid)
+  
+  # Remedy null feature list if null
+  if (is.null(feature_list)){
+    feature_list = colnames(ds)
+  }
+  
+  # Make sure all values in feature list are in the column names
+  missing_features <- setdiff(feature_list, colnames(ds))
+  
+  if(length(missing_features) != 0){
+    stop('The following features are missing in the set of dataframes you passed in: ', str_c(missing_features, collapse=', '))
+  }
+  
+  # Fix factor issues and select features
+  ds <- ds %>% 
+    mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as.factor) %>%
+    select(feature_list)
+  
+  return(ds)
+}
+
+```
+
+TODO: We need to make some decisions about how demographic data will likely be included in the generated data.  Where are these variables included in the variable lists and how can we most intuitively integrate them into our data loading?
+```{r}
 # This function will be used to add age and race demographic into the data
 add_demographics <- function(df){
   # df : joined waves input
@@ -92,136 +301,35 @@ add_demographics <- function(df){
     left_join(race, by ="aid") %>% 
     dplyr::select(-one_of(c('birth_in_months'))) 
 }
-
-
-# This function is for subsetting the data by outcome and predictors
-get_outcomes_df <- function(df, outcome, predictors){
-  # df: dataframe that has all data in it
-  # outcome: outcome variable of interest
-  # predictor_vars: predictor variables of interest
-  # returns: tibble with only outcome and predictors of interest
-  
-  # create tibble to return
-  out <- df %>%
-    dplyr::select(outcome, predictors)
-  
-  # return tibble
-  return(out)
-}
-
-
-# Function to Check Existence of Variable in Data
-# Use this function to check if a certain variable exists in a given. 
-var_in_df <- function(df, varname){
-  # df : dataframe to check in
-  # varname : varaible to check for
-  # return : Bool indicatind if the variable exists in the dataframe or not
-  any(colnames(df) == varname)
-}
-## Examples of Usage : joined_waves %>% var_in("h4id5j")
-
-
-# Function to check the counts by categories in the variables
-count_response_by_variable <- function(df, ...){
-  # df : dataframe where the variable exists
-  # ... : variable you want to check the counts of - sent in as a string
-  df %>% group_by_(...) %>% summarise(n = n())
-}
-
-# Example of usage
-# Tibble for first outcome with all of its predictors
-# suicide_df <- joined_waves %>%
-#   get_outcomes_df(outcome = "h5mn8", 
-#                   predictors = setdiff(predictor_list, "aid"))
-
-
 ```
 
+## Lists of Selected Predictor Variables
+The following are some lists of predictor variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
 
-```{r join waves and add demographics}
-joined_waves <- join_waves(wave1,wave2,wave3,wave4,wave5, inner = T) %>% 
-  add_demographics()
-```
-
-
-
-# Lists of Relevant Predictor Variables
-
-These will be later used to create subsets of the data. 
-```{r vector lists of relevant predictor variables}
-# List of all the predictor variables. 
-
-predictor_list <- c("aid", 
-                    "h4id5j",
-                    "h4pe6",
-                    "h4pe14",
-                    "h4pe22",
-                    "h4pe30",
-                    "h4pe7",
-                    "h4pe15",
-                    "h4pe23",
-                    "h4pe31",
-                    "h5id6i",
-                    "h5pe1",
-                    "h5pe2",
-                    "h5pe3",
-                    "h1fs1",
-                    "h3sp5",
-                    "h4mh18",
-                    "h1fs3",
-                    "h3sp6",
-                    "h4mh19",
-                    "h5ss0a",
-                    "h1fs4",
-                    "h3sp7",
-                    "h4mh20",
-                    "h1fs5",
-                    "h3sp8",
-                    "h4mh21",
-                    "h1fs6",
-                    "h3sp9",
-                    "h4mh22",
-                    "h5ss0b",
-                    "h1fs7",	
-                    "h3sp10",
-                    "h4mh23",
-                    "h1fs11",
-                    "h4mh24",
-                    "h5ss0c",
-                    "h1fs15",
-                    "h3sp11",
-                    "h4mh25",
-                    "h1fs16",
-                    "h3sp12",
-                    "h4mh26",
-                    "h5ss0d",
-                    "h1fs17",
-                    "h3sp13",
-                    "h4mh27",
-                    "h4id5h",
-                    "h5id6g")
-
-
+```{r lists of predictors for easy study}
 # List of all Anxiety Variables - Note only wave 4 is being looked at for Anxiety measures
-anxiety_list <- c("aid","h4pe6","h4pe14","h4pe22","h4pe30")
-diagnosed_anxiety_list <- c("aid","h4id5j","h5id6i")
+anxiety_list <- c("h4pe6","h4pe14","h4pe22","h4pe30")
+diagnosed_anxiety_list <- c("h4id5j","h5id6i")
 
 
 # List of all Optimism Variables
-optimism_list <- c("aid", "h4pe7","h5pe1","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3")
+optimism_list <- c("h4pe7","h5pe1","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3")
 
 
 # List of all Depression Variables
-depression_list <- c("aid",
+depression_list <- c(
                      "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
                      "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
                      "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
                      "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d")                                          # Wave 5 ~ 5 vars
 
-diagnosed_depression_list <- c("aid","h4id5h","h5id6g")
+diagnosed_depression_list <- c("h4id5h","h5id6g")
 
 # List of all Demographic Variable
-demographic_list <- c("aid","race1","mulrace1","race1rul","bio_sex")
+demographic_list <- c("race1","mulrace1","race1rul","bio_sex")
+
+# Total predictor variable list
+predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list)
 
 # Note: Look into importing these later
 #c4var009,
@@ -229,123 +337,17 @@ demographic_list <- c("aid","race1","mulrace1","race1rul","bio_sex")
 #c4var002
 ```
 
-
-# Different Tibbles of Interest
-Using the lists generated in the above chunk to create subsets of data to work with. 
-Using `get_outcomes` function 
-
-```{r predictor subsets of interests}
-# Note these subsets are used for easy visualization in the later parts
-
-#Subset of data with all predictor variables
-predictor_vars <- joined_waves[which(colnames(joined_waves) %in% predictor_list)] 
-#Subset of data with all anxiety variables
-anxiety <- predictor_vars[anxiety_list]
-diag_anxiety <- predictor_vars[diagnosed_anxiety_list]
-
-#Subset of all depression variables
-depression<- predictor_vars[depression_list]
-diag_depression <- predictor_vars[diagnosed_depression_list]
-
-#Subset of data with all optimism variables
-optimism <- predictor_vars[optimism_list]
-
-```
-
-```{r tibbles of interest for training}
-# Tibble for first outcome with all of its predictors
-suicide_df <- joined_waves %>%
-  get_outcomes_df(outcome = "h5mn8", 
-                  predictors = setdiff(predictor_list, "aid"))
-```
-
-# Lists of Relevant Outcome Variables
-```{r lists of relevant outcome variables}
-outcome_vars_list <- c("aid","h1su1","h3to130","h4se1","h5mn8", "h1to32","h3to110","h4to71","h5to21")
+# Lists of Selected Outcome Variables
+The following are some lists of outcome variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
+```{r lists of outcomes for easy study}
 
 # List of suicidal ideation variables
 # Question Text: During the past 12 months, have you ever seriously thought about committing suicide?
-
-suicidal_list <- c("aid","h1su1","h3to130","h4se1","h5mn8")
+suicidal_list <- c("h1su1","h3to130","h4se1","h5mn8")
 
 # List of variables to indicate marijuana usage in the last 30 days
-marijuana_outcome_use30_list <- c("aid", "h1to32","h3to110","h4to71","h5to21") #During the past 30 days, on how many days did you use marijuana?
+#During the past 30 days, on how many days did you use marijuana?
+marijuana_outcome_use30_list <- c("h1to32","h3to110","h4to71","h5to21") 
 
-```
-
-
-# Outcome Variables Across All Waves Except Wave 2
-```{r outcome subsets of intetest}
-# Note these subsets are used for easy visualization in the later parts
-
-# Subset of all combined outcomes
-outcome_vars <- joined_waves[which(colnames(joined_waves) %in% outcome_vars_list)] 
-
-# Subset of data with all suicidal ideation variables
-suicidal_id_outcome <- outcome_vars[suicidal_list]
-
-# Subset of data with all marijuana usage in last 30 days variables                            
-marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
-```
-
-
-# Data
-
-All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes.
-
-## Data Description/ Fields
-
-Measures used:
-
-Dependent variables: diseases of despair, including suicidal ideation, heavy/problem drinking, drug use, DSM-IV criteria for alcohol, marijuana, and other drug abuse and dependence
-
-*	Suicidal ideation at Wave IV
-
-+	Thoughts of suicide in the last 12 months
-
-*	Alcohol use at Wave IV
-
-+	Days drank alcohol in last 12 months
-
-+	Drinks each time in last 12 months
-
-+	Days drank alcohol in last 3 months
-
-+	Drinks each time in last 3 months
-
-+	Occasions of more than 4/5 drinks in a row in last 12 months
-
-+	DSM4 lifetime diagnosis of alcohol abuse or dependence
-
-*	Marijuana use at Wave IV
-
-+	Times used in last 30 days
-
-+	DSM4 lifetime diagnosis of cannabis abuse or dependence
-
-*	Illegal drug use at Wave IV
-
-+	DSM4 lifetime diagnosis of other drug use/dependence
-
-+	Lifetime use of cocaine, crystal meth, heroin, other illegal drugs (separately)
-
-*	Prescription drug abuse at Wave IV
-
-+	Lifetime use of sedatives, tranquilizers, stimulants, painkillers (separately)
-
-Key independent variables: measures of cognitive and emotional despair
-
-*	Cognitive despair
-
-+	Wave III personality measures of self-consciousness, persistence
-
-*	Emotional despair
-
-+	Wave I – III CES-D items
-
-Other variables: 
-
-*	Demographic controls for age at Wave IV, sex, race/ethnicity
-
-*	Wave I – III predictors
-
+# Total outcome variable list
+outcome_vars_list <- c(suicidal_list, marijuana_outcome_use30_list)
