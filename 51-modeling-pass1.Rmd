@@ -37,12 +37,12 @@ strat_split <- function(df, strat_var, split_prop, train_out = T){
 }
 
 # Get total value based on placement of variable importance
-get_total_placement <- function(df){
-  # df: a data frame returned from the get_top_n_names function
+get_total_placement <- function(list){
+  # list: a list of data frames returned from the get_top_n_names function
   # returns: a data frame grouped by all variables with sum total of placement
   
-  out <- df %>%
-    bind_rows() %>% 
+  out <- list %>%
+    purrr::reduce(rbind) %>% 
     group_by(variable) %>% 
     summarise(total = sum(placement))
   
@@ -52,7 +52,8 @@ get_total_placement <- function(df){
 
 ```
 
-
+### Random forest model implementation to predict suicidal ideation
+Testing the functions by training a random forest model 
 ```{r create splits for training and testing on suicide_df}
 # Get training frame
 training_df <- suicide_df %>% 
@@ -66,8 +67,116 @@ testing_df <- suicide_df %>%
 
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
+
+n = 5 # number of bootstraps
+
 suicide_out <- training_df %>% 
-  model_feature_selection("RF",outcome = suicide_w5)
+  model_feature_selection("RF",outcome = suicide_w5, n = 5)
 ```
+
+
+
+```{r explore variable importance for suicide}
+# This will give you a data frame of top predictors
+
+top_preds_outcome <- suicide_out[[3]] %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total /n,
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+
+# Plot top predictors
+top_preds_outcome %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+
+
+
+top_preds_outcome %>% 
+  arrange(avg_place)
+```
+
+```{r create new df based on top features}
+#subsetting the suicide df based on the top 20 features
+final_rf_df <- suicide_df %>% 
+  get_outcomes_df(suicide_w5, top_preds_outcome$variable)
+
+```
+
+
+```{r hyperparamter tuning for different spans of hyperparameters}
+
+outcome <- suicide_w5
+max_depths_tune <- seq(1,30,2)
+ntrees_tune <- seq(50, 300, 25)
+min_rows_tune <- seq(10,500,40)
+
+# 80-20 split to create a validation frame
+straps_splits <- stratified(as.data.frame(final_rf_df), outcome, 0.8, bothSets = T) 
+
+# pull out training and validation frames
+training_frame <- as.h2o(straps_splits[[1]])
+validation_frame <- as.h2o(straps_splits[[2]])
+
+# Create all combinations of tuning parameters
+params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune, min_rows = min_rows_tune)
+model_tune_list <- rep(NA, nrow(params))
+
+#initialize function parameters for h2o.randomForest
+outputs <- outcome
+inputs <- setdiff(names(final_rf_df), outcome)
+
+#Training models on all combinations of parameters
+for(i in 1:nrow(params)){
+  rf_i <- h2o.randomForest(
+    training_frame = training_frame,
+    x= inputs,
+    y= outputs, 
+    model_id = "rf_covType_v1",
+    max_depth = params[i,][[1]],
+    ntrees = params[i,][[2]],
+    min_rows = params[i,][[3]],
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = "Stratified",
+    score_each_iteration = T,
+    seed = 42
+  )
+  
+  #Test on validation frame
+  result <- h2o.performance(rf_i, as.h2o(validation_frame))
+  
+  #Pulling model metric (AUC)
+  model_tune_list[i] <- result@metrics$AUC
+}
+
+# Pull the index of the tuning parameter which produced the highest AUC
+best_index <- which(model_tune_list==max(model_tune_list))[1]
+
+```
+
+```{r}
+rf_final_model <- h2o.randomForest(
+  training_frame = as.h2o(training_df),
+  x= inputs,
+  y= outputs,
+  model_id = "rf_covType_v1",
+  max_depth = params[best_index,][[1]],
+  ntrees = params[best_index,][[2]], 
+  min_rows = params[best_index,][[3]],
+  stopping_rounds = 2,
+  nfolds = 5,
+  fold_assignment = "Stratified",
+  score_each_iteration = T,
+  seed = 42
+)
+```
+
 
 
