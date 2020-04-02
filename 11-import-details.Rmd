@@ -156,8 +156,6 @@ predictor_list <- c(
                     "h5id6i", "h5pe1", "h5pe2", "h5pe3",
                     "h5ss0a", "h5ss0b", "h5ss0c", "h5ss0d", "h4id5h", "h5id6g"
                     )
-```
-
 
 # List of all Anxiety Variables - Note only wave 4 is being looked at for Anxiety measures
 anxiety_list <- c("aid","h4pe6","h4pe14","h4pe22","h4pe30")
