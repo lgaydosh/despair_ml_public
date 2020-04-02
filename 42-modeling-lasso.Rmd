@@ -3,102 +3,31 @@ title: "42-modeling-Lasso"
 output: html_notebook
 ---
 
-
+The purpose of this document is to build bootstrap training data n number of times and train n different lasso models and extract
+Steps taken the same with random forest
 
 
 ```{r lasso logistic model function}
-# This function gets the best features for the random forest by bootstrapping it n number of times
-# Each bootstrapped model is then used to create 
 lasso_feature_selection <- function(training_df,
                                     n = 2,
                                     k = 5,
                                     lambda_tune = seq(0,0.02,0.002),
                                     outcome,
-                                    top_n = 20){     
-  
-boot_model <- function(train, outcome = outcome, lambda_tune = lambda_tune){  
-
-  straps_splits <- stratified(as.data.frame(train), outcome, 0.9, bothSets = T) 
-  
-  training_frame <- as.h2o(straps_splits[[1]])
-  validation_frame <- as.h2o(straps_splits[[2]])
-  
-  
-  params <- expand.grid(lambda = lambda_tune)
-  model_tune_list <- rep(NA, nrow(params))
-  
-  outputs <- outcome
-  inputs <- setdiff(predictor_list, "aid")
-  
-  for(i in 1:nrow(params)){
-    lasso_i <- h2o.glm(
-      x=inputs,
-      y=outputs, 
-      training_frame = training_frame,
-      lambda = params[i,][[1]],
-      family = "binomial",
-      alpha = 1, # for Lasso
-      nfolds = 5,
-      fold_assignment = "Stratified",
-      score_each_iteration = T,
-      seed = 42
-    )
-    
-    
-    result <- h2o.performance(lasso_i, as.h2o(validation_frame))
-    
-    model_tune_list[i] <- result@metrics$AUC
-    
-    
-  }
-  
+                                    top_n = 20){
+  # training_df : training data frame sent in after initial 70-30 split
+  # n : n number of bootstrapped
+  # k : k folds in cross-validation
+  # lambda_tune : tuning parameters to test for lambda
+  # outcome : name of the outcome variable
+  # top_n : top n important variables to be extracted from the models generated
+  # return : a list of three lists: 
+  #          list 1 - all models created
+  #          list 2 - all model performances
+  #          list 3 - all dataframes of variable importances with the top_n variables in it
 
   
-  best_index <- which(model_tune_list==max(model_tune_list))[1]
-  
-  
-  
-  lasso_i <- h2o.glm(
-      x=inputs,
-      y=outputs, 
-      training_frame = training_frame,
-      lambda = params[best_index,1],
-      family = "binomial",
-      alpha = 1,
-      nfolds = 5,
-      fold_assignment = "Stratified",
-      score_each_iteration = T,
-      seed = 42
-    )
-  return(list(lasso_i, h2o.performance(lasso_i, validation_frame)))
-  
-  
-}
-  
 
-
-  # importance variable selection:
-  get_top_n_names <- function(model_h2o, top_n){
-
-  n_coeff = abs(model_h2o@model$coefficients)    #################Not sure which to use
-  
-  VI = abs(n_coeff[-length(n_coeff)])
-  glm.VI = VI[order(VI,decreasing=T)] 
-  
-  out <- glm.VI[1:top_n,1] %>% 
-    as.data.frame() %>% 
-    mutate_all(as.character)
-  out <- out %>% mutate(placement = as.numeric(rownames(out)))
-  
-  # rename the period as variable name
-  names(out) <- c("variable", "placement")
-  
-  # return top_n predictors 
-  return(out)
-  }
-
-
-
+  #create bootstraps list
   straps <- training_df %>%bootstraps(times = n, strata = outcome)
   
   #lists to store results and models that are created on each bootstrap
@@ -110,19 +39,18 @@ boot_model <- function(train, outcome = outcome, lambda_tune = lambda_tune){
   # Train the model on each of the bootstraps and get the performance 
   for(i in 1:length(straps$splits)){
     results <- as.data.frame(straps$splits[[i]])%>%
-      boot_model(outcome = outcome, lambda_tune = lambda_tune)
+      boot_model_lasso(outcome = outcome, lambda_tune = lambda_tune, nfolds = k)
     
     combined_models[[i]] <- results[[1]]
-    #print(str(results[[1]])) #############
     combined_performances[[i]] <- results[[2]]
-    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)  
+    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
     
   }
   
   
   
   
-  return(list(combined_models, combined_performances, variable_imps))   ############
+  return(list(combined_models, combined_performances, variable_imps))
 
 
 
