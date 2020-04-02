@@ -5,11 +5,6 @@ output: html_document
 
 The purpose of this document is to perform feature selection for the models built in the file 50 series. 
 
-```{r load libraries}
-# These are the libraries needed to run code below
-```
-
-Convenience functions are smaller functions you can string together to make bigger functions. Use them liberally.
 ```{r convenience functions}
 
 # This function is for subsetting the data by outcome and predictors
@@ -36,7 +31,7 @@ suicide_w5 <- suicidal_list[5] # suicide indicator from wave 5
 # Tibble for first outcome with all of its predictors
 suicide_df <- joined_waves %>%
   get_outcomes_df(outcome = suicide_w5, 
-                  predictors = setdiff(predictor_list, "aid"))
+                  predictors = setdiff(predictor_list, c("aid", "age_w4","age_w3","age_w1")))
 
 ```
 
