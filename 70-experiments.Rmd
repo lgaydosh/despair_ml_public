@@ -7,6 +7,11 @@ output:
     toc_depth: 3
 ---
 
+```{r}
+source("function_import.R")
+```
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```

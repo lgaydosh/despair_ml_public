@@ -1,0 +1,31 @@
+## ----load packages----------------------------------------------------------------------------------------------
+pacman::p_load(tidyverse, fs, knitr)
+
+
+## ----create sourcing functions----------------------------------------------------------------------------------
+
+source_functions <- function(){
+  # Create temporary directory
+ dir_create("temp_source_funs")
+  
+  # get only .Rmd files and source them
+  list.files(pattern = "[0-6]0-\\w{1,}-?\\w{1,}.Rmd$") %>% 
+  map(purl) %>% 
+  map(source)
+  
+  # move source files to temporary directory
+  list.files(pattern = "[0-6]0-\\w{1,}-?\\w{1,}.[R]$") %>% 
+  map(file_move, new_path = "temp_source_funs/")
+  
+  # delete temporary directory
+  dir_delete("temp_source_funs")
+  
+  # delete everything in environment other than new functions
+  # rm(list = setdiff(ls(pos = .GlobalEnv), lsf.str(pos = .GlobalEnv)), envir = .GlobalEnv)
+}
+
+
+
+## ----source all functions from project rmd files----------------------------------------------------------------
+source_functions()
+
