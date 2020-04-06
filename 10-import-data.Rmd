@@ -351,3 +351,4 @@ marijuana_outcome_use30_list <- c("h1to32","h3to110","h4to71","h5to21")
 
 # Total outcome variable list
 outcome_vars_list <- c(suicidal_list, marijuana_outcome_use30_list)
+```
