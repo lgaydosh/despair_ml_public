@@ -38,7 +38,7 @@ librarian::shelf(tidyverse, haven, DataExplorer, tictoc, janitor, quiet = TRUE)
 ```{r read in data, cache=TRUE}
 
 # Create path names - note that we only need waves 4 and 5 for exploring optimism
-wave_files <- str_c("/Volumes/gaydosh_addhealth/Gaydosh/Core Files/In Home Interview Files/wave"
+wave_files <- str_c("Z:/Gaydosh/Core Files/In Home Interview Files/wave"
                ,4:5,
                ".xpt")
 
@@ -144,7 +144,7 @@ Additionally, 19 variables are not in wave 4 or 5 (see `missing_preds`).
 ```{r select variables of interest, warning=FALSE, include=FALSE}
 # Note: preds_select is external vector from above code chunk
 final_data <- data_combined %>%
-  select(aid, all_of(preds_select))
+  dplyr::select(aid, tidyselect::all_of(preds_select))
 ```
 
 # Begin to understand the dataset with introductory plot
