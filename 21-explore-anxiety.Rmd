@@ -2,89 +2,250 @@
 title: "21-explore-anxiety"
 output: html_notebook
 ---
+The purpose of this document is to visualize the anxiety variables in the data. 
+
+Following are the questions that are indicators of anxiety. These are only asked in wave 4. 
+
+1. I worry about things : "h4pe6"
+2. I am not easily bothered by thinggs : "h4pe14"
+3. I get stressed easily : "h4pe22"
+4. I don't worry about things that have happened already : "h4pe30"
+
+These are the questions that indicate if the person was ever diagnosed with anxiety
+1. "h4id5j"
+2. "h5id6i"
+
+```{r importing relevant libraries}
+pacman::p_load(dplyr, VIM, ggplot2, gridExtra)
+```
+
 
 # Missing Value Visualization for Both Anxiety and Diagnosed Anxiety
 * No missing values in the anxiety dataset
-* 38 missing values in the diagnosed anxiety dataset which takes about 0.41% in the overall.
 ```{r}
-sapply(diag_anxiety, function(x) sum(is.na(x)))
+diagnosed_anxiety <- joined_waves %>% 
+  dplyr::select(aid, h4id5j,h5id6i)
 
-diag_anxiety %>% 
-  gg_miss_var(show_pct = T)
+# missing values only present in wave 5
+diagnosed_anxiety %>% 
+  group_by(h4id5j) %>% 
+  summarise(Numbers = n()) %>% 
+  mutate(Percent = scales::percent(Numbers/sum(Numbers))) %>% 
+  ggplot(aes(x=h4id5j, y = Numbers))+
+  geom_col()+
+  geom_text(aes(label = Percent), vjust = -0.5)+
+  scale_x_discrete(label = c('No', 'Yes', 'Missing'))+
+  labs(title = "Diagnosed Anxiety at Wave 4")
+
 ```
 
+## Missing values in wave 5
+```{r warning=FALSE}
+
+# missing values only present in wave 5
+diagnosed_anxiety %>% 
+  group_by(h5id6i) %>% 
+  summarise(Numbers = n()) %>% 
+  mutate(Percent = scales::percent(Numbers/sum(Numbers))) %>% 
+  ggplot(aes(x=h5id6i, y = Numbers))+
+  geom_col()+
+  geom_text(aes(label = Percent), vjust = -0.5)+
+  scale_x_discrete(label = c('No', 'Yes', 'Missing'))+
+  labs(title = "Diagnosed Anxiety at Wave 5")
 
 
-# Anxiety Varible
+```
+38 missing values in the diagnosed anxiety dataset which takes about 0.41% in the overall.
+I want to see how the individuals that had NA's in wave 5, answered in wave 4
 
-## Histogram/Line Chart of Anxiety Variables
 ```{r}
+diagnosed_anxiety %>% 
+  filter(is.na(h5id6i)) %>% 
+  group_by(h4id5j) %>% 
+  summarise(Numbers = n()) %>% 
+  mutate(Percent = scales::percent(Numbers/sum(Numbers))) %>% 
+  ggplot(aes(x=h4id5j, y = Numbers))+
+  geom_col()+
+  geom_text(aes(label = Percent), vjust = -0.5)+
+  scale_x_discrete(label = c('No', 'Yes', 'Missing'))+
+  labs(title = "Wave 4 responses for subjects missing at wave 5")
+```
+18% (7) of the people that were missing in response in wave 5, had said yes in wave 4 while the others had said No.
+
+I also want to see how many people that said No in wave 4, said yes in wave 5
+```{r warning=FALSE}
+diagnosed_anxiety %>% 
+  filter(h4id5j == 0) %>% 
+  group_by(h5id6i) %>% 
+  summarise(Numbers = n()) %>% 
+  mutate(Percent = scales::percent(Numbers/sum(Numbers))) %>% 
+  ggplot(aes(x=h5id6i, y = Numbers))+
+  geom_col()+
+  geom_text(aes(label = Percent), vjust = -0.5)+
+  scale_x_discrete(label = c('No', 'Yes', 'Missing'))+
+  labs(title = "Wave 5 Responses of People that Said 'No' In Wave 4")
+
+```
+16% of the people that said No in wave 4, said yes in Wave 5.
+
+
+The way I see it, the following variables should be split up into three groups. \
+1. Those that said yes to diagnosed anxiety in both waves 4 and 5
+2. Those that said no to diagnosed anxiety in both waves 4 and 5
+3. Those that developed anxiety between waves 4 and 5 and said no in wave 4 but yes in wave 5
+
+```{r}
+# Those that said yes to diagnosed anxiety in both waves 4 and 5
+group1 <- joined_waves %>% 
+  dplyr::select(predictor_list) %>% 
+  filter(h5id6i == 1 & h4id5j == 1) %>% 
+  dplyr::select(anxiety_list)
+
+group2 <- joined_waves %>% 
+  dplyr::select(predictor_list) %>% 
+  filter(h5id6i == 0 & h4id5j == 0) %>% 
+  dplyr::select(anxiety_list)
+
+group3 <- joined_waves %>% 
+  dplyr::select(predictor_list) %>% 
+  filter(h5id6i == 1 & h4id5j == 0) %>% 
+  dplyr::select(anxiety_list)
 
 ```
 
-
-
-
-## Visualization of Variables from Wave 4 and Their Survey Answers
-* For anxiety, variables are only under wave 4. So we create this new subset called anxiety_sub which contains all the variables for anxiety (except c4var009).
-* Scale is the same for these four variables. 
-* Scale of 1 represents "strongly agree" and 5 represents "strongly disagree". 
-* Scale of 6 reoresents "refused" and 8 represents "don't know".
 ```{r}
-anxiety_sub <- anxiety %>% 
-  dplyr::select(h4pe6,h4pe14,h4pe22,h4pe30)
+anxiety_sub_prop <- likert(data.frame(group1))
 
-# 1, 2, 3, 4, 5, 6, 8
-anxiety_sub <- data.frame(lapply(anxiety_sub, factor, ordered=TRUE, 
-                          levels=1:7, 
-                          labels=c("strongly\nagree","agree",
-                                   "neither agree\nnor disagree","disagree","strongly\ndisagree","refused","don't know")))
-anxiety_sub_prop <- likert(anxiety_sub)
-
-
-plot(anxiety_sub_prop,
+grp1 <- plot(anxiety_sub_prop,
      type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 3,
-           wrap = 50)
+     low.color = "white",
+     high.color = "blue",
+     text.color = "black",
+     text.size = 3,
+     wrap = 50)+
+  labs(title = 'Said YES to diagnosed anxiety in BOTH waves 4 and 5')
+
+grp1
 ```
+How to interpret this:
 
+The numbers on the x axis mean that the indivduals answered the questions with the following answers. 
+1. "strongly agree"
+2. "agree"
+3. "neither agree or disagree"
+4. "disagree"
+5. "strongly disagree"
+6. "refused"
+7. "don't know"
 
-# Diagnosed Anxiety Varible
+1. I worry about things : "h4pe6" 
+    - as expected, this group mostly agreed on this question.
+    
+2. I am not easily bothered by thinggs : "h4pe14" 
+    - this group mostly disagreed with this question.
+    
+3. I get stressed easily : "h4pe22" 
+    - this group mostly agreed with this.
+    
+4. I don't worry about things that have happened already : "h4pe30" 
+    - this group mostly disagreed to this.
 
-## Wave4 Versus Wave5
-```{r}
-
-par(mfrow = c(1,2))
-barplot(count_response_by_variable(diag_anxiety, "h4id5j")$n, names.arg = c("0=no","1=yes","6=refused"), main = "h4id5j")
-barplot(count_response_by_variable(diag_anxiety, "h5id6i")$n, names.arg = c("0","1","Missed"), main = "h5id6i")
-
-```
-
-
-# Description of the Two Datasets
-
-## Description of Anxiety Subsets
-
-This description is for the responses to the following questions:
-I worry about things
-I am not easily bothered by things
-I get stressed out easily
-I don't worry about things that have already happened
-
-```{r}
-describe(anxiety)
-```
-
-## Description of Diagnosed Anxiety
-Only two variables involved: 
-h4id5j from wave 4
-h5id6i from wave 5
 
 ```{r}
-describe(diag_anxiety)
+anxiety_sub_prop <- likert(data.frame(group2))
+
+grp2<- plot(anxiety_sub_prop,
+     type="heat",
+     low.color = "white",
+     high.color = "blue",
+     text.color = "black",
+     text.size = 3,
+     wrap = 50)+
+  labs(title = 'Said NO to diagnosed anxiety in BOTH waves 4 and 5')
+
+grp2
 ```
+How to interpret this:
+
+The numbers on the x axis mean that the indivduals answered the questions with the following answers. 
+1. "strongly agree"
+2. "agree"
+3. "neither agree or disagree"
+4. "disagree"
+5. "strongly disagree"
+6. "refused"
+7. "don't know"
+
+1. I worry about things : "h4pe6" 
+    - surprisingly, a larger proportion of people in this group agreed to this.
+    
+2. I am not easily bothered by thinggs : "h4pe14" 
+    - this group mostly disagreed with this question but also had a large proportion of people that agreed to this.
+    
+3. I get stressed easily : "h4pe22" 
+    - this group mostly disagreed with this.
+    
+4. I don't worry about things that have happened already : "h4pe30" 
+    - this group mostly agreed with this as expected.
+
+```{r}
+
+anxiety_sub_prop <- likert(data.frame(group3))
+
+grp3 <- plot(anxiety_sub_prop,
+     type="heat",
+     low.color = "white",
+     high.color = "blue",
+     text.color = "black",
+     text.size = 3,
+     wrap = 50)+
+  labs(title = 'Said NO in wave 4 but YES in wave 5')
+
+grp3
+```
+How to interpret this:
+
+The numbers on the x axis mean that the indivduals answered the questions with the following answers. 
+1. "strongly agree"
+2. "agree"
+3. "neither agree or disagree"
+4. "disagree"
+5. "strongly disagree"
+6. "refused"
+7. "don't know"
+
+1. I worry about things : "h4pe6" - a larger proportion of people agreed to this
+
+2. I am not easily bothered by thinggs : "h4pe14" 
+    - this group mostly disagreed with this question but had 1/2 of the \
+    numbers who neither agreed or disagreed and those that agreed.
+    
+3. I get stressed easily : "h4pe22" 
+    - most people in this group disagreed to this question while the second largest group agreed to this.
+    
+4. I don't worry about things that have happened already : "h4pe30" 
+    - this group mostly disagreed to this but also had a large number disagreeing to it
+    
+    
+Interpretation: It is possible that the third group of people who answered no to diagnosed anxiety, was actually suffering from anxiety as the visualizations suggest that there
+
+
+```{r}
+grid.arrange(grp1, grp2, grp3, ncol=1)
+```
+Seein these visualizations side by side makes it clear that the third group looks similar to both the first group and second in some ways. Since all of these questions were asked in wave 4, it is possible that the individuals that said no to diagnosed anxiety, were just not aware of their symptoms related to anxiety.
+
+```{r}
+joined_waves %>% 
+  dplyr::select(c(anxiety_list, diagnosed_anxiety_list)) %>%
+  as.matrix() 
+  cor(method = "kendall")
+
+cor_dat
+
+```
+
+
+
 
 
