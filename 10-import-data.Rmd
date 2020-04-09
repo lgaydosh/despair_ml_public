@@ -8,11 +8,31 @@ output:
     toc_depth: 5
     toc_float: true
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 # Importing data
 The purpose of this file is to contain all of the functions required or used to generate the dataset which will be investigated.  What follows are functions to import and generate data, and also pre-constructed lists for a simplified selection of features from the dataset.
+
+## Sample workflow
+The following code chunk defines the expected way that the following functions will be used, although other workflows are possible:
+
+```{r, example chunk, eval=FALSE, purl=FALSE}
+## load waves and join them
+wave_data <- load_waves(1:5)
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
+## set outcome variable of interest
+outcome = 'h5mn8'
+
+## get the aids that you want
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+## use the features and ids that you want to select out what you want
+working_ds <- full_dataset %>%
+                filter(aid %in% inner_aids) %>%
+                select(aid, predictor_list, outcome)
+```
 
 ```{r load libraries }
 # Use pacman, which forces an install if the library isn't present on the running machine
@@ -72,6 +92,27 @@ count_response_by_variable <- function(df, ...){
 # suicide_df <- joined_waves %>%
 #   get_outcomes_df(outcome = "h5mn8", 
 #                   predictors = setdiff(predictor_list, "aid"))
+```
+
+```{r returns intersection of variables in dataframes list}
+# This function returns values that are common to all dataframes in list; 'aid' might be the only one here.
+# Errors out if the variable isn't in all frames.
+
+get_inner <- function(in_list, var_name='aid'){
+  #in_list : contains lists of tibbles of wave data
+  #var_name: column name of interest
+  #returns: list of elements in the var_name column that are common to all of the dataframes
+  all_var_list <- in_list %>%
+    map(select, var_name) %>%
+    purrr::reduce(intersect) %>%
+    pull(var_name)
+  
+  return(all_var_list)
+}
+
+## Example of usage
+# wave_data <- load_waves(1:5)
+# inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
 ```
 
 ## Private helper functions
@@ -165,6 +206,9 @@ load_waves <- function(wave_no_list, use_clean_names = TRUE, filebase='~/gvfs/sm
   
   return(file_data)
 }
+
+# Example usage
+# wave_data <- load_waves(1:5)
 ```
 
 ## Public functions for joining data and selection of data
@@ -227,12 +271,12 @@ TODO: Something is strange with my mutate_at function; it can only work with com
 ```{r perform join of data}
 # This functions generates the data by starting with an outright full join of the data
 
-get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = 'inner', by='aid', load_join=FALSE){
+get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = 'inner', load_join=FALSE){
   # df_list : list of dataframes
   # feature_list : list of desired features.  If null, select all features.
   # join_type : type of join you'd like to perform
-  # by: key on which the join should be performed
-  # load_join: if true, the fully joined data will be loaded (TODO)
+  # by: UNIMPLEMENTED, TODO
+  # load_join: if true, the fully joined data will be loaded (UNIMPLEMENTED, TODO)
   # returns: full joined tibble with selected features
   
   # Do the full join
@@ -240,27 +284,27 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
     # Here, we want to load the joined data from file if possible and contractually acceptable.
   }
   else
-    ds <- reduce(df_list, full_join, by=by)
+    ds <- reduce(df_list, full_join, by='aid')
   
   # Extract AIDs from each df
-  aid_lists <- map(df_list, ~ select(., 'aid'))
+  aid_lists <- df_list %>% map(select, aid)
   
   # Obtain correct join type based on inputs
   if(join_type=='inner')
-    aids <- reduce(aid_lists, intersect)
+    aids <- reduce(aid_lists, intersect) %>% pull(aid)
   else if(join_type=='left')
-    aids <- reduce(aid_lists[1], union)
+    aids <- aid_lists[[1]] %>% pull(aid)
   else if(join_type=='right')
-    aids <- reduce(aid_lists[len(aid_list)], union)
+    aids <- aid_lists[[length(aid_lists)]] %>% pull(aid)
   else if(join_type=='full')
-    aids <- reduce(aid_lists, union)
+    aids <- reduce(aid_lists, union) %>% pull(aid)
   else{
     stop(str_c('Join type', by, 'is not supported.', sep=' '))
   }
   
   # Filter out aids
   ds <- ds %>%
-    filter(aid %in% aids$aid)
+    filter(aid %in% aids)
   
   # Remedy null feature list if null
   if (is.null(feature_list)){
@@ -282,6 +326,9 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
   return(ds)
 }
 
+# Example usage:
+# wave_data = load_data(1:5)
+# full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
 
 TODO: We need to make some decisions about how demographic data will likely be included in the generated data.  Where are these variables included in the variable lists and how can we most intuitively integrate them into our data loading?
@@ -326,10 +373,12 @@ depression_list <- c(
 diagnosed_depression_list <- c("h4id5h","h5id6g")
 
 # List of all Demographic Variable
-demographic_list <- c("race1","mulrace1","race1rul","bio_sex", "age_w1", "age_w3", "age_w4", "age_w5")
+demographic_list <- c("race1","mulrace1","race1rul","bio_sex")
+
+demographic_list_comp <- c("age_w1", "age_w3", "age_w4", "age_w5")
 
 # Total predictor variable list
-predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list, demographic_list)
+predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list)
 
 # Note: Look into importing these later
 #c4var009,
