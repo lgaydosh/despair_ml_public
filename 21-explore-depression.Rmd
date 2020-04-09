@@ -1,209 +1,367 @@
 ---
 title: "21-explore-depression"
-output: html_notebook
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
 ---
 
-## Missing Value Visualization for Depression
-* All the missing values are from wave 5.
-```{r}
-depression %>% 
-  gg_miss_var(show_pct = T)
-```
+# Purpose
 
-```{r}
-diag_depression %>% 
-  gg_miss_var(show_pct = T)
-```
+The purpose of this document is to perform EDA on the depression outcome variables. For the sake of this exploration, we'll focus in on `h4mh18` ("bothered by things") after looking generally at missingness in the data. 
 
-```{r}
-hist_by_var <-function(df,vars, title = title){
-  ggplot(gather(df[,which(colnames(df) %in% vars)]), aes(x= value)) + 
-    geom_bar(stat = 'count') + 
-    facet_wrap(~key, scales = 'free_x')+
-    ggtitle(title)+
-    theme_minimal()+
-    theme(plot.title=element_text(hjust=0.5))
-}
-```
+The depression variables are: \ 
 
-
-
-# Depression Variables
-Visualization of how answers change for the same question over different waves.
-```{r}
-
-p1 <- hist_by_var(depression, c('h1fs1',"h3sp5","h4mh18"), "bothered by things")
-p2 <- hist_by_var(depression, c("h1fs3","h3sp6","h4mh19","h5ss0a"), "shake off blues")
-p3 <- hist_by_var(depression, c("h1fs4","h3sp7","h4mh20"), "felt as good as others")
-p4 <- hist_by_var(depression, c("h1fs5","h3sp8","h4mh21"), "trouble concentrating")
-p5 <- hist_by_var(depression, c("h1fs6","h3sp9","h4mh22",	"h5ss0b"), "felt depressed")
-p6 <- hist_by_var(depression, c("h1fs7","h3sp10",	"h4mh23"), "felt too tired")
-p7 <- hist_by_var(depression, c("h1fs11","h4mh24","h5ss0c"), "felt happy")
-p8 <-hist_by_var(depression, c("h1fs15","h3sp11","h4mh25"), "enjoyed life")
-p9 <-hist_by_var(depression, c("h1fs16","h3sp12","h4mh26","h5ss0d"), "felt sad")
-p10 <- hist_by_var(depression, c("h1fs17","h3sp13","h4mh27"), "felt disliked")
-grid.arrange(p1, p2, p3, p4, p5, p6, nrow = 2)
-grid.arrange(p7, p8, p9, p10, nrow = 2)             
-          
-```
-
-### Visualization of Wave 1 Variables and Survey Answers for those
-* Only the first one h1fs1 has range 0,1,2,3,4,5,6,8,9
-0	never or rarely
-1	sometimes
-2	a lot of the time	
-3	most of the time or all of the time	
-6	refused	
-8	don't know	
-9	not applicable
-
-* Other ones have range 0,1,2,3,6,8
-0	never or rarely	
-1	sometimes	
-2	a lot of the time	
-3	most of the time or all of the time	
-6	refused	
-8	don't know
-
-```{r}
-depression_wave1 <- depression %>% 
-  dplyr::select(h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17)
-
-depression_wave1_sub <- depression %>% 
-  dplyr::select(h1fs1)
+  **Wave 1**:\
+    1. `h1fs1`: bothered by things \
+    2. `h1fs3`: shake off blues \
+    3. `h1fs4`: felt as good as others \
+    4. `h1fs5`: trouble concentrating \
+    5. `h1fs6`: felt depressed \
+    6. `h1fs7`: felt too tired \
+    7. `h1fs11`: felt happy \
+    8. `h1fs15`: enjoyed life \
+    9. `h1fs16`: felt sad \
+    10. `h1fs17`: felt disliked \
+    \
+  **Wave 3**:\
+    1. `h3sp5`: bothered by things \
+    2. `h3sp6`: shake off blues \
+    3. `h3sp7`: felt as good as others \
+    4. `h3sp8`: trouble concentrating \
+    5. `h3sp9`: felt depressed \
+    6. `h3sp10`: felt too tired \
+    7. `h3sp11`: enjoyed life \
+    8. `h3sp12`: felt sad \
+    9. `h3sp13`: felt disliked \
+    \   
+  **Wave 4**:\
+    1. `h4mh18`: bothered by things \
+    2. `h4mh19`: shake off blues \
+    3. `h4mh20`: felt as good as others \
+    4. `h4mh21`: trouble concentrating \
+    5. `h4mh22`: felt depressed \
+    6. `h4mh23`: felt too tired \
+    7. `h4mh24`: felt happy \
+    8. `h4mh25`: enjoyed life \
+    9. `h4mh26`: felt sad \
+    10. `h4mh27`: felt disliked \
+    \
+  **Wave 5**:\
+    1. `h5ss0a`: shake off blues \
+    2. `h5ss0b`: felt depressed \
+    3. `h5ss0c`: felt happy \
+    4. `h5ss0d`: felt sad \
 
 
-p1 <- plot(likert(data.frame(depression_wave1)),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 2.5,
-           wrap = 50)
+# Libraries and data import
 
-p2 <- plot(likert(data.frame(depression_wave1_sub)),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 2.5,
-           wrap = 50)
-
-grid.arrange(p1, p2, nrow = 2)
-
-#                           labels=c("never\nor rarely","sometimes","a lot of\nthe time",
-#                                    "most of the\ntime or all\nof the time","refused","don't know")))
-
-```
-#### Visualization of Wave 3 Variables and Survey Answers for those
-
-Survey scale toward variables:
-0	never or rarely
-1	sometimes	
-2	a lot of the time	
-3	most of the time or all of the time	
-6	refused	
-8	don't know
-9	not applicable
-```{r}
-depression_wave3 <- depression %>% 
-  dplyr::select(h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13)
-
-
-plot(likert(data.frame(depression_wave3)),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 3.5,
-           wrap = 50)+
-  ggtitle("Wave 3 Depression Related Survey Answers")+
-  theme_minimal()+
-  theme(plot.title=element_text(hjust=0.5))
-
-```
-#### Visualization of Wave 4 Variables and Survey Answers for those
-h4mh22:
-0	never or rarely
-1	sometimes	
-2	a lot of the time	
-3	most of the time or all of the time	
-6	refused	
-8	don't know	
-```{r}
-
-depression_wave4 <- depression%>% 
-  dplyr::select(h4mh18, h4mh19, h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27) 
-
-plot(likert(as.data.frame(depression_wave4)),
-     type="heat",
-     low.color = "white",
-     high.color = "blue",
-     text.color = "black",
-     text.size = 3.5,
-     wrap = 50,
-     plot.percent = F) +
-  ggtitle("Wave 4 Depression Related Survey Answers")+
-  theme_minimal()+
-  theme(plot.title=element_text(hjust=0.5))
-
-#Labels for the answers 
-#("never or\nrarely","sometimes","a lot of\nthe time","most of the\ntime or all\nof the time","refused","don't\nknow"
-
-```
-#### Visualization of Wave 5 Variables and Survey Answers for those
-```{r}
-depression_wave5 <- depression %>% 
-  dplyr::select(h5ss0a,h5ss0b,h5ss0c,h5ss0d)
-
-plot(likert(data.frame(depression_wave5)),
-     type="heat",
-           low.color = "white",
-           high.color = "blue",
-           text.color = "black",
-           text.size = 4,
-           wrap = 50) +
-  ggtitle("Wave 5 Depression Related Survey Answers")+
-  theme_minimal()+
-  theme(plot.title=element_text(hjust=0.5))
-  
+```{r load libraries}
+# Load required libraries
+# librarian::shelf(DataExplorer, tictoc, quiet = TRUE) ---- does not work
+# install.packages("DataExplorer")
+library(DataExplorer)
+# install.packages("tictoc")
+library(tictoc)
+# install.packages("stringr")
+library(stringr)
 
 ```
 
 
+```{r read in data, cache=TRUE}
 
-# Diagnosed Depression Variables
+# Create path names - we need all waves for exploring depression
+wave_files_all <- str_c("Z:/Gaydosh/Core Files/In Home Interview Files/wave"
+               ,c(1, 3:5),
+               ".xpt")
 
-```{r}
-
-ggplot(gather(diag_depression[,2:3]), aes(x= value)) + 
-    geom_bar(stat = 'count') + 
-    facet_wrap(~key, scales = 'free_x')
-```
-
-# Description of the Two Datasets
-
-## Description of Depression Subsets
-This description is for the responses to the following questions:
-bothered by things
-shake off blues
-felt as good as others
-trouble concentrating
-felt depressed
-felt too tired
-felt happy
-enjoyed life
-felt sad
-felt disliked
-
-* Notice that some are ranging 0,1,2,3,6,8,9, and some are ranging 0,1,2,3,6,8
-```{r}
-describe(depression)
+# read in files with map and time it
+# About 1 minute to read in data
+tic()
+wave_data_all <- wave_files_all %>%
+  map(read_xpt)
+toc()
 ```
 
 
-## Description of Diagnosed Depression
-```{r}
-describe(diag_depression)
+
+```{r join data, cache=TRUE}
+# Join data into a single data frame
+data_combined_all <- wave_data_all[[1]] %>% 
+                      left_join(wave_data_all[[2]], by = "AID") %>%
+                      left_join(wave_data_all[[3]], by = "AID") %>%
+                      left_join(wave_data_all[[4]], by = "AID") %>% 
+  clean_names(case = "snake")
+
+# Determine if anything was not joined in, 5575 rows
+not_joined_all <- anti_join(wave_data_all[[1]], wave_data_all[[2]], wave_data_all[[3]],wave_data_all[[4]],by = "AID")
+```
+Note, there are 4575 unique AID values are not joined. For the sake of this exploration the dropped values will be ignored.
+
+# Selecting Variables
+
+```{r vectors of vars to select, echo=FALSE}
+
+# From file 10
+
+# vector of depression variables
+depression_list <- c(
+                     "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
+                     "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
+                     "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh25","h4mh26","h4mh27",      # Wave 4 ~ 10 vars
+                     "h5ss0a","h5ss0b","h5ss0c","h5ss0d")                                          # Wave 5 ~ 4 vars
+# Predictors of interest
+predictor_list <- c("h4id5j",
+         "h4pe6",
+         "h4pe14",
+         "h4pe22",
+         "h4pe30",
+         "h4pe7",
+         "h4pe15",
+         "h4pe23",
+         "h4pe31",
+         "h5id6i",
+         "h5pe1",
+         "h5pe2",
+         "h5pe3",
+         "h1fs1",
+         "h3sp5",
+         "h4mh18",
+         "h1fs3",
+         "h3sp6",
+         "h4mh19",
+         "h5ss0a",
+         "h1fs4",
+         "h3sp7",
+         "h4mh20",
+         "h1fs5",
+         "h3sp8",
+         "h4mh21",
+         "h1fs6",
+         "h3sp9",
+         "h4mh22",
+         "h5ss0b",
+         "h1fs7",	
+         "h3sp10",
+         "h4mh23",
+         "h1fs11",
+         "h4mh24",
+         "h5ss0c",
+         "h1fs15",
+         "h3sp11",
+         "h4mh25",
+         "h1fs16",
+         "h3sp12",
+         "h4mh26",
+         "h5ss0d",
+         "h1fs17",
+         "h3sp13",
+         "h4mh27",
+         "h4id5h",
+         "h5id6g")
 ```
 
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
+
+# all depression variables in predictor list
+depression_list %in% predictor_list
+
+
+missing_preds_all <- setdiff(predictor_list, names(data_combined_all))
+
+# Variables to select:
+preds_select_all <- setdiff(predictor_list, missing_preds_all)
+```
+
+
+```{r select variables of interest, warning=FALSE, include=FALSE}
+# Note: preds_select is external vector from above code chunk
+final_data_all <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(preds_select_all))
+```
+
+# Begin to understand the dataset with introductory plot
+
+```{r}
+final_data_all %>% 
+  plot_intro()
+```
+About 22.4% missing observations which remind us to be careful when deciding to drop NA. All outcomes should convert to factors because of discrete data.
+
+
+# Missing value exploration
+
+```{r, fig.width=15,fig.height=10}
+
+# Overview of missing data
+final_data_all %>% 
+  plot_missing()
+```
+
+From `plot_missing()` we see that there are 9 variables with over 40% missingness. How many people have missing values across multiple variables? 
+
+
+```{r how many people have missing values across multiple variables}
+# Gain insight into who has these missing values. 
+# Are these missing values the same people?
+
+# Get the actual values of missingness we care about
+missing_counts_all <- final_data_all %>%
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "var") %>%
+  filter(value > 1)
+
+# Names of variables with missingness we care about
+missing_vars_all <- missing_counts_all %>% pull(var)
+
+# Get total missingness by each individual across all variables
+total_missing_all <- final_data_all %>% 
+  dplyr::select(all_of(missing_vars_all)) %>% 
+  rowwise() %>% 
+  is.na() %>%
+  rowSums()
+
+# Bar plot of missingness for variables with more than 1 person missing
+final_data_all %>% 
+  mutate(tot_miss = total_missing_all) %>% 
+  dplyr::select(aid, tot_miss) %>% 
+  group_by(tot_miss) %>% 
+  summarise(counts = n()) %>% 
+  ggplot() +
+  geom_bar(aes(x = tot_miss, y = counts), stat = "identity", fill = "light blue") +
+  scale_x_continuous(breaks = seq(0,38,1)) +
+  scale_y_continuous(breaks = seq(0,11e3, 1e3)) +
+  ggtitle("Count of individuals with different numbers of missing variables") +
+  xlab("Number of variables with missing value") +
+  theme_dark()
+```
+
+From the barplot we see that under 2500 people have 38 variables missing, over 1500 have 29 variables missing, over 5000 have 9 variables missing and about 9000 have no missing values. Fewer than 250 people are missing 1, 2, 3, 4. Using `drop_na()` will result in too much missing information without explanation for why those people are missing those variables.
+
+
+Additional questions possible to answer in iteration: \
+
+  1. Are these variables redundant to each other? \
+  2. Do they cluster together? If so, how? \
+  3. Are they predictive of each other? \
+  4. Are they correlated?
+
+
+```{r correlation plot among variables with high missingness, cache=TRUE, fig.width=17,fig.height=12}
+
+# replace all missing values with 99 for the sake of exploring correlation
+cor_dat_all <- final_data_all %>% 
+  dplyr::select(missing_vars_all) %>% 
+  mutate_all(~replace_na(., 99)) %>% 
+  cor(method = "kendall")
+
+# Correlation plot of missing variables
+cor_dat_all %>% 
+  corrplot::corrplot(method = "color", 
+                     type = "upper", 
+                     order = "hclust", 
+                     diag = FALSE, 
+                     addCoef.col = "black")
+
+```
+
+
+
+# Explore outcome variables
+
+```{r assess change over time of primary outcome}
+primary_DEPoutcome <- final_data_all %>% 
+  dplyr::select(aid,
+                     h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,   # Wave 1 ~ 10 vars
+                     h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13,           # Wave 3 ~ 9 vars
+                     h4mh18,h4mh19,h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27,      # Wave 4 ~ 10 vars
+                     h5ss0a,h5ss0b,h5ss0c,h5ss0d)                                          # Wave 5 ~ 4 vars
+
+
+# h4mh19, h5ss0a
+h5ss0a_change_plot <- primary_DEPoutcome %>% 
+  drop_na() %>% 
+  ggplot() +
+  ggtitle("h4mh19 vs h5ss0a") +
+  geom_jitter(aes(x = h5ss0a, y = h4mh19, group = aid), alpha = .3, color = "light blue") +
+  theme_dark()
+
+# h4mh22, h5ss0b
+h5ss0b_change_plot <- primary_DEPoutcome %>% 
+  drop_na() %>% 
+  ggplot() +
+  ggtitle("h4mh22 vs h5ss0b") +
+  geom_jitter(aes(x = h5ss0b, y = h4mh22, group = aid), alpha = .3, color = "light blue") +
+  theme_dark()
+# h4mh24, h5ss0c
+
+h5ss0c_change_plot <- primary_DEPoutcome %>% 
+  drop_na() %>% 
+  ggplot() +
+  ggtitle("h4mh24 vs h5ss0c") +
+  geom_jitter(aes(x = h5ss0c, y = h4mh24, group = aid), alpha = .3, color = "light blue") +
+  theme_dark()
+# h4mh26, h5ss0d
+
+h5ss0d_change_plot <- primary_DEPoutcome %>% 
+  drop_na() %>% 
+  ggplot() +
+  ggtitle("h4mh26 vs h5ss0d") +
+  geom_jitter(aes(x = h5ss0d, y = h4mh26, group = aid), alpha = .3, color = "light blue") +
+  theme_dark()
+
+
+gridExtra::grid.arrange(h5ss0a_change_plot, h5ss0b_change_plot,h5ss0c_change_plot, h5ss0d_change_plot)
+```
+
+
+This plot explores the change across the waves 4 and 5 for the same question. The wave 4 outcome is on the y-axis and the wave 5 outcome is on the x-axis. We see that moving from wave 4 to wave 5 there was a scale change. Looking vertically (starting on the X axis and going vertically on the Y), we see that answers for wave 4 all below 4 which match with what we have for wave 5.
+
+
+# Look at predictor variables briefly
+```{r histograms of predictors and outcomes, fig.width=17,fig.height=12}
+
+# Replace missing values with 10 so they show on the plots
+final_data_all %>% 
+  mutate_all(~replace_na(., 10)) %>% 
+  dplyr::select(-c(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,   # Wave 1 ~ 10 vars
+                     h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13,           # Wave 3 ~ 9 vars
+                     h4mh18,h4mh19,h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27,      # Wave 4 ~ 10 vars
+                     h5ss0a,h5ss0b,h5ss0c,h5ss0d)) %>% 
+  plot_histogram(title = "predictors")
+
+# histograms of outcome variables
+final_data_all %>% 
+  dplyr::select(h1fs1,h1fs3,h1fs4,h1fs5,h1fs6,h1fs7,h1fs11,h1fs15,h1fs16,h1fs17,   # Wave 1 ~ 10 vars
+                     h3sp5,h3sp6,h3sp7,h3sp8,h3sp9,h3sp10,h3sp11,h3sp12,h3sp13,           # Wave 3 ~ 9 vars
+                     h4mh18,h4mh19,h4mh20,h4mh21,h4mh22,h4mh23,h4mh24,h4mh25,h4mh26,h4mh27,      # Wave 4 ~ 10 vars
+                     h5ss0a,h5ss0b,h5ss0c,h5ss0d) %>% 
+  mutate_all(~replace_na(.,10)) %>% 
+  plot_histogram(title = "outcomes")
+```
+
+Note that in the above visualization, all missing values were replaced with the value 10. Additionally, the scale should be discrete. 
+
+We see that the distribution between certain predictors follow a pattern and most missingness shown for wave5.
+
+# Look at correlation of predictor variables with outcome of interest
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
+# Plot correlation funnel h4mh18 variable. Note, all missing values are dropped.
+final_data_all %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4mh18", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+```
+
+
+The correlation funnel above shows us that the most correlated variables with `h4mh18` are `h4mh19` and `h4mh22`, which make sense because they're both questions regarding depression on bad emotional feelings. `h4mh19` is shake off blues and `h4mh22` is felt depressed. At the other end of the spectrum, we see that the least correlated variable is `h5pe1`, "I'm always optimistic about my future" from the optimism outcome.
+
+
+  <br><br><br><br><br><br>
