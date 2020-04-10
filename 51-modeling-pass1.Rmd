@@ -179,4 +179,123 @@ rf_final_model <- h2o.randomForest(
 ```
 
 
+### Lasso model implementation to predict suicidal ideation
+Testing the functions by training a lasso model 
+
+```{r test suicide model}
+# suicide_w5 was created earlier - it is the suicide indicator at wave 5
+
+n = 5 # number of bootstraps
+
+suicide_out_lasso <- training_df %>% 
+  model_feature_selection("Lasso",outcome = suicide_w5, n = 5)
+```
+
+
+
+```{r explore variable importance for suicide, fig.height=7, fig.width=13}
+# This will give you a data frame of top predictors
+
+top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total /n,
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+
+# Plot top predictors
+top_preds_outcome_lasso %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+
+
+
+top_preds_outcome_lasso %>% 
+  arrange(avg_place)
+```
+
+```{r create new df based on top features}
+#subsetting the suicide df based on the top 20 features
+top_preds_outcome_lasso$variable
+
+for (i in 1:length(top_preds_outcome_lasso$variable)){
+  top_preds_outcome_lasso$variable[i] <- unlist(strsplit(top_preds_outcome_lasso$variable[i],
+                                                         split = '.', fixed = TRUE))[1]
+}
+
+top_lasso_var <- unique(top_preds_outcome_lasso$variable)
+
+final_lasso_df <- suicide_df %>% 
+  get_outcomes_df(suicide_w5, top_lasso_var)
+
+```
+
+
+```{r hyperparamter tuning for different spans of hyperparameters}
+
+outcome <- suicide_w5
+lambda_tune = seq(0,0.02,0.002)
+
+# 80-20 split to create a validation frame
+straps_splits_lasso <- stratified(as.data.frame(final_lasso_df), outcome, 0.8, bothSets = T)
+
+# pull out training and validation frames
+training_frame_lasso <- as.h2o(straps_splits_lasso[[1]])
+validation_frame_lasso <- as.h2o(straps_splits_lasso[[2]])
+
+# Create all combinations of tuning parameters
+params_lasso <- expand.grid(lambda = lambda_tune)
+model_tune_list_lasso <- rep(NA, nrow(params_lasso))
+
+#initialize function parameters for h2o.randomForest
+outputs <- outcome
+inputs <- setdiff(names(final_lasso_df), outcome)
+
+#Training models on all combinations of parameters
+for(i in 1:nrow(params_lasso)){
+lasso_i <- h2o.glm(
+      training_frame = training_frame_lasso,
+      x=inputs,
+      y=outputs,
+      model_id = NULL,
+      lambda = params_lasso[i,][[1]],
+      family = "binomial",
+      alpha = 1, # for Lasso
+      nfolds = 5,
+      fold_assignment = "Stratified",
+      score_each_iteration = T,
+      seed = 42
+    )
+  
+  #Test on validation frame
+  result_lasso <- h2o.performance(lasso_i, as.h2o(validation_frame_lasso))
+  
+  #Pulling model metric (AUC)
+  model_tune_list_lasso[i] <- result_lasso@metrics$AUC
+}
+
+# Pull the index of the tuning parameter which produced the highest AUC
+best_index_lasso <- which(model_tune_list_lasso==max(model_tune_list_lasso))[1]
+
+```
+
+```{r}
+lasso_final_model <- h2o.glm(
+  training_frame = as.h2o(training_df),
+  x= inputs,
+  y= outputs,
+  lambda = params_lasso[best_index_lasso,1],
+  family = "binomial",
+  alpha = 1,
+  nfolds = 5,
+  fold_assignment = "Stratified",
+  score_each_iteration = T,
+  seed = 42
+)
+```
 
