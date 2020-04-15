@@ -8,7 +8,7 @@ The purpose of this document is to create the models used for the exploration in
 ```{r load libraries}
 # these are the libraries needed to run the code below
 library(data.table)
-library(mlr)
+#library(mlr)
 library(splitstackshape) #stratified function
 library(boot)
 library(tidyverse)

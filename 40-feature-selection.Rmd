@@ -5,7 +5,7 @@ output: html_notebook
 
 ```{r load libraries}
 library(data.table)
-library(mlr)
+#library(mlr)
 library(splitstackshape) #stratified function
 library(boot)
 library(tidyverse)
