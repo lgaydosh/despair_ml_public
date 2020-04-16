@@ -76,13 +76,23 @@ suicide_out <- training_df %>%
 
 
 
-```{r explore variable importance for suicide}
+```{r explore variable importance for suicide, fig.width=15,fig.height=6}
 # This will give you a data frame of top predictors
 
 top_preds_outcome <- suicide_out[[3]] %>%
   get_total_placement() %>% 
   mutate(avg_place = total /n,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+
+# Box plot after feature selection
+select_RFvar_all <- suicide_out[[3]]%>%
+    purrr::reduce(rbind)
+
+select_RFvar_all%>%
+  group_by(variable)%>% 
+  arrange(desc(placement))%>%
+  ggplot(aes(x = variable, y = placement)) +
+  geom_boxplot()
 
 # Plot top predictors
 top_preds_outcome %>% 
@@ -95,8 +105,6 @@ top_preds_outcome %>%
   ggtitle("Variable Importance based on Bootstrap") +
   coord_flip() +
   theme_dark()
-
-
 
 top_preds_outcome %>% 
   arrange(avg_place)
@@ -193,7 +201,7 @@ suicide_out_lasso <- training_df %>%
 
 
 
-```{r explore variable importance for suicide, fig.height=7, fig.width=13}
+```{r explore variable importance for suicide, fig.height=6, fig.width=20}
 # This will give you a data frame of top predictors
 
 top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
@@ -201,7 +209,31 @@ top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
   mutate(avg_place = total /n,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
 
+
+# Box plot after feature selection
+select_LSvar_all <- suicide_out_lasso[[3]]%>%
+    purrr::reduce(rbind)
+
+# for (i in 1:length(select_LSvar_all$variable)){
+#   select_LSvar_all$variable[i] <- unlist(strsplit(select_LSvar_all$variable[i],
+#                                                          split = '.', fixed = TRUE))[1]
+# }
+
+select_LSvar_all%>%
+  group_by(variable)%>% 
+  arrange(desc(placement))%>%
+  ggplot(aes(x = variable, y = placement)) +
+  geom_boxplot()
+
+
+
 # Plot top predictors
+# for (i in 1:length(top_preds_outcome_lasso$variable)){
+#   top_preds_outcome_lasso$variable[i] <- unlist(strsplit(top_preds_outcome_lasso$variable[i],
+#                                                          split = '.', fixed = TRUE))[1]
+# }
+
+
 top_preds_outcome_lasso %>% 
   arrange(desc(total)) %>%
   ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
