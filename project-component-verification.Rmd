@@ -1,0 +1,184 @@
+---
+title: "project-component-verification"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+# Verifying project components
+
+The purpose of this document is to verify the behavior of certain parts of the project and determine if they're working similarly on everyone's machines.  Make sure you run `10-import-data.Rmd` first.
+
+```{r libraries used}
+pacman::p_load(tidyverse, yardstick, janitor, h2o)
+```
+
+```{r constants and settings}
+seed = 2435
+set.seed(seed)
+
+# This makes event 1 (e.g., not 0) the event of interest.  So, the sensitivity thus reflects "depression" and not "not depression".
+options(yardstick.event_first = FALSE)
+```
+
+```{r}
+#load waves, join, and select desired aids and features of data
+wave_data <- load_waves(1:5)
+```
+
+```{r join all waves}
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+```
+
+```{r}
+# set outcome variable of interest
+outcome = 'h5mn8'
+
+# get the aids that you want
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+# use the features and ids that you want to select out what you want
+working_ds <- full_dataset %>%
+                filter(aid %in% inner_aids) %>%
+                select(aid, predictor_list, outcome)
+
+```
+
+## Helper functions
+
+```{r amended rf modeler}
+# Generates a list of lists corresponding to: $mods: models built, $perfs: performance on validation set, $params: hyperparameters supplied by user
+model_rf <- function(train_frame, valid_frame, outcome, max_depths_tune, ntrees_tune,
+                          mtries_tune=-1, nfolds=5,
+                          stopping_metric='AUTO', stopping_tolerance = 1e-3,
+                          balance_classes= FALSE, seed=2435){  
+  
+  # if you have a validation frame, this means that you want to ensure same comparison across all models.  Otherwise, bootstrapping
+  if(!is.null(valid_frame)){
+    training_frame <- as.h2o(train_frame)
+    validation_frame <- as.h2o(valid_frame)
+  }
+  else{
+    splits <- train_frame %>% rsample::initial_split(strat=outcome, prop=0.9)
+    training_frame <- as.h2o(rsample::training(splits))
+    validation_frame <- as.h2o(rsample::testing(splits))
+  }
+  
+  # Create all combinations of tuning parameters
+  params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune, mtries=mtries_tune)
+  models <- c()
+  performances <- c()
+  
+  #initialize function parameters for h2o.randomForest
+  outputs <- outcome
+  inputs <- setdiff(names(training_frame), outcome)
+  
+  #Training models on all combinations of parameters
+  for(i in 1:nrow(params)){
+    rf_i <- h2o.randomForest(
+      training_frame = training_frame,
+      x= inputs,
+      y= outputs, 
+      #model_id = "rf_covType_v1",
+      ntrees = params[i,][[2]],
+      max_depth = params[i,][[1]],
+      mtries = params[i,][[3]],
+      stopping_metric = stopping_metric,
+      stopping_tolerance = stopping_tolerance,
+      balance_classes = balance_classes,
+      stopping_rounds = 2,
+      nfolds = nfolds,
+      fold_assignment = "Stratified",
+      #score_each_iteration = T,
+      seed = seed
+    )
+    
+    #Save the model and performance on validation set to assess full model performance
+    models <- models %>%
+      append(rf_i)
+    
+    performances <- performances %>%
+      append(h2o.performance(rf_i, validation_frame))
+    
+  }
+  
+  return(list(mods = models,
+              perfs = performances,
+              params = params))
+}
+  
+```
+
+## H2o: Why are the reported training metrics and results from `h2o.performance()` different?
+
+In this section, we want to make sure that h2o is working as we would expect and require for this project.  I think I've figured it out.  Let's generate our regular workflow just to start out with:
+
+```{r}
+h2o.init()
+```
+
+```{r}
+#create stratified split for overall training and testing
+splits <- working_ds %>%
+  rsample::initial_split(strat=outcome, prop=0.8)
+
+train_set <- rsample::training(splits)
+test_set <- rsample::testing(splits)
+
+#use another stratified split to split into training vs validation
+train_splits <- train_set %>% rsample::initial_split(strat=outcome, prop=0.9) 
+  
+# pull out training and validation frames
+train_ss <- rsample::training(train_splits)
+valid_ss <- rsample::testing(train_splits)
+```
+
+
+```{r}
+#generate test model to be explored
+test_results <- train_ss %>% 
+  select(-aid) %>%
+  model_rf(valid_ss, outcome, max_depths_tune = 20, ntrees_tune = 50, nfolds = 2, seed=4805)
+
+test_model <- test_results$mods[[1]]
+```
+
+So, here are the outright f1 metrics of k+1th model (returned after training):
+
+```{r}
+test_model@model$training_metrics@metrics$max_criteria_and_metric_scores
+```
+
+We can verify this functionality outright by looking at the thresholds and calculating these values:
+
+```{r}
+#here are the thresholds that H2o uses:
+threshes <- test_model@model$training_metrics@metrics$thresholds_and_metric_scores$threshold
+f1s <- test_model@model$training_metrics@metrics$thresholds_and_metric_scores$f1
+max_ind <- which(f1s == max(f1s))
+max_f1<- threshes[max_ind]
+str_c('Index of max f1: ', max_ind)
+str_c('Max f1 value: ', max_f1)
+```
+This matches exactly what comes from h2o with the exception of the index (h2o's indices are 0-based, so the R equivalent will be one greater).  Now, let's look at what would happen if we called `h2o.performance()` on that same set:
+
+```{r}
+# Let's look at the performance.  Let's use the training_frame.
+perf <- h2o.performance(test_model, newdata = as.h2o(train_ss))
+perf@metrics$max_criteria_and_metric_scores
+```
+
+Oh no!  Different, which is mildly upsetting.  Why is this?
+
+Whelp, let's take a quick foray into the training metrics:
+
+```{r}
+test_model@model$training_metrics@metrics$description
+```
+
+Well look at that - clear as day.  "Metrics reported on Out-Of-Bag training samples".  This is documented [in H2o's issue tracker](https://0xdata.atlassian.net/projects/PUBDEV/issues/PUBDEV-5795?filter=allopenissues&orderby=priority%20DESC&keyword=performance).  It looks like it was fixed in version 3.24.0.  Sadly, I'm on version 3.18.  What does this mean?  Whenever a tree is calculated, there are OOB samples left over from the bootstrap.  The metrics are then calculated on these.  So, these training metrics on OOB samples would not match those of the full training set.  Thus, if we want the right metric, we'll need to update our version of H2o, and if that doesn't fix it, we'll need to call `h2o.performance()` to get the right threshold, and then use that with `h2o.predict()` and some metric calculators to get our correct performance.

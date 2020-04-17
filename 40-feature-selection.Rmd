@@ -120,7 +120,7 @@ boot_model_lasso <- function(train, outcome, lambda_tune, nfolds){
       seed = 42
     )
     
-    #Test on 
+    #Test on frame
     #result <- h2o.performance(lasso_i, as.h2o(training_frame))
     
     #Pulling model metric (AUC)
