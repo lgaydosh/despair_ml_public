@@ -5,7 +5,7 @@ output: html_notebook
 
 ```{r load libraries}
 library(data.table)
-library(mlr)
+#library(mlr)
 library(splitstackshape) #stratified function
 library(boot)
 library(tidyverse)
@@ -52,11 +52,11 @@ boot_model_rf <- function(train, outcome, max_depths_tune, ntrees_tune, nfolds){
       seed = 42
     )
     
-    #Test on validation frame
-    result <- h2o.performance(rf_i, as.h2o(validation_frame))
+    #Test on frame
+    #result <- h2o.performance(rf_i, as.h2o(training_frame))
     
     #Pulling model metric (AUC)
-    model_tune_list[i] <- result@metrics$AUC
+    model_tune_list[i] <- rf_i@model$training_metrics@metrics$AUC
   }
   
   # Pull the index of the tuning parameter which produced the highest AUC
@@ -120,11 +120,11 @@ boot_model_lasso <- function(train, outcome, lambda_tune, nfolds){
       seed = 42
     )
     
-    #Test on validation frame
-    result <- h2o.performance(lasso_i, as.h2o(validation_frame))
+    #Test on frame
+    #result <- h2o.performance(lasso_i, as.h2o(training_frame))
     
     #Pulling model metric (AUC)
-    model_tune_list[i] <- result@metrics$AUC
+    model_tune_list[i] <- rf_i@model$training_metrics@metrics$AUC
     
     
   }
