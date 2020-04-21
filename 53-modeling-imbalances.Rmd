@@ -33,6 +33,7 @@ This appears to be a point of major contention in the ML community, although it 
 ### Libraries
 
 ```{r}
+library(pacman)
 pacman::p_load(purrr, tidyverse, h2o, yardstick);
 ```
 
@@ -714,12 +715,11 @@ top_ns_group <- exps %>%
   drop_na(c(!!ensym(metric), meas_of_int)) %>%
   group_by(invest_type, dataset) %>%
   dplyr::arrange(!!ensym(metric), .by_group=TRUE) %>%
+  #dplyr::arrange(desc(!!ensym(metric)), .by_group=TRUE) %>%
   slice(1:n) %>%
   summarise_all(mean, na.rm=TRUE) %>%
   ungroup() %>%
-  #pivot_longer(-c(invest_type, model, dataset, p_max_depth, ntrees, mean_depth, mtries, p_ntrees, p_mtries, !!ensym(metric)), names_to='metric', values_to='values') %>%
-  mutate(forest_sz = ntrees + mean_depth + mtries) #%>%
-  #filter(metric %in% meas_of_int)
+  mutate(forest_sz = ntrees + mean_depth + mtries)
 
 ```
 
@@ -734,4 +734,10 @@ for(i in 1:length(meas_of_int))
 ```{r fig.width=10, fig.height=10}
 gridExtra::grid.arrange(plts[[1]], plts[[2]], plts[[3]], plts[[4]], plts[[5]])
 ```
+The results above are a result of choosing some metric, and then looking at the top 5 training and top 5 testing models according to that metric, and taking an average of those 5 for sensitivity, specificity, ppv, npv, and mpce.  The training data is shown for general purpose.  Using this code should allow us to understand what the best metric should be, and which method that we should pick to meet that metric.  For example, using mpce as a metric indicates that we'll have pretty good performance if we balance the classes, but this also shows that we will decrease our specificity and ppv a bit.
+
+Running this again using `pr_auc`, for example, we can see similar behavior.  Balancing the classes has the effect of increasing the sensitivity and lowering the mpce, but results in worse positive predictive value.  This basically means that balancing the classes increases false positives.  If we don't care about this, and we truly only care about sensitivity, then we should choose to balance the classes.
+
+This also suggests that we should perhaps use a more palpable metric if possible.  An example would be number of lives saved (impossible from this dataset, although we might be able to pull in others to find some sort of ratio) or similar.
+
 

@@ -6,18 +6,34 @@ output: html_document
 The purpose of this document is to explore the results of the models built in the 50 series.
 
 ```{r load libraries}
+library(pacman)
+pacman::p_load(tidyverse, h2o, yardstick)
+```
+
+In general, one shouldn't use these functions directly.  They're helpers to perform the functionality of the main methods.
+```{r helper functions}
 
 ```
 
-```{r convenience functions}
+The following define the main functions which will be used in the 60 series for further investigation and the 70 series to understand the results of the analysis.
 
+```{r main functions}
+# This function returns the metrics for a set of models on an input dataframe
+get_metric_set <- function(df, model_list){
+  # df: Training or testing frame
+  # model_list: list of h2o model objects
+  # return: tibble with all applicable metrics for each model tested on df
+
+  # get metric set
+  metric_set <- model_list %>%
+  map_df(get_performance, test_data = df) %>% 
+  mutate(model = factor(1:length(model_list))) %>% 
+  select(model, everything())
+   
+  # return metric set
+  return(metric_set)
+}
 ```
 
-```{r explore results}
 
-```
-
-```{r explore variable importance}
-
-```
 

@@ -288,7 +288,7 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
     mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
     mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
   
-  #some calcs
+  #some counting for class counts
   cls_cnt <- preds %>%
     group_by(actual) %>%
     summarise(cnt=n()) %>%
@@ -303,13 +303,14 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   
   #add some rows for raw values and then calculate using these values
   calc_metrics <- calc_metrics %>%
-    mutate(no_n = filter(cls_cnt, actual==0)  %>% pull(cnt)) %>%
+    mutate(no_n = filter(cls_cnt, actual==0) %>% pull(cnt)) %>%
     mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
     mutate(tns = spec * no_n) %>%
     mutate(fps = no_n - tns) %>%
     mutate(tps = sens * no_p) %>% 
     mutate(fns = no_p - tps) %>%
     mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+    mutate(err_rate = (fps+fns)/(no_n+no_p)) %>%
     mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
     mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
     mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
