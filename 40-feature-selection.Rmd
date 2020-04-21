@@ -3,13 +3,13 @@ title: "40-feature-selection"
 output: html_notebook
 ---
 
+This notebook details the functions required to perform feature selection.  The 
+
 ```{r load libraries}
-library(data.table)
-#library(mlr)
-library(splitstackshape) #stratified function
-library(boot)
-library(tidyverse)
-library(rsample)
+library(pacman)
+pacman::p_load(tidyverse, h2o, yardstick,
+               data.table, splitstackshape, #splitstackshape has stratified function
+               boot, rsample)
 ```
 
 ```{r convenience functions}
@@ -187,7 +187,7 @@ get_top_n_names <- function(model_h2o, top_n){
 
 
 ######################
-# Convinient function to select from either "RF" or "Lasso"; seperate functions can be found in 41-modeling-rf and 42-modeling-lasso.
+# Convenience function to select from either "RF" or "Lasso"; seperate functions can be found in 41-modeling-rf and 42-modeling-lasso.
 ## return : a list of three lists: 
 #          list 1 - all models created
 #          list 2 - all model performances
@@ -242,10 +242,84 @@ model_feature_selection <- function(training_df,
   
   
   return(list(combined_models, combined_performances, variable_imps))
+
+}
+
+######################
+# This function returns performance of a dataset (e.g., validation or test set) using the threshold from the training set.  For more use-case
+# information, see 53-modeling-imbalances.Rmd.
+## returns : a one-row tibble of 25 performance metrics
+get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val=NULL, outcome='h5mn8'){
   
+  # test_data: tibble of test data without aids.  Must contain the true values of the outcome
+  # test_model: h2o model of interest
+  # thresh_met: string indicating threshold by which the prediction probabilities will be classified (default 'f1').
+  #             Must be present in h2o metrics.
+  # thresh_val: value by which the predictions probabilities will be classified (default NULL).  Leave NULL if you want this method to extract
+  #             the threshold from the model you passed in.
+  # outcome: string indicating *binary* outcome of interest
+  # returns: 1-row tibble of 25 metric values as calculated by yardstick
   
+  #if the metric_thresh is null, that means we need to get it from the test model
+  if(is.null(thresh_val)){
+    
+    # get parameters for computing threshold of interest
+    met_name = str_c('max ', thresh_met)
+    model_metnames <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$metric
+    model_threshes <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$threshold
+    
+    #Get the threshold of maximum metric of interest
+    thresh_val <-model_threshes[which(model_metnames==met_name)]
+    
+  }
   
+  #get actual column
+  act <- test_data %>%
+    select(outcome) %>%
+    rename(actual = outcome)
+  
+  #get predictions - this returns predictions according to the training f1 score
+  #releveling is done because yardstick wants to see the first level as the level of interest.
+  preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
+    as_tibble() %>%
+    select(-predict) %>%
+    mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
+    bind_cols(act) %>%
+    mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
+    mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
+  
+  #some calcs
+  cls_cnt <- preds %>%
+    group_by(actual) %>%
+    summarise(cnt=n()) %>%
+    ungroup() %>%
+    as_tibble()
+  
+  #generate metrics of interest as tibble
+  calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
+    select(-.estimator) %>%
+    #dplyr::rename(flscore = f_meas) %>%
+    pivot_wider(names_from=.metric, values_from=.estimate)
+  
+  #add some rows for raw values and then calculate using these values
+  calc_metrics <- calc_metrics %>%
+    mutate(no_n = filter(cls_cnt, actual==0)  %>% pull(cnt)) %>%
+    mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
+    mutate(tns = spec * no_n) %>%
+    mutate(fps = no_n - tns) %>%
+    mutate(tps = sens * no_p) %>% 
+    mutate(fns = no_p - tps) %>%
+    mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+    mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
+    mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
+    mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+  
+  return(calc_metrics)
 }
 
 ```
+
+
 
