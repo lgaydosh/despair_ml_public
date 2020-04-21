@@ -1,7 +1,7 @@
 ---
 title: "project-component-verification"
 output: 
-  html_document:
+  html_notebook:
     toc: true
     toc_float: true
     theme: lumen
@@ -22,8 +22,7 @@ pacman::p_load(tidyverse, yardstick, janitor, h2o)
 seed = 2435
 set.seed(seed)
 
-# This makes event 1 (e.g., not 0) the event of interest.  So, the sensitivity thus reflects "depression" and not "not depression".
-options(yardstick.event_first = FALSE)
+options(yardstick.event_first = TRUE)
 ```
 
 ```{r}
@@ -114,6 +113,107 @@ model_rf <- function(train_frame, valid_frame, outcome, max_depths_tune, ntrees_
   
 ```
 
+```{r metric calculation function using h2o}
+get_performance_h2o <- function(test_model, test_data, outcome='h5mn8'){
+
+#get actual column
+act <- test_data %>%
+  select(outcome) %>%
+  rename(actual = outcome)
+
+#get predictions - this returns predictions according to the training f1 score
+preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
+  as_tibble() %>%
+  bind_cols(act) %>%
+  mutate(predict = fct_relevel(predict, "1", "0")) %>%
+  mutate(actual = fct_relevel(actual, "1", "0"))
+
+#some calcs
+cls_cnt <- preds %>%
+  group_by(actual) %>%
+  summarise(cnt=n()) %>%
+  ungroup() %>%
+  as_tibble()
+
+#generate metrics of interest as tibble
+calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
+  select(-.estimator) %>%
+  #dplyr::rename(flscore = .f_meas) %>%
+  spread(key=.metric, value=.estimate)
+
+#add some rows for raw values
+calc_metrics <- calc_metrics %>%
+  mutate(no_n = filter(cls_cnt, actual==0) %>% pull(cnt)) %>%
+  mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
+  mutate(tns = spec * no_n) %>%
+  mutate(fps = no_n - tns) %>%
+  mutate(tps = sens * no_p) %>% 
+  mutate(fns = no_p - tps) %>%
+  mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+  mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+  mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+  mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
+  mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
+  mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+
+return(calc_metrics)  
+}
+
+```
+
+
+```{r}
+get_performance <- function(test_data, test_model, metric_thresh, outcome='h5mn8'){
+#given a model, let's predict outcomes using it
+
+#get actual column
+act <- test_data %>%
+  select(outcome) %>%
+  rename(actual = outcome)
+
+#get predictions - this returns predictions according to the training f1 score
+#releveling is done because yardstick wants to see the first level as the level of interest.
+preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
+  as_tibble() %>%
+  select(-predict) %>%
+  mutate(predict = as.factor(as.numeric(p1>metric_thresh))) %>%
+  bind_cols(act) %>%
+  mutate(predict = fct_relevel(predict, "1", "0")) %>%
+  mutate(actual = fct_relevel(actual, "1", "0"))
+
+
+#some calcs
+cls_cnt <- preds %>%
+  group_by(actual) %>%
+  summarise(cnt=n()) %>%
+  ungroup() %>%
+  as_tibble()
+
+#generate metrics of interest as tibble
+calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
+  select(-.estimator) %>%
+  #dplyr::rename(flscore = f_meas) %>%
+  pivot_wider(names_from=.metric, values_from=.estimate)
+
+#add some rows for raw values and then calculate using these values
+calc_metrics <- calc_metrics %>%
+  mutate(no_n = filter(cls_cnt, actual==0)  %>% pull(cnt)) %>%
+  mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
+  mutate(tns = spec * no_n) %>%
+  mutate(fps = no_n - tns) %>%
+  mutate(tps = sens * no_p) %>% 
+  mutate(fns = no_p - tps) %>%
+  mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+  mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+  mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+  mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
+  mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
+  mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+
+return(calc_metrics)
+}
+```
+
 ## H2o: Why are the reported training metrics and results from `h2o.performance()` different?
 
 In this section, we want to make sure that h2o is working as we would expect and require for this project.  I think I've figured it out.  Let's generate our regular workflow just to start out with:
@@ -143,7 +243,7 @@ valid_ss <- rsample::testing(train_splits)
 #generate test model to be explored
 test_results <- train_ss %>% 
   select(-aid) %>%
-  model_rf(valid_ss, outcome, max_depths_tune = 20, ntrees_tune = 50, nfolds = 2, seed=4805)
+  model_rf(valid_ss, outcome, max_depths_tune = 20, ntrees_tune = 50, nfolds = 2, seed=3242)
 
 test_model <- test_results$mods[[1]]
 ```
@@ -160,7 +260,7 @@ We can verify this functionality outright by looking at the thresholds and calcu
 #here are the thresholds that H2o uses:
 threshes <- test_model@model$training_metrics@metrics$thresholds_and_metric_scores$threshold
 f1s <- test_model@model$training_metrics@metrics$thresholds_and_metric_scores$f1
-max_ind <- which(f1s == max(f1s))
+max_ind <- which(f1s == max(f1s, na.rm = TRUE))
 max_f1<- threshes[max_ind]
 str_c('Index of max f1: ', max_ind)
 str_c('Max f1 value: ', max_f1)
@@ -173,7 +273,7 @@ perf <- h2o.performance(test_model, newdata = as.h2o(train_ss))
 perf@metrics$max_criteria_and_metric_scores
 ```
 
-Oh no!  Different, which is mildly upsetting.  Why is this?
+Oh no!  Different, which is unexpected.  Why is this?
 
 Whelp, let's take a quick foray into the training metrics:
 
@@ -181,4 +281,110 @@ Whelp, let's take a quick foray into the training metrics:
 test_model@model$training_metrics@metrics$description
 ```
 
-Well look at that - clear as day.  "Metrics reported on Out-Of-Bag training samples".  This is documented [in H2o's issue tracker](https://0xdata.atlassian.net/projects/PUBDEV/issues/PUBDEV-5795?filter=allopenissues&orderby=priority%20DESC&keyword=performance).  It looks like it was fixed in version 3.24.0.  Sadly, I'm on version 3.18.  What does this mean?  Whenever a tree is calculated, there are OOB samples left over from the bootstrap.  The metrics are then calculated on these.  So, these training metrics on OOB samples would not match those of the full training set.  Thus, if we want the right metric, we'll need to update our version of H2o, and if that doesn't fix it, we'll need to call `h2o.performance()` to get the right threshold, and then use that with `h2o.predict()` and some metric calculators to get our correct performance.
+Well look at that - clear as day.  "Metrics reported on Out-Of-Bag training samples".  This is documented [in H2o's issue tracker](https://0xdata.atlassian.net/projects/PUBDEV/issues/PUBDEV-5795?filter=allopenissues&orderby=priority%20DESC&keyword=performance).  It looks like it was fixed in version 3.24.0.  Sadly, I'm on version 3.18.  What does this mean?  Whenever a tree is calculated, there are OOB samples left over from the bootstrap.  The metrics are then calculated on these.  So, these training metrics on OOB samples would not match those of the full training set.
+
+## H2o: The h2o.predict() and h2o.performance() functions seem to produce different results
+
+Let's take a look at this.  So, using the model we just made, let's get the performance on the testing set.
+
+```{r}
+perf_test <- h2o.performance(test_model, newdata=as.h2o(test_set))
+perf_test
+```
+
+OK, so we got some performance.  That's...interesting, though.  Why are we calculating a new f1 score?  Why are we computing new max metrics, because it sure seems like we should use the threshold from our training set to calculate the thresholds.  Maybe that isn't the case, and maybe they're just calculating those things in general for our general knowledge.  OK.  Let's put it to the test.
+
+`h2o.predict()` actually uses the threshold from the training data in its predictions.  Let's see if the confusion matrix from those predictions actually matches that:
+
+```{r}
+preds <- h2o.predict(test_model, newdata=as.h2o(test_set))
+```
+
+The preds environment will have 3 columns: `predict`, `p0`, and `p1`.  The `predict` column is a conclusion from `p0` and `p1` based on the threshold (from the training set) that it applied.  Let's see if it matches the results from h2o.performance.
+```{r}
+test_res <- get_performance_h2o(test_model, test_set)
+test_res
+```
+The AUCs for both of these should be the same, because they're independent of which classes each example is assigned to (due to the thresholding sweep):
+```{r}
+str_c('AUC from h2o: ', perf_test@metrics$AUC)
+str_c('Manual AUC: ', test_res$roc_auc)
+```
+Same.  Good.
+
+And the confusion matrices?  From h2o:
+```{r}
+perf_test@metrics$cm
+```
+
+```{r}
+str_c(test_res$tns, test_res$fps, sep='     ')
+str_c(test_res$fns, test_res$tps, sep='     ')
+```
+
+Different, which is unfortunate.  This is because different thresholds result in different classifications of positive and negative examples.
+
+## Resultant workflow
+Because of all of these differences, we're going to do three things:
+
+1. Get the best threshold from the training set metrics.
+2. Use this threshold directly on the predictions obtained from predict()
+3. Make the cm calculations thusly.  This is shown below:
+
+```{r}
+train_perf <- h2o.performance(test_model, train=TRUE)
+max_f1_thresh <- h2o.find_threshold_by_max_metric(train_perf, 'f1')
+max_f2_thresh <- h2o.find_threshold_by_max_metric(train_perf, 'f2')
+```
+
+
+```{r}
+f1_preds <- test_set %>%
+  get_performance(test_model, max_f1_thresh)
+
+f2_preds <- test_set %>%
+  get_performance(test_model, max_f2_thresh)
+
+```
+```{r}
+bind_rows(mutate(f1_preds, met_name='f1'),
+          mutate(f2_preds, met_name='f2')) %>%
+  select(met_name, everything())
+```
+I decided here to look at the f2 score because it will care a lot less about the number of negatives.  It seems to be an accurate measure in assessing the performance of this model.
+
+# Other points of consternation: Subject-Wave Membership
+
+Should we be concerned that it appears that not all of the participants are present in Wave 1?  Consider the following:
+
+Let's get the aids of all of the waves individually.
+```{r}
+aids_1 <- wave_data[[1]] %>% pull(aid)
+aids_2 <- wave_data[[2]] %>% pull(aid)
+aids_3 <- wave_data[[3]] %>% pull(aid)
+aids_4 <- wave_data[[4]] %>% pull(aid)
+aids_5 <- wave_data[[5]] %>% pull(aid)
+```
+
+Alright.  Now, let's do some setdiffs to make sure that all of the elements that are in whatever other wave are in wave 1.  `setdiff(x,y)` returns the elements of `x` that are *not* in `y`.
+
+```{r}
+setdiff(aids_2, aids_1)
+```
+whoops!
+
+```{r}
+setdiff(aids_3, aids_1)
+```
+WHOOPS
+
+```{r}
+setdiff(aids_4, aids_1)
+```
+yay!
+
+```{r}
+setdiff(aids_5, aids_1)
+```
+yay!
+

@@ -1,17 +1,21 @@
 ---
 title: "53-modeling-imbalances"
-output: 
-  html_document:
-    toc: true
-    toc_float: true
-    theme: lumen
+output:
+  html_notebook:
     code_folding: hide
-editor_options: 
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
+    toc: yes
+editor_options:
   chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(eval=FALSE)
 ```
 
 # Investigating the role of imbalanced classes on random forest performance
@@ -23,13 +27,16 @@ In this notebook, we explore how having imbalanced classes will affect the perfo
 
 This appears to be a point of major contention in the ML community, although it seems as if most practitioners lean towards maintaining the class imbalance during training.  However, with random forests (RF), there seems to be strong arguments towards balancing the classes, although the RF would have the same issues a regular ML model would have - learning less about the less represented class.  Perhaps this is simply more of an issue for RFs, so we investigate the behavior here for our purposes.
 
+### Requirements
+`10-import-data.Rmd` must be run prior to this exercise. 
+
 ### Libraries
 
 ```{r}
-pacman::p_load(purrr, tidyverse, h2o)
+pacman::p_load(purrr, tidyverse, h2o, yardstick);
 ```
 
-### Constants
+### Constants and options
 
 ```{r}
 seed = 2435
@@ -38,28 +45,336 @@ set.seed(seed)
 
 ### Helper functions
 
-```{r}
-get_inner <- function(in_list, var_name='aid'){
-# This function returns values that are common to all lists
-
-  all_aid_list <- in_list %>%
-    map(select, var_name) %>%
-    purrr::reduce(intersect) %>%
-    pull(var_name)
+```{r generate performance metrics via yardstick}
+# Get the performance of a particular model on a particular dataset given a threshold for a specific outcome
+get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val=NULL, outcome='h5mn8'){
   
-  return(all_aid_list)
+  #if the metric_thresh is null, that means we need to get it from the test model
+  if(is.null(thresh_val)){
+    
+    # get parameters for computing threshold of interest
+    met_name = str_c('max ', thresh_met)
+    model_metnames <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$metric
+    model_threshes <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$threshold
+    
+    #Get the threshold of maximum metric of interest
+    thresh_val <-model_threshes[which(model_metnames==met_name)]
+    
+  }
+  
+  #get actual column
+  act <- test_data %>%
+    select(outcome) %>%
+    rename(actual = outcome)
+  
+  #get predictions - this returns predictions according to the training f1 score
+  #releveling is done because yardstick wants to see the first level as the level of interest.
+  preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
+    as_tibble() %>%
+    select(-predict) %>%
+    mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
+    bind_cols(act) %>%
+    mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
+    mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
+  
+  #some calcs
+  cls_cnt <- preds %>%
+    group_by(actual) %>%
+    summarise(cnt=n()) %>%
+    ungroup() %>%
+    as_tibble()
+  
+  #generate metrics of interest as tibble
+  calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
+    select(-.estimator) %>%
+    #dplyr::rename(flscore = f_meas) %>%
+    pivot_wider(names_from=.metric, values_from=.estimate)
+  
+  #add some rows for raw values and then calculate using these values
+  calc_metrics <- calc_metrics %>%
+    mutate(no_n = filter(cls_cnt, actual==0)  %>% pull(cnt)) %>%
+    mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
+    mutate(tns = spec * no_n) %>%
+    mutate(fps = no_n - tns) %>%
+    mutate(tps = sens * no_p) %>% 
+    mutate(fns = no_p - tps) %>%
+    mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+    mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
+    mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
+    mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+  
+  return(calc_metrics)
 }
 ```
 
+```{r amended rf modeler}
+# Generates a list of lists corresponding to: $mods: models built, $perfs: performance on validation set, $params: hyperparameters supplied by user
+model_rf <- function(train_frame, valid_frame, outcome, max_depths_tune, ntrees_tune,
+                          mtries_tune=-1, nfolds=5,
+                          stopping_metric='AUTO', stopping_tolerance = 1e-3, sample_rate_per_class = NULL,
+                          balance_classes= FALSE, seed=2435, thresh_metric = 'f2'){  
+  
+  # if you have a validation frame, this means that you want to ensure same comparison across all models.  Otherwise, bootstrapping
+  if(!is.null(valid_frame)){
+    training_frame <- as.h2o(train_frame)
+    validation_frame <- valid_frame
+  }
+  else{
+    splits <- train_frame %>% rsample::initial_split(strat=outcome, prop=0.9)
+    training_frame <- as.h2o(rsample::training(splits))
+    validation_frame <- rsample::testing(splits)
+  }
+  
+  # Create all combinations of tuning parameters
+  params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune, mtries=mtries_tune)
+  models <- c()
+  performances <- c()
+  
+  #initialize function parameters for h2o.randomForest
+  outputs <- outcome
+  inputs <- setdiff(names(train_frame), outcome)
+  
+  #Training models on all combinations of parameters
+  for(i in 1:nrow(params)){
+    rf_i <- h2o.randomForest(
+      training_frame = training_frame,
+      x= inputs,
+      y= outputs, 
+      #model_id = "rf_covType_v1",
+      ntrees = params[i,][[2]],
+      max_depth = params[i,][[1]],
+      mtries = params[i,][[3]],
+      stopping_metric = stopping_metric,
+      stopping_tolerance = stopping_tolerance,
+      balance_classes = balance_classes,
+      sample_rate_per_class = sample_rate_per_class,
+      stopping_rounds = 2,
+      nfolds = nfolds,
+      fold_assignment = "Stratified",
+      #score_each_iteration = T,
+      seed = seed
+    )
+    
+    #Save the model
+    models <- models %>%
+      append(rf_i)
+    
+    # get parameters for computing threshold of interest
+    met_name = str_c('max ', thresh_metric)
+    model_metnames <- rf_i@model$training_metrics@metrics$max_criteria_and_metric_scores$metric
+    model_threshes <- rf_i@model$training_metrics@metrics$max_criteria_and_metric_scores$threshold
+    
+    #Get the threshold of maximum metric of interest
+    max_metric_thresh <-model_threshes[which(model_metnames==met_name)]
+    
+    #Get model performance using threshold
+    performances <- performances %>%
+      append(list(get_performance(validation_frame, rf_i, thresh_met = thresh_metric, thresh_val = max_metric_thresh)))
+    
+  }
+  
+  return(list(mods = models,
+              perfs = performances,
+              params = params))
+}
 
-## Generate dataset of interest
+```
 
+```{r}
+# This function is a helper for get_metric_set.  It returns a 2-row tibble of metrics from the training and testing sets.
+get_metrics <- function(mdl, prf, par){
+  # df: training or testing frame
+  # h2o_model: h2o model fit to use
+  # returns: tibble of metrics
+  
+  
+  # Quick convenience function to check null values
+  # Note, intentionally not using if_else() to avoid strictness of if_else
+  check_null <- function(...) ifelse(is.null(...), NA, ...)
+  
+  # get metrics of interest
+  tr_metrics <- tibble(dataset = 'training',
+                    ntrees = check_null(mdl@model$model_summary$number_of_trees),
+                    mean_depth = check_null(mdl@model$model_summary$mean_depth),
+                    mtries = check_null(mdl@parameters$mtries),
+                    roc_auc = check_null(mdl@model$training_metrics@metrics$AUC),
+                    pr_auc = check_null(mdl@model$training_metrics@metrics$pr_auc),
+                    mpce = check_null(mdl@model$training_metrics@metrics$mean_per_class_error),
+                    logloss = check_null(mdl@model$training_metrics@metrics$logloss),
+                    tns = check_null(mdl@model$training_metrics@metrics$cm$table[['0']][[1]]),
+                    fps = check_null(mdl@model$training_metrics@metrics$cm$table[['0']][[2]]),
+                    fns = check_null(mdl@model$training_metrics@metrics$cm$table[['1']][[1]]),
+                    tps = check_null(mdl@model$training_metrics@metrics$cm$table[['1']][[2]]),
+                    no_n = tns + fps,
+                    no_p = tps + fns,
+                    sens = tps/no_p,
+                    spec = tns/no_n,
+                    acc = (tps+tns)/(no_n+no_p),
+                    bal_acc = (sens+spec)/2,
+                    err_rate = (fps+fns)/(no_n+no_p),
+                    ppv = tps/(tps+fps),
+                    npv = tns/(tns+fns),
+                    #mse = check_null(mdl@model$training_metrics@metrics$MSE),
+                    rmse = check_null(mdl@model$training_metrics@metrics$RMSE),
+                    #r2 = check_null(mdl@model$training_metrics@metrics$r2),
+                    #mean_resid_deviance = check_null(mdl@model$training_metrics@metrics$mean_residual_deviance),
+                    mae = check_null(mdl@model$training_metrics@metrics$MAE))
+  
+  te_metrics <- tibble(dataset = 'testing',
+                    ntrees = check_null(mdl@model$model_summary$number_of_trees),
+                    mean_depth = check_null(mdl@model$model_summary$mean_depth),
+                    mtries = check_null(mdl@parameters$mtries),
+                    roc_auc = check_null(prf$roc_auc),
+                    pr_auc = check_null(prf$pr_auc),
+                    mpce = check_null(prf$mpce),
+                    logloss = check_null(prf$log_loss),
+                    tns = check_null(prf$tns),
+                    fps = check_null(prf$fps),
+                    fns = check_null(prf$fns),
+                    tps = check_null(prf$tps),
+                    no_n = check_null(prf$no_n),
+                    no_p = check_null(prf$no_p),
+                    sens = check_null(prf$sens),
+                    spec = check_null(prf$spec),
+                    acc = check_null(prf$accuracy),
+                    bal_acc = check_null(prf$bal_accuracy),
+                    err_rate = (fps+fns)/(no_n+no_p),
+                    ppv = check_null(prf$ppv),
+                    npv = check_null(prf$npv),
+                    #mse = check_null(prf$mse),
+                    rmse = check_null(prf$rmse),
+                    #r2 = check_null(prf$r2),
+                    #mean_resid_deviance = check_null(prf@metrics$mean_residual_deviance),
+                    mae = check_null(prf$mae))
+  
+  metrics <- bind_rows(tr_metrics, te_metrics)
+  
+  # return metric tibble
+  return(metrics)
+  
+}
+
+```
+
+```{r}
+get_metric_set <- function(ml_list, invest_type){
+  # df: Training or testing frame
+  # model_list: list of h2o model objects
+  # return: tibble with all applicable metrics for each model tested on df
+
+  # get metric set
+  metric_set <- map2_dfr(ml_list$mods, ml_list$perfs, get_metrics) %>%
+    mutate(model = factor(rep(1:length(ml_list$mods), each=2))) %>%               #add model nos
+    mutate(invest_type = invest_type) %>%                                         #need to have names for the model investigations
+    bind_cols(slice(ml_list$params, rep(1:n(), each=2))) %>%                      #duplicate params to populate row for each model
+    rename(p_max_depth = max_depth, p_ntrees = ntrees1, p_mtries = mtries1) %>%   #rename these duplicated rows (same in common with metrics)
+    select(model, everything())
+   
+  # return metric set
+  return(metric_set)
+}
+```
+
+```{r}
+show_metric_boxplots <- function(df, metric='mpce'){
+  
+  met <- metric
+  metric_sym <- ensym(met)
+  
+  #browser()
+  
+  df %>%
+    ggplot(aes(x = dataset, y = !!metric_sym, fill=dataset)) +
+    #geom_violin() + 
+    geom_boxplot(width=0.7) +
+    theme_classic()
+}
+```
+
+```{r}
+show_metric_as_function_plot <- function(df, metric='mpce', fcn='ntrees', color='dataset',set='all'){
+  
+  met <- metric
+  f <- fcn
+  col <- color
+  
+  metric_sym <- ensym(met)
+  fcn_sym <- ensym(f)
+  color_sym <- ensym(col)
+  
+  #browser()
+  
+  mv <- df %>%
+    filter(dataset=='testing') %>%
+    filter(!!metric_sym == min(!!metric_sym)) %>%
+    select(!!fcn_sym, !!metric_sym) %>%
+    head(1)
+  
+  # Plot things
+  df %>%
+    ggplot(aes(x = !!fcn_sym, y = !!metric_sym, color = !!color_sym)) +
+    geom_point(size = 3) +
+    geom_jitter(height=0.01, width=0.4) +
+    geom_point(aes(x = pull(select(mv, !!fcn_sym)), y=pull(select(mv, !!metric_sym))), shape=10, fill='black', color='red') +
+    labs(title = str_c(metric, 'as a function of', fcn, sep=' '), x = fcn, y=metric) +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_text(size = 11))
+  
+}
+```
+
+```{r}
+make_experiment<- function(train_data, valid_data, resp,
+                           ntree_params, md_params, mtries_params,
+                           nfold=5, stop_met='AUTO', stop_tol=1e-3, bal_cls=FALSE, srpc=NULL, sd=2435,
+                           exp_name, thresh_type='f2', plt_metric='mpce'){
+
+  #train model and get results 
+  train_valid_res <- train_data %>%
+    select(-aid) %>%
+    model_rf(valid_data, resp,
+             ntrees_tune = ntree_params, max_depths_tune = md_params, mtries_tune = mtries_params,
+             nfolds=nfold, stopping_metric=stop_met, stopping_tolerance = stop_tol, balance_classes = bal_cls, sample_rate_per_class = srpc,
+             seed=sd, thresh_metric = thresh_type)
+  
+  #Using results, get aggregated output about performance
+  exp_perf <- train_valid_res %>% get_metric_set(exp_name)
+  
+  #Generate plots of interest
+  met_sym <- ensym(plt_metric)
+  ntrees_plt <- show_metric_as_function_plot(exp_perf, fcn='ntrees', metric=plt_metric)
+  mtries_plt <- show_metric_as_function_plot(exp_perf, fcn='mtries', metric=plt_metric)
+  md_plt <- show_metric_as_function_plot(exp_perf, fcn='mean_depth', metric=plt_metric)
+  
+  #Arrange things in a nice way and show boxplot too
+  gridExtra::grid.arrange(ntrees_plt,
+                        mtries_plt,
+                        md_plt)
+  
+  gridExtra::grid.arrange(show_metric_boxplots(exp_perf, metric=plt_metric))
+  
+  #Show information about the best performing functions
+  print(exp_perf %>%
+    filter(dataset=='testing') %>%
+    filter(!!met_sym == min(!!met_sym)))
+  
+  # Return interestng things
+  return(list(mod_perf = train_valid_res, 
+              agg_perf = exp_perf))
+  
+}
+```
+
+## Setup: importing values and performing join of interest
 ```{r load all wave files}
 wave_data <- load_waves(1:5)
 ```
 
 ```{r join all waves}
-full_dataset <- get_working_dataset_full(wave_list, join_type = 'full')
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
 
 ```{r}
@@ -67,12 +382,12 @@ full_dataset <- get_working_dataset_full(wave_list, join_type = 'full')
 outcome = 'h5mn8'
 
 # get the aids that you want
-inner_aids <- get_inner(list(wave_list[[1]], wave_list[[3]], wave_list[[4]], wave_list[[5]]))
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
 
 # use the features and ids that you want to select out what you want
 working_ds <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
-                select(c(aid, predictor_list, outcome))
+                select(aid, predictor_list, outcome)
 
 ```
 
@@ -81,15 +396,23 @@ working_ds <- full_dataset %>%
 Note: for reproducibility, it looks like we set a seed using `set.seed()`.  TODO: Determine exactly which random number generators this sets.
 
 ```{r}
-#create stratified split
+#create stratified split for overall training and testing
 splits <- working_ds %>%
+  drop_na(outcome) %>%
   rsample::initial_split(strat=outcome, prop=0.8)
 
-train <- rsample::training(splits)
-test <- rsample::testing(splits)
+train_set <- rsample::training(splits)
+test_set <- rsample::testing(splits)
+
+#use another stratified split to split into training vs validation
+train_splits <- train_set %>% rsample::initial_split(strat=outcome, prop=0.9) 
+  
+# pull out training and validation frames
+train_ss <- rsample::training(train_splits)
+valid_ss <- rsample::testing(train_splits)
 ```
 
-Let's make sure that the class distributions are correct.  Note that ACCRE's version of tidyr is 0.8.*, so I can't use pivot_wider!
+Let's make sure that the class distributions are correct.
 
 ```{r}
 orig_dist <- working_ds %>%
@@ -98,27 +421,29 @@ orig_dist <- working_ds %>%
   mutate(ratio = cnts/sum(cnts), name='orig') %>%
   select(-cnts)
 
-train_dist <- train %>%
+train_dist <- train_set %>%
   group_by_at(outcome) %>% 
   summarise(cnts = n()) %>%
   mutate(ratio = cnts/sum(cnts), name='train') %>%
   select(-cnts)
 
-test_dist <- test %>%
+test_dist <- test_set %>%
   group_by_at(outcome) %>% 
   summarise(cnts = n()) %>%
   mutate(ratio = cnts/sum(cnts), name='test') %>%
   select(-cnts)
 
 dists <- bind_rows(orig_dist, train_dist, test_dist) %>%
-  spread(h5mn8, ratio)
+  pivot_wider(names_from=h5mn8, values_from=ratio)
+
+dists
 ```
 
 The distribution of these data seem to be rather the same which is desired. Let's also just quickly make sure that the sets are disjoint.
 
 ```{r}
 # intersect aids and make sure the size of the intersection is 0
-ml_dataset_isect <- get_inner(list(train, test))
+ml_dataset_isect <- get_inner(list(train_set, test_set))
 length(ml_dataset_isect)
 ```
 Good!  There's no intersection of aids in the list.  Now, let's do some modeling.
@@ -136,7 +461,7 @@ I'm going to look at three things in particular:
 I'm going to replicate each endeavor a couple times just to get an average.
 
 ```{r}
-h2o.init()
+h2o.init();
 ```
 
 I'm going to also formulate the hyperparameters as a function of the number of features in the dataset.
@@ -151,118 +476,262 @@ mtries_span <- c(0.1, 0.14, 0.2, 0.5)
 repeats = 10
 ```
 
+### Default Behavior
+
 Here, I'm going to just investigate the default behavior
 
-```{r}
-default_res <- working_ds %>%
+```{r results="hide", warning=FALSE, message=FALSE}
+default_res <- train_ss %>%
   select(-aid) %>%
-  boot_model_rf(outcome, as.integer(max_depths_span*no_cols), 
-                         as.integer(tree_span*no_cols),
-                         as.integer(mtries_span*no_cols), seed=seed)
+  model_rf(valid_ss, outcome,
+           as.integer(max_depths_span*no_cols), 
+           as.integer(tree_span*no_cols),
+           as.integer(mtries_span*no_cols), seed=seed,
+           thresh_metric = 'f1');
+  #model_rf(valid_ss, outcome, max_depths_tune = 10, ntrees_tune = 10, mtries_tune = c(10,15), seed = seed, nfolds=2)
 ```
-
-Now, let's look at using the `mean_per_class_error` as a metric:
 
 ```{r}
+# get aggregated information about performance
+def_perf <- default_res %>% get_metric_set('default')
 
+# generate plots of interest
+metric <- 'mpce'
+metric_sym <- ensym(metric)
+def_ntrees_plt <- show_metric_as_function_plot(def_perf, fcn='ntrees')
+def_mtries_plt <- show_metric_as_function_plot(def_perf, fcn='mtries')
+def_md_plt <- show_metric_as_function_plot(def_perf, fcn='mean_depth')
 
+#gridExtra::grid.arrange(a,b,c)
+gridExtra::grid.arrange(def_ntrees_plt,
+                        def_mtries_plt,
+                        def_md_plt)
+
+show_metric_boxplots(def_perf, metric="mpce")  
+```
+
+```{r}
+def_perf %>%
+  filter(dataset=='testing') %>%
+  filter(!!metric_sym == min(!!metric_sym))
+```
+
+I've created this as a function above to minimize copy/paste errors called `make_experiment`.  As we can see here, we just have some performance, with a mpce of 0.26, sensitivity of 57%.  The error rate is about 12%, as compared to a prevalence of ~7%.  So, the model has learned something.
+
+### Imbalanced classes with mean_per_class_error as a metric
+
+Now, I'm going to investigate the behavior using mean_per_class_error as the stopping metric:
+
+```{r warning=FALSE, message=FALSE}
+mpce_stopping <- make_experiment(train_ss, valid_ss, outcome,
+                                 #ntree_params=10, md_params=10, mtries_params=10,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='mean_per_class_error', exp_name = 'mcpe_stopping', plt_metric='mpce',
+                                 sd=seed, thresh_type = 'f1')
+```
+
+This result is actually quite interesting, especially as compared to the default behavior.  As you can see here, overall, the error is about the same using `mean_per_class_error` as the stopping metric.  In addition, the algorithm prefers a smaller number of trees overall, although mtries and mean_depth are about the same.  The mtries of 10 is the best value for both approaches, and although the mean_depth is scattered a bit, here, the best model has a mean depth of 5.
+
+Here, we can see that the parameters of the random forest are CRAZY small!  9 trees with on average a depth of 5 and selected from 10 variables at each split?  Wow, amazing.  The performance is a touch better, but not meaningfully.
+
+### Balanced data, with and without mean_per_class_accuracy as a metric
+
+#### Without mpce as a metric
+
+```{r warning=FALSE, message=FALSE}
+bal_no_mpce <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='AUTO', bal_cls = TRUE, exp_name = 'bal_no_mpce', plt_metric='mpce',
+                                 sd=seed, thresh_type = 'f1')
 ```
 
 
-### Helpers, but will be unnecessary after revision (4/6/2020)
-```{r convenience functions}
+Here, we see something curiously awful.  Many of the models are *grossly* overtrained.  Look at the gulf between the training and testing performance for some of the models, most evident in the mean_depth plot.  It is even more pronounced when you look at the table below.  Many of these models actually predict all 0s for the validation set, which isn't good; this essentially the null and dumbest of models.
 
-##################
-# Helper function to create bootstrapped models for RF models
-boot_model_rf <- function(train, outcome, max_depths_tune, ntrees_tune,
-                          mtries_tune=-1, nfolds=5, stopping_metric='AUTO', seed=2435){  
-  # train : bootstrapped training frame sent in to be created a model with
+For the training set:
+```{r}
+bal_no_mpce$agg_perf %>%
+  filter(dataset=='training') %>%
+  filter(!!metric_sym==min(!!metric_sym, na.rm=TRUE))
+```
+These metrics are ridiculous.  The model trains itself to near perfection on the training data and then can't generalize at all!  Let's see how well it generalizes on the test data - the performance seems to be right at about 0.2 which is what the previous models did as well:
+
+```{r}
+bal_no_mpce$agg_perf %>%
+  filter(dataset=='testing') %>%
+  filter(!!metric_sym==min(!!metric_sym, na.rm=TRUE))
+```
+
+Interesting.  19% MPCE, which in the end is better than the previous endeavor.  89% sensitivity, which is nothing to snort at.  Relatively high false positive rate (low ppv).  Let's just quickly look at a model with good testing performance:
+
+```{r}
+bal_no_mpce$agg_perf %>%
+  filter(dataset=='training', model==37)
+```
+This is a non-overtrained model.  The ROC AUC is reasonable as are the other metrics.  Interesting!  The overtrained models were big, deep forests.  This is a relatively small forest with short trees.  The mtries of 10 really seems to be consistent.  I think this is actually very close to the sqrt(cols) value recommended.
+
+#### With mean_per_class_accuracy as a stopping metric
+
+```{r warning=FALSE, message=FALSE}
+bal_mpce <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='mean_per_class_error', bal_cls = TRUE, exp_name = 'bal_mpce', plt_metric='mpce',
+                                 sd=seed, thresh_type = 'f1')
+```
+
+Even using MPCE doesn't help it, but this shows that MPCE prefers smaller models in general.  What was achieved previously with 12 trees of mean depth 5 is now achieved here with 6 trees of mean depth 5.  However, the false positive rate is a little higher (190 vs 199).
+ 
+#### With pr_auc as a stopping metric
+
+Now, I'm just going to try a different metric because it seems like balancing the classes might be the right move.  I'm going to try pr_auc since that cares a lot less about the difference in magnitude between the number of negatives and positives.
+
+```{r warning=FALSE, message=FALSE}
+bal_aucpr <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='AUCPR', bal_cls = TRUE, exp_name = 'bal_aucpr', plt_metric='pr_auc',
+                                 sd=seed, thresh_type = 'f1')
+```
+
+There's a lot of overtraining going on here.  Let's look at the best performing model (note: the pr_auc should be maximized)
+
+```{r}
+bal_aucpr$agg_perf %>%
+  filter(dataset=='testing') %>%
+  filter(pr_auc==max(pr_auc, na.rm=TRUE))
+```
+About the same pr_auc as the previous exploration, with slightly more mpce than before.  Sensitivity is a bit lower, and expectedly, the ppv is a little higher.  This may be an OK balance between ppv and npv.  Interesting that mtries is the biggest size that we allowed it.
+
+```{r warning=FALSE, message=FALSE}
+bal_aucpr_d10 <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='AUCPR', stop_tol = 1e-4 , bal_cls = TRUE, exp_name = 'bal_aucpr_d10', plt_metric='pr_auc',
+                                 sd=seed, thresh_type = 'f1')
+```
+
+```{r}
+bal_aucpr_d10$agg_perf %>%
+  filter(dataset=='testing') %>%
+  filter(pr_auc==max(pr_auc, na.rm=TRUE))
+```
+This is almost identical to the previous performance.
+
+### Investigating sample rate per class
+This forces the bootstraps to also be balanced.  This requires a downsample of the training set for the bootstraps, since the size of the majority class can only be shrunk.  Let's calculate those parameters:
+
+```{r}
+out_sym <- ensym(outcome)
+def_sr <- 0.632
+cls_rat <- train_ss %>%
+  group_by(!!out_sym) %>%
+  summarise(n=n()) %>%
+  pivot_wider(names_from=!!out_sym, values_from=n)%>%
+  mutate(cls_rat = `1`/`0`) %>% pull(cls_rat)
+```
+
+#### Unbalanced, using logloss
+
+```{r warning=FALSE, message=FALSE}
+boots_def <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='AUTO', bal_cls = FALSE, exp_name = 'srpc_ll', plt_metric='mpce', srpc = c(cls_rat, 1)*def_sr,
+                                 sd=seed, thresh_type = 'f1')
+```
+This has performance on par with the original unbalanced dataset using logloss.  The sensitivity is 51%, which is just not good.  As expected, the number of false negatives is lower.  Let's try using mpce as the early stopping metric:
+
+#### Unbalanced, using mpce
+
+```{r warning=FALSE, message=FALSE}
+boots_mpce <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='mean_per_class_error', bal_cls = FALSE, exp_name = 'srpc_mcpe', plt_metric='mpce', srpc = c(cls_rat, 1)*def_sr,
+                                 sd=seed, thresh_type = 'f1')
+```
+The performance here is substantially worse in some ways.  As we observed before, using mpce as an early stopping metric tends to create smaller forests.  The sensitivity and ppv here are terrible, but the ability to classify the negatives is fantastic.  Don't want this one.  Next!
+
+#### Balanced, using mpce
+
+```{r warning=FALSE, message=FALSE}
+boots_bal_mpce <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='mean_per_class_error', bal_cls = TRUE, exp_name = 'srpc_bal_mcpe', plt_metric='mpce', srpc = c(cls_rat, 1)*def_sr,
+                                 sd=seed, thresh_type = 'f1')
+```
+Balancing increased the sensitivity, which is good.
+
+```{r warning=FALSE, message=FALSE}
+boots_bal_mpce_6x <- make_experiment(train_ss, valid_ss, outcome,
+                                 ntree_params = as.integer(tree_span*no_cols), md_params = as.integer(max_depths_span*no_cols), mtries_params = as.integer(mtries_span*no_cols),
+                                 nfold=5, stop_met='mean_per_class_error', bal_cls = TRUE, exp_name = 'srpc_bal_mcpe_6x', plt_metric='mpce', srpc = c(cls_rat*10, 1)*def_sr,
+                                 sd=seed, thresh_type = 'f1')
+```
+This does about the same as the regular balanced dataset with mean per class error as an early stopping metric.
+
+#### Results aggregation
+In this section, we compare the performance of the selected methods in a single plot
+
+```{r}
+grid_boxplot_helper <- function(df, metric='mpce'){
   
-  # use a stratified split to split into validation vs training
-  straps_splits <- rsample::initial_split(as.data.frame(train), strat=outcome, prop=0.9) 
+  met <- metric
+  metric_sym <- ensym(met)
   
-  # pull out training and validation frames
-  training_frame <- as.h2o(rsample::training(straps_splits))
-  validation_frame <- as.h2o(rsample::testing(straps_splits))
-  
-  # Create all combinations of tuning parameters
-  params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune, mtries=mtries_tune)
-  models <- c()
-  performances <- c()
-  
-  #initialize function parameters for h2o.randomForest
-  outputs <- outcome
-  inputs <- setdiff(names(train), outcome)
-  
-  #Training models on all combinations of parameters
-  for(i in 1:nrow(params)){
-    rf_i <- h2o.randomForest(
-      training_frame = training_frame,
-      x= inputs,
-      y= outputs, 
-      #model_id = "rf_covType_v1",
-      ntrees = params[i,][[2]],
-      max_depth = params[i,][[1]],
-      mtries = params[i,][[3]],
-      stopping_metric = stopping_metric,
-      stopping_rounds = 2,
-      nfolds = nfolds,
-      fold_assignment = "Stratified",
-      #score_each_iteration = T,
-      seed = seed
-    )
-    
-    #Save the model and performance on validation set to assess full model performance
-    models <- models %>%
-      append(rf_i)
-    
-    performances <- performances %>%
-      append(h2o.performance(rf_i, validation_frame))
-    
-  }
-  
-  return(list(mods = models,
-              perfs = performances,
-              params = params))
+  plt <- df %>%
+    ggplot(aes(x = invest_type, y = !!metric_sym, fill=forest_sz)) +
+    geom_boxplot(width=0.7) +
+    facet_wrap(~dataset)
 }
-  
 ```
-
 
 ```{r}
-
-  # Pull the index of the tuning parameter which produced the highest AUC
-  best_index <- which(model_tune_list==max(model_tune_list))[1]
+grid_bar_helper <- function(df, metric='mpce'){
   
+  met <- metric
+  metric_sym <- ensym(met)
   
-  
-  #Train final model based on best tuning parameters
-  rf_i <- h2o.randomForest(
-    training_frame = training_frame,
-    validation_frame = validation_frame,
-    x=inputs,
-    y=outputs, 
-    #model_id = "rf_covType_v1",
-    ntrees = params[best_index,2], 
-    max_depth = params[best_index,1],
-    mtries = params[best_index,3],
-    stopping_metric = stopping_metric,
-    #stopping_rounds = 2,
-    nfolds = nfolds,
-    fold_assignment = "Stratified",
-    #score_each_iteration = T,
-    seed = seed
-  )
-  
-  return(list(rf_i, h2o.performance(rf_i, validation_frame)))
-
-```
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+  plt <- df %>%
+    ggplot(aes(x=invest_type, y=!!metric_sym, fill = forest_sz)) +
+    geom_bar(stat='identity') +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    facet_wrap(~dataset)
+}
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+# from the first experiment
+def_exp <- list(mod_perf = default_res, agg_perf = def_perf)
+
+# list of all perfs and get only the aggregated performance of training and testing from each
+exp_list <- list(def_exp, mpce_stopping, bal_mpce, bal_aucpr, bal_aucpr_d10, boots_def, boots_mpce, boots_bal_mpce, boots_bal_mpce_6x)
+exps <- map_df(exp_list, 'agg_perf')
+
+# get only best 5 from each experiment+dataset group (note 'best' will depend on whether the metric should be maximized or minimized)
+# note: not using top_n because it returns all ties (e.g., top_n(5) can return more than 5 rows if there are ties)
+metric <- 'mpce'
+meas_of_int <- c('sens', 'spec', 'ppv', 'npv', 'mpce')
+n <- 5
+
+top_ns_group <- exps %>%
+  drop_na(c(!!ensym(metric), meas_of_int)) %>%
+  group_by(invest_type, dataset) %>%
+  dplyr::arrange(!!ensym(metric), .by_group=TRUE) %>%
+  slice(1:n) %>%
+  summarise_all(mean, na.rm=TRUE) %>%
+  ungroup() %>%
+  #pivot_longer(-c(invest_type, model, dataset, p_max_depth, ntrees, mean_depth, mtries, p_ntrees, p_mtries, !!ensym(metric)), names_to='metric', values_to='values') %>%
+  mutate(forest_sz = ntrees + mean_depth + mtries) #%>%
+  #filter(metric %in% meas_of_int)
+
+```
+
+```{r}
+plts <- list()
+for(i in 1:length(meas_of_int))
+{
+  plts <- plts %>% append(list(grid_bar_helper(top_ns_group, meas_of_int[i])))
+}
+```
+
+```{r fig.width=10, fig.height=10}
+gridExtra::grid.arrange(plts[[1]], plts[[2]], plts[[3]], plts[[4]], plts[[5]])
+```
+
