@@ -1,0 +1,242 @@
+---
+title: "Permutation Importance Functions"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+This file is for performing permutation importance and visualizing permutation importance with h2o.
+
+```{r load libraries}
+library(pacman)
+pacman::p_load(tidyverse, h2o, yardstick,
+               data.table, splitstackshape, #splitstackshape has stratified function
+               boot, rsample)
+```
+
+```{r initialize h2o}
+h2o.init()
+```
+
+```{r get performance function}
+######################
+# This function returns performance of a dataset (e.g., validation or test set) using the threshold from the training set.  For more use-case
+# information, see 53-modeling-imbalances.Rmd.
+## returns : a one-row tibble of 25 performance metrics
+get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val=NULL, outcome='h5mn8'){
+  
+  # test_data: tibble of test data without aids.  Must contain the true values of the outcome
+  # test_model: h2o model of interest
+  # thresh_met: string indicating threshold by which the prediction probabilities will be classified (default 'f1').
+  #             Must be present in h2o metrics.
+  # thresh_val: value by which the predictions probabilities will be classified (default NULL).  Leave NULL if you want this method to extract
+  #             the threshold from the model you passed in.
+  # outcome: string indicating *binary* outcome of interest
+  # returns: 1-row tibble of 25 metric values as calculated by yardstick
+  
+  #if the metric_thresh is null, that means we need to get it from the test model
+  if(is.null(thresh_val)){
+    
+    # get parameters for computing threshold of interest
+    met_name = str_c('max ', thresh_met)
+    model_metnames <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$metric
+    model_threshes <- test_model@model$training_metrics@metrics$max_criteria_and_metric_scores$threshold
+    
+    #Get the threshold of maximum metric of interest
+    thresh_val <-model_threshes[which(model_metnames==met_name)]
+    
+  }
+  
+  #get actual column
+  act <- test_data %>%
+    select(outcome) %>%
+    rename(actual = outcome)
+  
+  #get predictions - this returns predictions according to the training f1 score
+  #releveling is done because yardstick wants to see the first level as the level of interest.
+  preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
+    as_tibble() %>%
+    select(-predict) %>%
+    mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
+    bind_cols(act) %>%
+    mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
+    mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
+  
+  #some counting for class counts
+  cls_cnt <- preds %>%
+    group_by(actual) %>%
+    summarise(cnt=n()) %>%
+    ungroup() %>%
+    as_tibble()
+  
+  #generate metrics of interest as tibble
+  calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
+    select(-.estimator) %>%
+    #dplyr::rename(flscore = f_meas) %>%
+    pivot_wider(names_from=.metric, values_from=.estimate)
+  
+  #add some rows for raw values and then calculate using these values
+  calc_metrics <- calc_metrics %>%
+    mutate(no_n = filter(cls_cnt, actual==0) %>% pull(cnt)) %>%
+    mutate(no_p = filter(cls_cnt, actual==1) %>% pull(cnt)) %>%
+    mutate(tns = spec * no_n) %>%
+    mutate(fps = no_n - tns) %>%
+    mutate(tps = sens * no_p) %>% 
+    mutate(fns = no_p - tps) %>%
+    mutate(mpce = (fps/no_n + fns/no_p)/2) %>%
+    mutate(err_rate = (fps+fns)/(no_n+no_p)) %>%
+    mutate(roc_auc = roc_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(pr_auc = pr_auc(preds, actual, p1) %>% pull(.estimate)) %>%
+    mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
+    mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
+    mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+  
+  return(calc_metrics)
+}
+```
+
+```{r permute columns function}
+######################
+# Permute a single column of the data frame
+permute_column <- function(df, column){
+  # df: input data frame
+  # column: column to permute
+  
+  df[,column] <- df %>% pull(column) %>% sample()
+  return(df)
+}
+
+# Permute all columns (not outcome)
+permute_columns <- function(df, outcome){
+  # df: input data frame
+  # outcome: outcome variable (not permuted)
+  
+  predictor_names <- df %>% select(-outcome) %>% names()
+  
+  df_permute_list <- predictor_names %>% map(permute_column, df = df)
+  
+  names(df_permute_list) <- predictor_names
+  
+  return(df_permute_list)
+}
+```
+
+```{r plot permutation importance}
+######################
+# plot the variable importance
+plot_permute_var_imp <- function(df_permute_var_imp, metric){
+  # df_permute_var_imp: data frame of permutation metrics from permute_var_imp()
+  # metric: metric to plot, NOT passed as a string
+  
+  # create dataframe we can use for ggplot (mostly to grab the names below)
+  plot_df <- df_permute_var_imp %>% 
+    group_by(variable) %>% 
+    summarise_all(mean) %>% 
+    select(variable, {{metric}})
+  
+  # Plot the metric
+  plot_df %>% 
+    ggplot() + 
+    ylab(str_c(names(plot_df)[2], " ", "(True - Permuted)")) +
+    xlab("Variable") +
+    ggtitle("Permutation Importance") +
+    geom_bar(aes(x = reorder(variable, {{metric}}), 
+                 y = {{metric}}), 
+             stat = "identity",
+             fill = "light blue") +
+    coord_flip() +
+    theme_dark()
+}
+
+```
+
+```{r permutation variable importance function}
+# Note, make sure that factors are factors!
+permute_var_imp <- function(df_train, df_test, outcome, model_type){
+  # df_train: training data to train the model
+  # df_test: testing or validation frame
+  # outcome: outcome of interest
+  # model_type: string specifying model type. Either "random_forest" or "glm"
+  # metric: type of metric to use. Either "auc" or "rmse"
+  
+  # make permuted data frames h2o objects
+  permute_list_h2o <- permute_columns(df = df_train, outcome = outcome)
+  
+  # make training/testing frames h2o objects
+  df_train_h2o <- df_train %>% as.h2o()
+  df_test_h2o <- df_test %>% as.h2o()
+  
+  
+  if (model_type == "random_forest") {
+    
+  # build randomforest in h2o
+  model_fit <- h2o.randomForest(y = outcome,
+                                  training_frame = df_train_h2o)
+  }
+  else {
+    
+    # fit glm model - note that this is for binomial outcome
+    model_fit <- h2o.glm(y = outcome,
+                         training_frame = df_train_h2o,
+                         family = "binomial")
+  }
+  
+  # Get metrics from unpermuted data
+  true_metric_vals <- get_performance(test_data = df_test, test_model = model_fit, outcome = outcome)
+  
+  # get rmse for permuted data sets
+  permuted_models_metric <- permute_list_h2o %>% 
+    map(~get_performance(test_data = .x, test_model = model_fit, outcome = outcome)) 
+   
+  out <- permuted_models_metric %>%
+    map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
+    mutate(variable = names(permute_list_h2o)) %>% 
+    select(variable, everything())
+  
+  return(out)
+}
+
+# example dataset
+mtcars2 <- mtcars %>% mutate(vs = factor(vs))
+
+# example 1
+permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "random_forest")
+
+# example 2
+permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "glm")
+
+# x <- permute_var_imp_x(df_train = mtcars2, df_test = mtcars2, outcome = "vs", model_type = "random_forest")
+```
+
+```{r permutation variable importance bootstrap}
+
+# bootstrap permutation variable importance
+boot_permute_var_imp <- function(df_train, outcome, model_type, metric, n){
+  # df_train: data set to bootstrap
+  # outcome: outcome of interest
+  # model_type: 
+  
+  b_df <- bootstraps(df_train, times = n)
+  
+  train_list <- b_df$splits %>% map(rsample::training)
+  test_list <- b_df$splits %>% map(rsample::testing)
+  
+  out <- map2_df(.x = train_list, 
+                 .y = test_list, 
+                 .f = permute_var_imp,
+                 outcome = outcome, 
+                 model_type = model_type)
+  
+  return(out)
+}
+
+
+# Example 1
+x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "glm", n = 3)
+
+# Example 2
+x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "random_forest", n = 2)
+
+# Look at graph
+plot_permute_var_imp(x, pr_auc)
+```
