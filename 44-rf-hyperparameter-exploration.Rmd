@@ -1,0 +1,219 @@
+---
+title: "44-rf-hyperparameter-exploration"
+output: html_notebook
+---
+
+```{r initializing h2o}
+library(h2o)
+h2o.init(nthreads = -1, #Number of threads -1 means use all cores on your machine
+         max_mem_size = "8G") 
+```
+
+We will first try to find the optimal span for the number of trees and use that number in the analysis that follows.
+Here will try a span from 50 to 300 with a step of 25. 
+```{r finding optimal number of trees}
+suicide_df <- working_ds
+outcome <- "h5mn8"
+ntrees_tune <- c(10,15,15,15,20,20,20,25,25,25,30,30,30,50,55,60,60,70,80,90,100,125,150,175,200,225,250,250,275,300)
+
+df <- suicide_df %>% 
+  dplyr::select(-aid)
+
+splits <- df %>%
+  rsample::initial_split(strat=outcome, prop=0.8)
+
+# pull out training and validation frames
+training_frame <- as.h2o(rsample::training(splits))
+validation_frame <- as.h2o(rsample::testing(splits))
+
+#initialize function parameters for h2o.randomForest
+outputs <- outcome
+inputs <- setdiff(names(df), outcome)
+performance_df <- c()
+performance_df <- rbind(performance_df, data.frame(trees = ntrees_tune))
+
+#Training models on all combinations of parameters
+
+for(i in 1:length(ntrees_tune)){
+  rf_i <- h2o.randomForest(
+    training_frame = training_frame,
+    x= inputs,
+    y= outputs, 
+    model_id = "rf_covType_v1",
+    ntrees = ntrees_tune[i],
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = "Stratified",
+    score_each_iteration = T,
+  )
+  
+  #Test on validation frame
+  result <- h2o.performance(rf_i, as.h2o(validation_frame))
+  performance_df$model_trees[i] <- rf_i@model$model_summary$number_of_trees
+  performance_df$model_max_depth[i] <- rf_i@model$model_summary$mean_depth
+  
+  #Pulling model metrics
+  performance_df$auc[i]<- result@metrics$AUC
+  performance_df$pr_auc[i] <- result@metrics$pr_auc
+  performance_df$mpce[i] <- result@metrics$mean_per_class_error
+  performance_df$seed[i] <- rf_i@parameters$seed
+}
+
+
+performance_df
+```
+```{r plotting the span for the number of trees, message=FALSE, warning=FALSE}
+
+highlight_df <- performance_df %>% 
+             filter(pr_auc == max(pr_auc))
+
+performance_df %>% 
+  ggplot(aes(x = trees, y = model_trees))+
+  geom_point(aes(size =pr_auc, color = mpce),alpha = 0.5, position = "jitter")+
+  ylim(0,50)+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+  labs(x = "Number of Input Trees", y = "Number of Trees Chosen by The Model")
+
+```
+
+This shows that the trees that are chosen by the model do not change a lot after a certain number of input trees. Therefore, we should choose a range of somewhere aroung 50-100. This is also where most of the points with the higher pr-auc are located. 
+
+
+Now let's use this newly established range of values to evaluate the spans of other hyper parameters. 
+```{r hyperparamter tuning for different spans of hyperparameters}
+
+suicide_df <- working_ds
+outcome <- "h5mn8"
+# max_depths_tune <- seq(1,21,10)
+# ntrees_tune <- c(20, 25, 30)
+# min_rows_tune <- seq(1,501,100)
+# mtries_tune <- c(-1,-2,10)
+
+max_depths_tune <- c(5,10)
+ntrees_tune <- c(50, 100)
+min_rows_tune <- c(25,50)
+mtries_tune <- c(-1,-2,10)
+
+
+df <- suicide_df
+splits <- df %>%
+  rsample::initial_split(strat=outcome, prop=0.8)
+
+# pull out training and validation frames
+training_frame <- as.h2o(rsample::training(splits))
+validation_frame <- as.h2o(rsample::testing(splits))
+
+# Create all combinations of tuning parameters
+params <- expand.grid(max_depth = max_depths_tune, ntrees = ntrees_tune, min_rows = min_rows_tune, mtries = mtries_tune)
+model_tune_list <- rep(NA, nrow(params))
+
+#initialize function parameters for h2o.randomForest
+outputs <- outcome
+inputs <- setdiff(names(suicide_df), c(outcome,'aid'))
+performances <- params
+
+#Training models on all combinations of parameters
+for(i in 1:nrow(params)){
+  rf_i <- h2o.randomForest(
+    training_frame = training_frame,
+    x= inputs,
+    y= outputs, 
+    model_id = "rf_covType_v1",
+    max_depth = params[i,][[1]],
+    ntrees = params[i,][[2]],
+    min_rows = params[i,][[3]],
+    mtries = params[i,][[4]],
+    stopping_rounds = 2,
+    nfolds = 5,
+    fold_assignment = "Stratified",
+    score_each_iteration = T,
+  )
+  
+  #Test on validation frame
+  result <- h2o.performance(rf_i, as.h2o(validation_frame))
+  
+  
+  #Pulling model params
+  performances$model_trees[[i]] <- rf_i@model$model_summary$number_of_trees
+  performances$model_max_depth[i] <- rf_i@model$model_summary$mean_depth
+  performances$training_pr_auc[i] <- rf_i@model$training_metrics@metrics$pr_auc
+  performances$training_mpce[i] <- rf_i@model$training_metrics@metrics$mean_per_class_error
+  
+  #Pulling result metrics
+  performances$auc[i]<- result@metrics$AUC
+  performances$testing_pr_auc[i] <- result@metrics$pr_auc
+  performances$testing_mpce[i] <- result@metrics$mean_per_class_error
+  performances$seed[i] <- rf_i@parameters$seed
+}
+
+performances
+
+
+str(rf_i)
+```
+
+
+```{r results of multi-hyper paramte}
+p1 <- performances %>% 
+  ggplot(aes(x= max_depth))+
+  geom_point(aes(y = training_pr_auc), color = 'blue')+
+  geom_point(aes(y = testing_pr_auc), color = 'red')+
+  scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+
+p2 <- performances %>% 
+  ggplot(aes(x= min_rows))+
+  geom_point(aes(y = training_pr_auc), color = 'blue')+
+  geom_point(aes(y = testing_pr_auc), color = 'red')+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+
+p3 <- performances %>% 
+  ggplot(aes(x= mtries))+
+  geom_point(aes(y = training_pr_auc), color = 'blue')+
+  geom_point(aes(y = testing_pr_auc), color = 'red')+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+
+gridExtra::grid.arrange(p1, p2, p3, ncol=1)
+```
+Red is training AUC and blue is testing AUC. Testing pr_AUC seems to be higher for mtries = -1 and 25 min_rows. max depth seems to be evenly distributed with the testing and training pr_AUCs but the testing AUC seems to be higher for the lower max_depth. 
+
+```{r}
+p1 <- performances %>% 
+  ggplot(aes(x= max_depth))+
+  geom_point(aes(y = training_mpce), color = 'blue')+
+  geom_point(aes(y = testing_mpce), color = 'red')+
+  scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+  labs(y = "mpce")
+
+p2 <- performances %>% 
+  ggplot(aes(x= min_rows))+
+  geom_point(aes(y = training_mpce), color = 'blue')+
+  geom_point(aes(y = testing_mpce), color = 'red')+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+  scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+labs(y = "mpce")
+
+p3 <- performances %>% 
+  ggplot(aes(x= mtries))+
+  geom_point(aes(y = training_mpce), color = 'blue')+
+  geom_point(aes(y = testing_mpce), color = 'red')+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "mpce")
+
+gridExtra::grid.arrange(p1, p2, p3, ncol=1)
+```
+
+
