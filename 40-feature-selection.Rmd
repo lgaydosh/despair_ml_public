@@ -124,7 +124,7 @@ boot_model_lasso <- function(train, outcome, lambda_tune, nfolds){
     #result <- h2o.performance(lasso_i, as.h2o(training_frame))
     
     #Pulling model metric (AUC)
-    model_tune_list[i] <- rf_i@model$training_metrics@metrics$AUC
+    model_tune_list[i] <- lasso_i@model$training_metrics@metrics$AUC
     
     
   }
