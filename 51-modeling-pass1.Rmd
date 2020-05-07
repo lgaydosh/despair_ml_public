@@ -64,7 +64,7 @@ testing_df <- suicide_df %>%
   strat_split(c("h5mn8"),0.7, FALSE)
 
 
-# Step 3
+
 # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
 straps_splits <- stratified(as.data.frame(training_df), suicide_w5, 0.9, bothSets = T) 
 
@@ -73,22 +73,20 @@ training_frame <- as.h2o(straps_splits[[1]])
 validation_frame <- as.h2o(straps_splits[[2]])
 
 
-
-# gbm_params1 <- list(learn_rate = c(0.01, 0.1),
-#                     max_depth = c(3, 5, 9),
-#                     sample_rate = c(0.8, 1.0),
-#                     col_sample_rate = c(0.2, 0.5, 1.0))
+# set hyper parameters for random forest
+rf_params <- list(max_depth = c(100,150,200), 
+                   ntrees = c(5,10,25))
 ```
 
 
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 
-n = 5 # number of bootstraps
-
 suicide_out <- training_df %>% 
   model_feature_selection("RF",training_frame = training_frame,
-                      validation_frame = validation_frame,outcome = suicide_w5, n = 2)
+                      validation_frame = validation_frame,
+                      hyper_params = rf_params,
+                      outcome = suicide_w5, n = 5)
 ```
 
 
@@ -210,11 +208,9 @@ Testing the functions by training a lasso model
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 
-n = 5 # number of bootstraps
-
 suicide_out_lasso <- training_df %>% 
-  model_feature_selection("Lasso",,training_frame = training_frame,
-                      validation_frame = validation_frame,outcome = suicide_w5, n = 2)
+  model_feature_selection("Lasso",training_frame = training_frame,
+                      validation_frame = validation_frame,outcome = suicide_w5, n = 5)
 ```
 
 
