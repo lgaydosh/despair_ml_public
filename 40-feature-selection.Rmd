@@ -304,4 +304,148 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
 ```
 
 
+```{r permute columns function}
+######################
+# Permute a single column of the data frame
+permute_column <- function(df, column){
+  # df: input data frame
+  # column: column to permute
+  
+  df[,column] <- df %>% pull(column) %>% sample()
+  return(df)
+}
 
+# Permute all columns (not outcome)
+permute_columns <- function(df, outcome){
+  # df: input data frame
+  # outcome: outcome variable (not permuted)
+  
+  predictor_names <- df %>% select(-outcome) %>% names()
+  
+  df_permute_list <- predictor_names %>% map(permute_column, df = df)
+  
+  names(df_permute_list) <- predictor_names
+  
+  return(df_permute_list)
+}
+```
+
+```{r plot permutation importance}
+######################
+# plot the variable importance
+plot_permute_var_imp <- function(df_permute_var_imp, metric){
+  # df_permute_var_imp: data frame of permutation metrics from permute_var_imp()
+  # metric: metric to plot, NOT passed as a string
+  
+  # create dataframe we can use for ggplot (mostly to grab the names below)
+  plot_df <- df_permute_var_imp %>% 
+    group_by(variable) %>% 
+    summarise_all(mean) %>% 
+    select(variable, {{metric}})
+  
+  # Plot the metric
+  plot_df %>% 
+    ggplot() + 
+    ylab(str_c(names(plot_df)[2], " ", "(True - Permuted)")) +
+    xlab("Variable") +
+    ggtitle("Permutation Importance") +
+    geom_bar(aes(x = reorder(variable, {{metric}}), 
+                 y = {{metric}}), 
+             stat = "identity",
+             fill = "light blue") +
+    coord_flip() +
+    theme_dark()
+}
+
+```
+
+```{r permutation variable importance function}
+# Note, make sure that factors are factors!
+permute_var_imp <- function(df_train, df_test, outcome, model_type){
+  # df_train: training data to train the model
+  # df_test: testing or validation frame
+  # outcome: outcome of interest
+  # model_type: string specifying model type. Either "random_forest" or "glm"
+  # metric: type of metric to use. Either "auc" or "rmse"
+  
+  # make permuted data frames h2o objects
+  permute_list_h2o <- permute_columns(df = df_train, outcome = outcome)
+  
+  # make training/testing frames h2o objects
+  df_train_h2o <- df_train %>% as.h2o()
+  df_test_h2o <- df_test %>% as.h2o()
+  
+  
+  if (model_type == "random_forest") {
+    
+  # build randomforest in h2o
+  model_fit <- h2o.randomForest(y = outcome,
+                                  training_frame = df_train_h2o)
+  }
+  else {
+    
+    # fit glm model - note that this is for binomial outcome
+    model_fit <- h2o.glm(y = outcome,
+                         training_frame = df_train_h2o,
+                         family = "binomial")
+  }
+  
+  # Get metrics from unpermuted data
+  true_metric_vals <- get_performance(test_data = df_test, test_model = model_fit, outcome = outcome)
+  
+  # get rmse for permuted data sets
+  permuted_models_metric <- permute_list_h2o %>% 
+    map(~get_performance(test_data = .x, test_model = model_fit, outcome = outcome)) 
+   
+  out <- permuted_models_metric %>%
+    map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
+    mutate(variable = names(permute_list_h2o)) %>% 
+    select(variable, everything())
+  
+  return(out)
+}
+
+# example dataset
+# mtcars2 <- mtcars %>% mutate(vs = factor(vs))
+
+# example 1
+# permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "random_forest")
+
+# example 2
+# permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "glm")
+
+# x <- permute_var_imp_x(df_train = mtcars2, df_test = mtcars2, outcome = "vs", model_type = "random_forest")
+```
+
+```{r permutation variable importance bootstrap}
+
+# bootstrap permutation variable importance
+boot_permute_var_imp <- function(df_train, outcome, model_type, metric, n){
+  # df_train: data set to bootstrap
+  # outcome: outcome of interest
+  # model_type: 
+  
+  b_df <- bootstraps(df_train, times = n)
+  
+  train_list <- b_df$splits %>% map(rsample::training)
+  test_list <- b_df$splits %>% map(rsample::testing)
+  
+  out <- map2_df(.x = train_list, 
+                 .y = test_list, 
+                 .f = permute_var_imp,
+                 outcome = outcome, 
+                 model_type = model_type)
+  
+  return(out)
+}
+
+
+# Example 1
+# x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "glm", n = 3)
+
+# Example 2
+# x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "random_forest", n = 2)
+
+# Look at graph
+# plot_permute_var_imp(x, pr_auc)
+```
