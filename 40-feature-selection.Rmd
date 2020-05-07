@@ -21,7 +21,8 @@ boot_model_rf <- function(train,
                           training_frame, 
                           validation_frame,
                           nfolds,
-                          hyper_params){  
+                          hyper_params,
+                          model_seed = 42){  
   # train: bootstrapped training frame sent in to be created a model with
   # outcome: predicted variable 
   # training_frame: 90-10 split from the training_df
@@ -45,7 +46,7 @@ boot_model_rf <- function(train,
                         nfolds = nfolds,
                         fold_assignment = "Stratified",
                         score_each_iteration = T,
-                        seed = 42,
+                        seed = model_seed,
                         
                         hyper_params = hyper_params)
   
@@ -69,7 +70,7 @@ boot_model_rf <- function(train,
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
   
   # return model and its performance on validation_frame
-  return(list(best_rf, h2o.performance(best_rf, validation_frame)))
+  return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outcome)))
 }
 
 
@@ -80,7 +81,8 @@ boot_model_lasso <- function(train,
                              outcome, 
                              training_frame, 
                              validation_frame, 
-                             nfolds){  
+                             nfolds,
+                             model_seed = 42){  
   # train: bootstrapped training frame sent in to be created a model with
   # outcome: predicted variable 
   # training_frame: 90-10 split from the training_df
@@ -103,7 +105,7 @@ boot_model_lasso <- function(train,
     alpha = 1,
     nfolds = nfolds,
     fold_assignment = "Stratified",
-    seed = 42
+    seed = model_seed
   )
   
   # x: A vector containing the names or indices of the predictor variables to use in building the model.
@@ -172,7 +174,8 @@ model_feature_selection <- function(training_df,
                                     k = 5,
                                     hyper_params,
                                     outcome,
-                                    top_n = 20){
+                                    top_n = 20,
+                                    seed = 42){
   # training_df : training data frame sent in after initial 70-30 split
   # n : n number of bootstrapped
   # k : k folds in cross-validation
@@ -198,7 +201,8 @@ model_feature_selection <- function(training_df,
                       # max_depths_tune = max_depths_tune, 
                       # ntrees_tune = ntree_tune,
                       hyper_params = hyper_params,
-                      nfolds = k)
+                      nfolds = k,
+                      model_seed = seed)
     }
     
     else if (model_type == "Lasso"){
@@ -207,7 +211,8 @@ model_feature_selection <- function(training_df,
                          training_frame = training_frame,
                          validation_frame = validation_frame,
                          #lambda_tune = lambda_tune, 
-                         nfolds = k)      
+                         nfolds = k,
+                         model_seed = seed)      
     }
     
     combined_models[[i]] <- results[[1]]
