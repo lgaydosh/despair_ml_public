@@ -65,7 +65,7 @@ performance_df
 ```{r plotting the span for the number of trees, message=FALSE, warning=FALSE}
 
 highlight_df <- performance_df %>% 
-             filter(pr_auc == max(pr_auc))
+  filter(pr_auc == max(pr_auc))
 
 performance_df %>% 
   ggplot(aes(x = trees, y = model_trees))+
@@ -73,7 +73,7 @@ performance_df %>%
   ylim(0,50)+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
   labs(x = "Number of Input Trees", y = "Number of Trees Chosen by The Model")
 
 ```
@@ -91,10 +91,10 @@ outcome <- "h5mn8"
 # min_rows_tune <- seq(1,501,100)
 # mtries_tune <- c(-1,-2,10)
 
-max_depths_tune <- c(5,10)
-ntrees_tune <- c(50, 100)
-min_rows_tune <- c(25,50)
-mtries_tune <- c(-1,-2,10)
+max_depths_tune <- c(25,30)
+ntrees_tune <- c(100,150)
+min_rows_tune <- c(25,40,50,60)
+mtries_tune <- c(-1,5,10)
 
 
 df <- suicide_df
@@ -149,10 +149,37 @@ for(i in 1:nrow(params)){
 }
 
 performances
+```
+
+Row at the maximum training precision-recall AUC
+```{r}
+performances %>% 
+  filter(training_pr_auc == max(training_pr_auc))
+```
+
+Row at the maximum testing precision-recall AUC
+```{r}
+performances %>% 
+  filter(testing_pr_auc == max(testing_pr_auc))
+```
+Based on experimentation with different spans for the hyperparameters, it seems that the following spans should be used when expermenting with creating random forest models. More on this as more experiments are conduncted to confirm or validate these. 
+
+Spans
+  ntrees  : 50-150
+  max_depths : 15-30
+  mtries : -1,-2,3,4,5
+  min_rows : 25 - 60
+
+```{r}
+rf_i
+```
 
 
+```{r}
 str(rf_i)
 ```
+
+
 
 
 ```{r results of multi-hyper paramte}
@@ -163,7 +190,7 @@ p1 <- performances %>%
   scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
 
 p2 <- performances %>% 
   ggplot(aes(x= min_rows))+
@@ -171,7 +198,7 @@ p2 <- performances %>%
   geom_point(aes(y = testing_pr_auc), color = 'red')+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
 
 p3 <- performances %>% 
   ggplot(aes(x= mtries))+
@@ -179,7 +206,7 @@ p3 <- performances %>%
   geom_point(aes(y = testing_pr_auc), color = 'red')+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "pr_auc")
 
 gridExtra::grid.arrange(p1, p2, p3, ncol=1)
 ```
@@ -193,7 +220,7 @@ p1 <- performances %>%
   scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
   labs(y = "mpce")
 
 p2 <- performances %>% 
@@ -202,7 +229,7 @@ p2 <- performances %>%
   geom_point(aes(y = testing_mpce), color = 'red')+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+
   scale_color_manual(values = c("Training" = 'blue','Testing' = 'red'))+labs(y = "mpce")
 
 p3 <- performances %>% 
@@ -211,7 +238,7 @@ p3 <- performances %>%
   geom_point(aes(y = testing_mpce), color = 'red')+
   theme_bw()+
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "mpce")
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), panel.border = element_blank())+labs(y = "mpce")
 
 gridExtra::grid.arrange(p1, p2, p3, ncol=1)
 ```
