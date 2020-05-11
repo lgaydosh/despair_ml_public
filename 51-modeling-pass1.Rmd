@@ -205,12 +205,20 @@ rf_final_model <- h2o.randomForest(
 ### Lasso model implementation to predict suicidal ideation
 Testing the functions by training a lasso model 
 
+```{r}
+# set hyper parameters for random forest
+lasso_params <- list(alpha = c(1))
+```
+
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 
 suicide_out_lasso <- training_df %>% 
   model_feature_selection("Lasso",training_frame = training_frame,
-                      validation_frame = validation_frame,outcome = suicide_w5, n = 5)
+                      validation_frame = validation_frame,
+                      hyper_params = lasso_params,
+                      outcome = suicide_w5, 
+                      n = 2)
 ```
 
 
