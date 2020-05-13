@@ -88,7 +88,7 @@ rf_params <- list(max_depth = c(100,150,200),
 suicide_out <- model_feature_selection("RF",training_frame = training_frame,
                       validation_frame = validation_frame,
                       hyper_params = rf_params,
-                      outcome = suicide_w5, n = 5)
+                      outcome = suicide_w5, n = 2)
 ```
 
 
@@ -105,11 +105,12 @@ top_preds_outcome <- suicide_out[[3]] %>%
 select_RFvar_all <- suicide_out[[3]]%>%
     purrr::reduce(rbind)
 
+select_RFvar_all
+
 select_RFvar_all%>%
-  group_by(variable)%>% 
-  arrange(desc(placement))%>%
-  ggplot(aes(x = variable, y = placement)) +
-  geom_boxplot()
+  group_by(variable)%>%
+  ggplot() +
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
 
 # Plot top predictors
 top_preds_outcome %>% 
@@ -244,10 +245,8 @@ select_LSvar_all <- suicide_out_lasso[[3]]%>%
 
 select_LSvar_all%>%
   group_by(variable)%>% 
-  arrange(desc(placement))%>%
-  ggplot(aes(x = variable, y = placement)) +
-  geom_boxplot()
-
+  ggplot() +
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
 
 
 # Plot top predictors
