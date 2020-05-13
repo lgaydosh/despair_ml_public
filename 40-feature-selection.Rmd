@@ -12,12 +12,39 @@ pacman::p_load(tidyverse, h2o, yardstick,
                boot, rsample)
 ```
 
+
+```{r}
+
+
+```
+
+
+
 ```{r convenience functions}
+
+# This function performs a stratified split
+strat_split <- function(df, strat_var, split_prop, train_out = T){
+  # df: input dataframe
+  # strat_var: variable to stratify on
+  # train_prop: proption to split for train/testing
+  # train_out: set to TRUE for training frame, set to FALSE for validation frame
+  # returns: training or testing tibble
+  
+  # create stratified split
+  splits <- stratified(df, strat_var, split_prop, bothSets = T)
+  train <- splits[[1]]
+  test <- splits[[2]]
+  
+  # return tibble of training set if train_out == True
+  if(train_out == T){out <- train}
+  else{out<-test}
+  return(out)
+}
+
 
 ##################
 # Helper function to create bootstrapped models for RF models
-boot_model_rf <- function(train, 
-                          outcome, 
+boot_model_rf <- function(outcome, 
                           training_frame, 
                           validation_frame,
                           nfolds,
@@ -29,26 +56,32 @@ boot_model_rf <- function(train,
   # validation_frame: 90-10 split from the training_df
   # nfolds: number of fold
   # hyper_params: hyper parameters for random forest
-  
+
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(train), outcome)
+  inputs <- setdiff(names(training_frame), outcome)
+  
+  print(inputs)
   
   
+  print("before grid")
   # Launch grid search with given algorithm and parameters
+  
+  #h2o.rm(rf_grid, cascade = TRUE)
+  h2o.removeAll()
+  
   rf_grid <- h2o.grid("randomForest", x = inputs, y = outputs,
-                        grid_id = "rf_grid",
-                        training_frame = training_frame,
-                        #...
-                        model_id = "rf_covType_v1",
-                        stopping_rounds = 2,
-                        nfolds = nfolds,
-                        fold_assignment = "Stratified",
-                        score_each_iteration = T,
-                        seed = model_seed,
-                        
-                        hyper_params = hyper_params)
+                      grid_id = "rf_grid",
+                      training_frame = as.h2o(training_frame),
+                      model_id = "rf_covType_v1",
+                      stopping_rounds = 2,
+                      nfolds = nfolds,
+                      fold_assignment = "Stratified",
+                      score_each_iteration = T,
+                      seed = model_seed,
+                      
+                      hyper_params = hyper_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
   # algorithm: Name of algorithm to use in grid search (gbm, randomForest, kmeans, glm, deeplearning, naivebayes, pca).
@@ -63,22 +96,23 @@ boot_model_rf <- function(train,
   
   # Get the grid results, sorted by validation AUC
   rf_gridperf <- h2o.getGrid(grid_id = "rf_grid",
-                               sort_by = "auc",
-                               decreasing = TRUE)
+                             sort_by = "auc",
+                             decreasing = TRUE)
   
   # Grab the top rf model, chosen by validation AUC
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
   
+  print("here")
+  
   # return model and its performance on validation_frame
-  return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outcome)))
+  return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
 }
 
 
 
 #####################
 # Helper function to create bootstrapped models for Lasso 
-boot_model_lasso <- function(train, 
-                             outcome, 
+boot_model_lasso <- function(outcome, 
                              training_frame, 
                              validation_frame, 
                              nfolds,
@@ -89,25 +123,25 @@ boot_model_lasso <- function(train,
   # training_frame: 90-10 split from the training_df
   # validation_frame: 90-10 split from the training_df
   # nfolds: number of fold
-
+  
   
   #initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(train), outcome)
+  inputs <- setdiff(names(training_frame), outcome)
   
+  h2o.removeAll()
   
-   # Launch grid search with given algorithm and parameters
+  # Launch grid search with given algorithm and parameters
   lasso_grid <- h2o.grid("glm", x = inputs, y = outputs,
-                        grid_id = "lasso_grid",
-                        training_frame = training_frame,
-                        #...
-                        lambda_search = TRUE,
-                        family = "binomial",
-                        nfolds = nfolds,
-                        fold_assignment = "Stratified",
-                        seed = model_seed,
-                        
-                        hyper_params = hyper_params)
+                         grid_id = "lasso_grid",
+                         training_frame = as.h2o(training_frame),
+                         lambda_search = TRUE,
+                         family = "binomial",
+                         nfolds = nfolds,
+                         fold_assignment = "Stratified",
+                         seed = model_seed,
+                         
+                         hyper_params = hyper_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
   # algorithm: Name of algorithm to use in grid search (gbm, randomForest, kmeans, glm, deeplearning, naivebayes, pca).
@@ -121,14 +155,14 @@ boot_model_lasso <- function(train,
   
   # Get the grid results, sorted by validation AUC
   lasso_gridperf <- h2o.getGrid(grid_id = "lasso_grid",
-                               sort_by = "auc",
-                               decreasing = TRUE)
+                                sort_by = "auc",
+                                decreasing = TRUE)
   
   # Grab the top rf model, chosen by validation AUC
   best_lasso <- h2o.getModel(lasso_gridperf@model_ids[[1]])
   
   # return model and its performance on validation_frame
-  return(list(best_lasso, h2o.performance(best_lasso, validation_frame)))
+  return(list(best_lasso, get_performance(validation_frame, best_lasso, outcome = outputs)))
   
 }
 
@@ -173,8 +207,7 @@ get_top_n_names <- function(model_h2o, top_n){
 #          list 1 - all models created
 #          list 2 - all model performances
 #          list 3 - all dataframes of variable importances with the top_n
-model_feature_selection <- function(training_df,
-                                    model_type,
+model_feature_selection <- function(model_type,
                                     training_frame,
                                     validation_frame,
                                     n = 2,
@@ -191,7 +224,9 @@ model_feature_selection <- function(training_df,
   # outcome : name of the outcome variable
   # top_n : top n important variables to be extracted from the models generated
   
-  straps <- training_df %>%bootstraps(times = n, strata = outcome)
+  print("model_feature_selection")
+  
+  straps <- training_frame %>% bootstraps(times = n, strata = outcome)
   
   combined_models <- list()
   combined_performances <- list()
@@ -200,24 +235,35 @@ model_feature_selection <- function(training_df,
   
   for(i in 1:length(straps$splits)){
     
+    # if (model_type == "RF"){
+    #   results <- as.data.frame(straps$splits[[i]])%>%
+    #     boot_model_rf(outcome = outcome,
+    #                   training_frame = training_frame,
+    #                   validation_frame = validation_frame,
+    #                   # max_depths_tune = max_depths_tune, 
+    #                   # ntrees_tune = ntree_tune,
+    #                   hyper_params = hyper_params,
+    #                   nfolds = k,
+    #                   model_seed = seed)
+    # }
+    
+    boot_training_frame <- straps$splits[[i]] %>% as.data.frame() # bootstrapped training frame
+    
+    
     if (model_type == "RF"){
-      results <- as.data.frame(straps$splits[[i]])%>%
-        boot_model_rf(outcome = outcome,
-                      training_frame = training_frame,
+      print("for loop")
+      results <-  boot_model_rf(outcome = outcome,
+                      training_frame = boot_training_frame,
                       validation_frame = validation_frame,
-                      # max_depths_tune = max_depths_tune, 
-                      # ntrees_tune = ntree_tune,
                       hyper_params = hyper_params,
                       nfolds = k,
                       model_seed = seed)
     }
     
     else if (model_type == "Lasso"){
-      results <- as.data.frame(straps$splits[[i]])%>%
-        boot_model_lasso(outcome = outcome,
-                         training_frame = training_frame,
+      results <- boot_model_lasso(outcome = outcome,
+                         training_frame = boot_training_frame,
                          validation_frame = validation_frame,
-                         #lambda_tune = lambda_tune,
                          hyper_params = hyper_params,
                          nfolds = k,
                          model_seed = seed)      
@@ -231,7 +277,7 @@ model_feature_selection <- function(training_df,
   
   
   return(list(combined_models, combined_performances, variable_imps))
-
+  
 }
 
 ######################
@@ -264,14 +310,14 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   
   #get actual column
   act <- test_data %>%
-    select(outcome) %>%
-    rename(actual = outcome)
+    dplyr::select(outcome) %>%
+    dplyr::rename(actual = outcome)
   
   #get predictions - this returns predictions according to the training f1 score
   #releveling is done because yardstick wants to see the first level as the level of interest.
   preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
     as_tibble() %>%
-    select(-predict) %>%
+    dplyr::select(-predict) %>%
     mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
     bind_cols(act) %>%
     mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
@@ -286,7 +332,7 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   
   #generate metrics of interest as tibble
   calc_metrics <- conf_mat(preds, truth=actual, estimate=predict) %>% summary() %>%
-    select(-.estimator) %>%
+    dplyr::select(-.estimator) %>%
     #dplyr::rename(flscore = f_meas) %>%
     pivot_wider(names_from=.metric, values_from=.estimate)
   
@@ -386,8 +432,8 @@ permute_var_imp <- function(df_train, df_test, outcome, model_type){
   
   if (model_type == "random_forest") {
     
-  # build randomforest in h2o
-  model_fit <- h2o.randomForest(y = outcome,
+    # build randomforest in h2o
+    model_fit <- h2o.randomForest(y = outcome,
                                   training_frame = df_train_h2o)
   }
   else {
@@ -404,7 +450,7 @@ permute_var_imp <- function(df_train, df_test, outcome, model_type){
   # get rmse for permuted data sets
   permuted_models_metric <- permute_list_h2o %>% 
     map(~get_performance(test_data = .x, test_model = model_fit, outcome = outcome)) 
-   
+  
   out <- permuted_models_metric %>%
     map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
     mutate(variable = names(permute_list_h2o)) %>% 
@@ -457,3 +503,8 @@ boot_permute_var_imp <- function(df_train, outcome, model_type, metric, n){
 # Look at graph
 # plot_permute_var_imp(x, pr_auc)
 ```
+
+
+
+
+

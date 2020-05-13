@@ -69,8 +69,8 @@ testing_df <- suicide_df %>%
 straps_splits <- stratified(as.data.frame(training_df), suicide_w5, 0.9, bothSets = T) 
 
 # pull out training and validation frames
-training_frame <- as.h2o(straps_splits[[1]])
-validation_frame <- as.h2o(straps_splits[[2]])
+training_frame <- straps_splits[[1]]
+validation_frame <- straps_splits[[2]]
 
 
 # set hyper parameters for random forest
@@ -79,11 +79,13 @@ rf_params <- list(max_depth = c(100,150,200),
 ```
 
 
+
+
+
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 
-suicide_out <- training_df %>% 
-  model_feature_selection("RF",training_frame = training_frame,
+suicide_out <- model_feature_selection("RF",training_frame = training_frame,
                       validation_frame = validation_frame,
                       hyper_params = rf_params,
                       outcome = suicide_w5, n = 5)
@@ -213,8 +215,7 @@ lasso_params <- list(alpha = c(1))
 ```{r test suicide model}
 # suicide_w5 was created earlier - it is the suicide indicator at wave 5
 
-suicide_out_lasso <- training_df %>% 
-  model_feature_selection("Lasso",training_frame = training_frame,
+suicide_out_lasso <- model_feature_selection("Lasso",training_frame = training_frame,
                       validation_frame = validation_frame,
                       hyper_params = lasso_params,
                       outcome = suicide_w5, 
