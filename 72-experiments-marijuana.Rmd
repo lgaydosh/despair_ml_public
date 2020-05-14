@@ -47,35 +47,12 @@ join_type <- 'inner'
 preds_list <-  c("h1to32", "h3to110", "h4to71") #change to be explicit
 out_list <- c('h5to21')
 # Load joined data based on desired manner of join, predictor list, and outcome variable
-
-
-
-marijuana_df <- joined_waves %>%
-  get_outcomes_df(outcome = out_list, 
-                  predictors = preds_list)
-
-
-marijuana_df <- full_dataset %>%
-                filter(aid %in% inner_aids) %>%
-                select(aid, predictor_list, outcome)
-
-
-
 wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
-
-## set outcome variable of interest
-outcome = 'h5mn8'
-
-## get the aids that you want
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## use the features and ids that you want to select out what you want
-working_ds <- full_dataset %>%
+marijuana_df <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
-                select(aid, predictor_list, outcome)
-
-
+                select(aid, preds_list, out_list)
 
 # Report about the characteristics of the subjects left out of the join
 
@@ -101,9 +78,32 @@ Here, we comment about the general characteristics of the data based on the prov
 Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
 ```{r feature selection rf}
 # Function parameters
+marijuana_df <- marijuana_df%>%
+    get_outcomes_df(outcome = out_list, 
+                  predictors = setdiff(preds_list, "aid"))
 
+training_df <- marijuana_df %>% 
+  strat_split(strat_var = out_list,split_prop = 0.7, train_out = TRUE)
+
+testing_df <- marijuana_df %>% 
+  strat_split(out_list,0.7, FALSE)
+
+straps_splits <- stratified(as.data.frame(training_df), out_list, 0.9, bothSets = T) 
+
+training_frame <- straps_splits[[1]]
+validation_frame <- straps_splits[[2]]
+
+rf_params <- list(max_depth = c(100,150,200), 
+                   ntrees = c(5,10,25))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report average performance metrics.
-
+marijuana_out <- model_feature_selection(
+                      "RF",
+                      training_frame = training_frame,
+                      validation_frame = validation_frame,
+                      hyper_params = rf_params,
+                      outcome = out_list, 
+                      n = 5
+                      )
 ```
 
 ## LASSO model
