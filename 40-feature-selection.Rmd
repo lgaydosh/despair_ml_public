@@ -13,12 +13,6 @@ pacman::p_load(tidyverse, h2o, yardstick,
 ```
 
 
-```{r}
-
-
-```
-
-
 
 ```{r convenience functions}
 
@@ -44,7 +38,7 @@ strat_split <- function(df, strat_var, split_prop, train_out = T){
 
 ##################
 # Helper function to create bootstrapped models for RF models
-boot_model_rf <- function(outcome, 
+rf_model <- function(outcome, 
                           training_frame, 
                           validation_frame,
                           nfolds,
@@ -112,7 +106,7 @@ boot_model_rf <- function(outcome,
 
 #####################
 # Helper function to create bootstrapped models for Lasso 
-boot_model_lasso <- function(outcome, 
+lasso_model <- function(outcome, 
                              training_frame, 
                              validation_frame, 
                              nfolds,
@@ -237,7 +231,7 @@ model_feature_selection <- function(model_type,
     
     # if (model_type == "RF"){
     #   results <- as.data.frame(straps$splits[[i]])%>%
-    #     boot_model_rf(outcome = outcome,
+    #     rf_model(outcome = outcome,
     #                   training_frame = training_frame,
     #                   validation_frame = validation_frame,
     #                   # max_depths_tune = max_depths_tune, 
@@ -252,7 +246,7 @@ model_feature_selection <- function(model_type,
     
     if (model_type == "RF"){
       print("for loop")
-      results <-  boot_model_rf(outcome = outcome,
+      results <-  rf_model(outcome = outcome,
                       training_frame = boot_training_frame,
                       validation_frame = validation_frame,
                       hyper_params = hyper_params,
@@ -261,7 +255,7 @@ model_feature_selection <- function(model_type,
     }
     
     else if (model_type == "Lasso"){
-      results <- boot_model_lasso(outcome = outcome,
+      results <- lasso_model(outcome = outcome,
                          training_frame = boot_training_frame,
                          validation_frame = validation_frame,
                          hyper_params = hyper_params,
