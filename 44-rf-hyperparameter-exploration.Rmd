@@ -157,6 +157,14 @@ performances %>%
   filter(training_pr_auc == max(training_pr_auc))
 ```
 
+Row at the maximum training precision-recall AUC
+```{r}
+performances %>% 
+  filter(training_pr_auc == max(training_pr_auc))
+```
+
+
+
 Row at the maximum testing precision-recall AUC
 ```{r}
 performances %>% 
