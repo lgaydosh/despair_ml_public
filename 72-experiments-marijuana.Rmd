@@ -44,8 +44,8 @@ Here, we comment on the general size and shape of the data and provide justifica
 ```{r load data}
 # Loading of joined data parameter list here (e.g., join type, predictor list, outcomes list)
 join_type <- 'inner'
-preds_list <-  c("h1to32", "h3to110", "h4to71") #change to be explicit
-out_list <- c('h5to21')
+preds_list <- predictor_list
+out_list <- c('h5to20')
 # Load joined data based on desired manner of join, predictor list, and outcome variable
 wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
@@ -104,15 +104,90 @@ marijuana_out <- model_feature_selection(
                       outcome = out_list, 
                       n = 5
                       )
+
+
+## top feature outcome
+n=5
+top_preds_outcome <- marijuana_out[[3]] %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total /n,
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+top_preds_outcome
+
+## boxplot
+select_RFvar_all <- marijuana_out[[3]]%>%
+    purrr::reduce(rbind)
+
+select_RFvar_all
+
+select_RFvar_all%>%
+  group_by(variable)%>%
+  ggplot() +
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
+
+## Plot top predictors
+top_preds_outcome %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+
+top_preds_outcome %>% 
+  arrange(avg_place)
 ```
 
 ## LASSO model
 Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
 ```{r feature selection lasso}
 # Function parameters
-
+lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
+marijuana_out_lasso <- model_feature_selection(
+                                               "Lasso",
+                                               training_frame = training_frame,
+                                               validation_frame = validation_frame,
+                                               hyper_params = lasso_params,
+                                               outcome = out_list, 
+                                               n = 5
+                                               )
 
+## This will give you a data frame of top predictors
+n=5
+top_preds_outcome_lasso <- marijuana_out_lasso[[3]] %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total /n,
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+top_preds_outcome_lasso
+
+# Box plot after feature selection
+select_LSvar_all <- marijuana_out_lasso[[3]]%>%
+    purrr::reduce(rbind)
+
+select_LSvar_all%>%
+  group_by(variable)%>% 
+  ggplot() +
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
+
+
+# Plot top predictors
+top_preds_outcome_lasso %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+
+top_preds_outcome_lasso %>% 
+  arrange(avg_place)
 ```
 
 ## Model comparison
