@@ -178,15 +178,6 @@ Spans
   mtries : -1,-2,3,4,5
   min_rows : 25 - 60
 
-```{r}
-rf_i
-```
-
-
-```{r}
-str(rf_i)
-```
-
 
 
 
