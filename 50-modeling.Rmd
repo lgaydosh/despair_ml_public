@@ -10,7 +10,38 @@ The purpose of this document is to create the final models used for the explorat
 ```
 
 ```{r convenience functions}
+# This function performs a stratified split
+strat_split <- function(df, strat_var, split_prop, train_out = T){
+  # df: input dataframe
+  # strat_var: variable to stratify on
+  # train_prop: proption to split for train/testing
+  # train_out: set to TRUE for training frame, set to FALSE for validation frame
+  # returns: training or testing tibble
+  
+  # create stratified split
+  splits <- stratified(df, strat_var, split_prop, bothSets = T)
+  train <- splits[[1]]
+  test <- splits[[2]]
+  
+  # return tibble of training set if train_out == True
+  if(train_out == T){out <- train}
+  else{out<-test}
+  return(out)
+}
 
+# Get total value based on placement of variable importance
+get_total_placement <- function(list){
+  # list: a list of data frames returned from the get_top_n_names function
+  # returns: a data frame grouped by all variables with sum total of placement
+  
+  out <- list %>%
+    purrr::reduce(rbind) %>% 
+    group_by(variable) %>% 
+    summarise(total = sum(placement))
+  
+  # return tibble
+  return(out)
+}
 ```
 
 ```{r create splits for training and validating}
