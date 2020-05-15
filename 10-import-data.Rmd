@@ -11,6 +11,15 @@ editor_options:
   chunk_output_type: console
 ---
 
+```{r load libraries }
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman"))
+  install.packages("pacman")
+
+# Load libraries required for this file
+pacman::p_load(tidyverse, janitor, haven)
+```
+
 # Importing data
 The purpose of this file is to contain all of the functions required or used to generate the dataset which will be investigated.  What follows are functions to import and generate data, and also pre-constructed lists for a simplified selection of features from the dataset.
 
@@ -31,17 +40,10 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 ## use the features and ids that you want to select out what you want
 working_ds <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
-                select(aid, predictor_list, outcome)
+                dplyr::select(aid, predictor_list, outcome)
 ```
 
-```{r load libraries }
-# Use pacman, which forces an install if the library isn't present on the running machine
-if (!require("pacman"))
-  install.packages("pacman")
 
-# Load libraries required for this file
-pacman::p_load(tidyverse, janitor, haven)
-```
 
 ## Public helper functions
 These functions are helpers in case you need to know something about your dataframe more than what is provided in the general loading/joining interface.  Use as desired!
@@ -58,7 +60,7 @@ get_unique_varnames <- function(df_list, var_name='aid'){
   # Get list of var_names
   var_list <- df_list %>%
               bind_rows() %>%
-              select(var_name)
+              dplyr::select(var_name)
   
   # Return the unique ones
   return (distinct(var_list))
@@ -103,7 +105,7 @@ get_inner <- function(in_list, var_name='aid'){
   #var_name: column name of interest
   #returns: list of elements in the var_name column that are common to all of the dataframes
   all_var_list <- in_list %>%
-    map(select, var_name) %>%
+    map(dplyr::select, var_name) %>%
     purrr::reduce(intersect) %>%
     pull(var_name)
   
@@ -255,10 +257,10 @@ get_working_dataset_exp <- function(df_list, feature_list = NULL, join_type = 'i
     stop('The following features are missing in the set of dataframes you passed in: ', str_c(missing_features, collapse=', '))
   }
   
-  # Fix factor issues and select features
+  # Fix factor issues and dplyr::select features
   ds <- ds %>% 
     mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as.factor) %>%
-    select(feature_list)
+    dplyr::select(feature_list)
   
   return(ds)
 }
@@ -287,7 +289,7 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
     ds <- reduce(df_list, full_join, by='aid')
   
   # Extract AIDs from each df
-  aid_lists <- df_list %>% map(select, aid)
+  aid_lists <- df_list %>% map(dplyr::select, aid)
   
   # Obtain correct join type based on inputs
   if(join_type=='inner')
@@ -321,7 +323,7 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
   # Fix factor issues and select features
   ds <- ds %>% 
     mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as.factor) %>%
-    select(feature_list)
+    dplyr::select(feature_list)
   
   return(ds)
 }
