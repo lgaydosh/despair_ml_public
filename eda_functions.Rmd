@@ -105,7 +105,7 @@ graph_boxplot <- function(df, outcome, other_useful_args){
 }
 ```
 
-```{r graph correlations}
+```{r generic correlations}
 
 # function for making a useful correlation visualization 
 ```
