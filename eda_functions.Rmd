@@ -1,0 +1,112 @@
+---
+title: "eda_functions"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load libraries}
+library(tidyverse)
+library(DataExplorer)
+```
+
+```{r generic missing}
+graph_missing <- function(df, 
+                          title = "Percent Missing", 
+                          box_line_size = .3, 
+                          label_size = .15, 
+                          x_axis_size = 12, 
+                          y_axis_size = 12, 
+                          title_size = 15){
+  # df: data frame to plot missingness
+  # title: graph title
+  # box_line_size: size of box-line around percent missing
+  # label_size: size of label
+  # x_axis_size: font size for x-axis
+  # y_axis_size: font size for y-axis
+  # title_size = font size for title
+  
+  plot_missing(data = df,
+               title = title,
+               geom_label_args = list(label.size = box_line_size, 
+                                      label.r = unit(0, "lines"),
+                                      label.padding = unit(label_size, "lines")),
+               theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
+                                   axis.text.x = element_text(size = x_axis_size),
+                                   axis.text.y = element_text(size = y_axis_size)))
+}
+
+# Example
+# create random amount of missing data (25% - 75%) in mtcars
+set.seed(42)
+mtcars %>% 
+  map_df(function(z) replace(x = z,
+                             list = sample(x = 1:length(z),
+                                           size = length(z)*runif(1,.25,.75)),
+                             values = NA)) %>% 
+  graph_missing()
+
+```
+
+```{r generic distribution shape}
+graph_histogram <- function(df, 
+                            title = "Distributions of Variables", 
+                            num_bins = 50, 
+                            num_rows = 4, 
+                            num_cols = 4, 
+                            x_axis_size = 12, 
+                            y_axis_size = 12, 
+                            title_size = 15){
+  # df: data frame to plot missingness
+  # title: Title of plot
+  # num_bins: number of bins for the graph
+  # num_rows: how many rows to have for output
+  # num_cols: how many columns to have for output
+  # x_axis_size: font size for x-axis
+  # y_axis_size: font size for y-axis
+  # title_size: font size for graph title
+  
+  plot_histogram(data = df,
+                 title = str_c(title, " \n ", "(Number of Bins: ", num_bins, ")"),
+                 geom_histogram_args = list(bins = num_bins),
+                 nrow = num_rows,
+                 ncol = num_cols,
+                 theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
+                                   axis.text.x = element_text(size = x_axis_size),
+                                   axis.text.y = element_text(size = y_axis_size)))
+  
+}
+
+# Example 1
+graph_histogram(mtcars, num_rows = 5, num_cols = 2)
+
+# Example 2
+graph_histogram(mtcars, num_rows = 2, num_cols = 5)
+```
+
+```{r generic correlations}
+graph_correlation_funnel <- function(df, outcome, cor_method = "kendall"){
+  # df: data frame
+  # outcome: outcome variable of interest
+  # cor_method: correlation metric to use (options: pearson, kendall, spearman)
+  # return: correlation funnel
+  
+  
+}
+
+```
+
+```{r generic boxplots}
+graph_boxplot <- function(df, outcome, other_useful_args){
+  # df: data frame
+  # outcome: outcome variable
+  # return: boxplots for covariates
+  
+}
+```
+
+```{r graph correlations}
+
+# function for making a useful correlation visualization 
+```
+
