@@ -55,6 +55,12 @@ get_total_placement <- function(list){
 ### Random forest model implementation to predict suicidal ideation
 Testing the functions by training a random forest model 
 ```{r create splits for training and testing on suicide_df}
+
+suicide_df <- joined_waves %>%
+  get_outcomes_df(outcome = suicide_w5, 
+                  predictors = setdiff(predictor_list, c("aid", "age_w4","age_w3","age_w1")))
+
+
 # Get training frame
 training_df <- suicide_df %>% 
   strat_split(strat_var = c("h5mn8"),split_prop = 0.7, train_out = TRUE)
@@ -63,7 +69,7 @@ training_df <- suicide_df %>%
 testing_df <- suicide_df %>% 
   strat_split(c("h5mn8"),0.7, FALSE)
 
-
+suicide_w5 <- suicidal_list[5]
 
 # Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
 straps_splits <- stratified(as.data.frame(training_df), suicide_w5, 0.9, bothSets = T) 

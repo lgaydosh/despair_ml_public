@@ -16,23 +16,19 @@ pacman::p_load(tidyverse, h2o, yardstick,
 
 ```{r convenience functions}
 
-# This function performs a stratified split
-strat_split <- function(df, strat_var, split_prop, train_out = T){
-  # df: input dataframe
-  # strat_var: variable to stratify on
-  # train_prop: proption to split for train/testing
-  # train_out: set to TRUE for training frame, set to FALSE for validation frame
-  # returns: training or testing tibble
+# This function is for subsetting the data by outcome and predictors
+get_outcomes_df <- function(df, outcome, predictors){
+  # df: dataframe that has all data in it
+  # outcome: outcome variable of interest
+  # predictor_vars: predictor variables of interest
+  # returns: tibble with only outcome and predictors of interest
   
-  # create stratified split
-  splits <- stratified(df, strat_var, split_prop, bothSets = T)
-  train <- splits[[1]]
-  test <- splits[[2]]
-  
-  # return tibble of training set if train_out == True
-  if(train_out == T){out <- train}
-  else{out<-test}
-  return(out)
+  # create tibble to return
+ out <- df %>%
+   dplyr::select(outcome, predictors)
+ 
+ # return tibble
+ return(out)
 }
 
 
