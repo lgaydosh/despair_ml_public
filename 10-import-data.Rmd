@@ -352,6 +352,36 @@ add_demographics <- function(df){
 }
 ```
 
+
+
+## Binarize "times used" outcome variables by 0 vs rest of values
+Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
+```{r}
+binarize_var <- function(df, variable){
+  
+  df[[variable]] <- as.character(df[[variable]])
+  df[[variable]] <- as.numeric(df[[variable]])
+  df[[variable]] <- ifelse(df[[variable]] > 0, 1, 0)
+  df[[variable]] <- as.character(df[[variable]])
+  df[[variable]] <- as.factor(df[[variable]])
+  
+  return(df[[variable]])
+}
+
+
+
+# Example:
+# test_data<-depression
+# test_data$h1fs1
+# test_data[["h1fs1"]]
+# test_data[["h1fs1"]] <- binarize_var(test_data,"h1fs1")
+
+```
+
+
+
+
+
 ## Lists of Selected Predictor Variables
 The following are some lists of predictor variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
 
