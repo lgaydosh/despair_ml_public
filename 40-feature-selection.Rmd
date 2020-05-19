@@ -52,10 +52,10 @@ rf_model <- function(outcome,
   outputs <- outcome
   inputs <- setdiff(names(training_frame), outcome)
   
-  print(inputs)
+  #print(inputs)
   
   
-  print("before grid")
+  #print("before grid")
   # Launch grid search with given algorithm and parameters
   
   #h2o.rm(rf_grid, cascade = TRUE)
@@ -91,8 +91,7 @@ rf_model <- function(outcome,
   
   # Grab the top rf model, chosen by validation AUC
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
-  
-  print("here")
+
   
   # return model and its performance on validation_frame
   return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
@@ -150,6 +149,24 @@ lasso_model <- function(outcome,
   
   # Grab the top rf model, chosen by validation AUC
   best_lasso <- h2o.getModel(lasso_gridperf@model_ids[[1]])
+  
+  #print(str(best_lasso))
+  #print(best_lasso@model$coefficients_table$names)
+  
+   
+  # another way to both have lambda search and a line of code for cv metrics:
+  # lasso_i <- h2o.glm(
+  #   x=inputs,
+  #   y=outputs, 
+  #   training_frame = training_frame,
+  #   lambda_search = TRUE,
+  #   family = "binomial",
+  #   alpha = 1,
+  #   nfolds = nfolds,
+  #   fold_assignment = "Stratified",
+  #   seed = model_seed
+  # )
+
   
   # return model and its performance on validation_frame
   return(list(best_lasso, get_performance(validation_frame, best_lasso, outcome = outputs)))
@@ -214,7 +231,7 @@ model_feature_selection <- function(model_type,
   # outcome : name of the outcome variable
   # top_n : top n important variables to be extracted from the models generated
   
-  print("model_feature_selection")
+  # print("model_feature_selection")
   
   straps <- training_frame %>% bootstraps(times = n, strata = outcome)
   
@@ -241,7 +258,7 @@ model_feature_selection <- function(model_type,
     
     
     if (model_type == "RF"){
-      print("for loop")
+      #print("for loop")
       results <-  rf_model(outcome = outcome,
                       training_frame = boot_training_frame,
                       validation_frame = validation_frame,
