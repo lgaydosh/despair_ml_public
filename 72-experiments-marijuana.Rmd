@@ -45,7 +45,7 @@ Here, we comment on the general size and shape of the data and provide justifica
 # Loading of joined data parameter list here (e.g., join type, predictor list, outcomes list)
 join_type <- 'inner'
 preds_list <- predictor_list
-out_list <- c('h5to20')
+out_list <- c('h5to21')
 # Load joined data based on desired manner of join, predictor list, and outcome variable
 wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
@@ -53,6 +53,9 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 marijuana_df <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
                 select(aid, preds_list, out_list)
+
+marijuana_df$h5to21 <- binarize_var(marijuana_df,"h5to21")
+
 
 # Report about the characteristics of the subjects left out of the join
 
@@ -63,10 +66,17 @@ marijuana_df <- full_dataset %>%
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
 ```{r eda}
 # Visualize distributions of variables of interest
-
+## intend to use graph_histogram() but the error shows no continuous features found
 # Visualize missingness
-
+## not quite sure what this function does
+marijuana_df %>% 
+  map_df(function(z) replace(x = z,
+                             list = sample(x = 1:length(z),
+                                           size = length(z)*runif(1,.25,.75)),
+                             values = NA)) %>% 
+  graph_missing()
 # Visualize correlation among predictors
+## wait for these two more functions
 ```
 
 # Robust feature selection {.tabset .tabset-fade .tabset-pills}
@@ -76,11 +86,12 @@ Here, we comment about the general characteristics of the data based on the prov
 
 ## RF model
 Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
-```{r feature selection rf}
+```{r feature selection rf, fig.width=15,fig.height=6}
 # Function parameters
 marijuana_df <- marijuana_df%>%
     get_outcomes_df(outcome = out_list, 
                   predictors = setdiff(preds_list, "aid"))
+
 
 training_df <- marijuana_df %>% 
   strat_split(strat_var = out_list,split_prop = 0.7, train_out = TRUE)
@@ -102,12 +113,14 @@ marijuana_out <- model_feature_selection(
                       validation_frame = validation_frame,
                       hyper_params = rf_params,
                       outcome = out_list, 
-                      n = 5
+                      n = 200
                       )
 
+```
 
+```{r}
 ## top feature outcome
-n=5
+n=200
 top_preds_outcome <- marijuana_out[[3]] %>%
   get_total_placement() %>% 
   mutate(avg_place = total /n,
@@ -125,20 +138,20 @@ select_RFvar_all%>%
   ggplot() +
   geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
 
-## Plot top predictors
-top_preds_outcome %>% 
-  arrange(desc(total)) %>%
-  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
-  geom_col(aes(fill = top_20)) +
-  geom_hline(yintercept = 20, color = "yellow") +
-  xlab("Predictor Variable") + 
-  ylab("Average Importance") +
-  ggtitle("Variable Importance based on Bootstrap") +
-  coord_flip() +
-  theme_dark()
-
-top_preds_outcome %>% 
-  arrange(avg_place)
+# ## Plot top predictors
+# top_preds_outcome %>% 
+#   arrange(desc(total)) %>%
+#   ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+#   geom_col(aes(fill = top_20)) +
+#   geom_hline(yintercept = 20, color = "yellow") +
+#   xlab("Predictor Variable") + 
+#   ylab("Average Importance") +
+#   ggtitle("Variable Importance based on Bootstrap") +
+#   coord_flip() +
+#   theme_dark()
+# 
+# top_preds_outcome %>% 
+#   arrange(avg_place)
 ```
 
 ## LASSO model
