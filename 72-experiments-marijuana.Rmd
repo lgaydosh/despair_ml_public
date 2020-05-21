@@ -66,9 +66,9 @@ marijuana_df$h5to21 <- binarize_var(marijuana_df,"h5to21")
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
 ```{r eda}
 # Visualize distributions of variables of interest
-## intend to use graph_histogram() but the error shows no continuous features found
+##?????????? intend to use graph_histogram() but the error shows no continuous features found
 # Visualize missingness
-## not quite sure what this function does
+##?????????? not quite sure what this function does
 marijuana_df %>% 
   map_df(function(z) replace(x = z,
                              list = sample(x = 1:length(z),
@@ -113,45 +113,30 @@ marijuana_out <- model_feature_selection(
                       validation_frame = validation_frame,
                       hyper_params = rf_params,
                       outcome = out_list, 
-                      n = 200
+                      n = 2
                       )
 
 ```
 
 ```{r}
 ## top feature outcome
-n=200
-top_preds_outcome <- marijuana_out[[3]] %>%
+n=2
+top_preds_outcome_rf <- marijuana_out[[3]] %>%
   get_total_placement() %>% 
   mutate(avg_place = total /n,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
-top_preds_outcome
 
 ## boxplot
 select_RFvar_all <- marijuana_out[[3]]%>%
     purrr::reduce(rbind)
-
-select_RFvar_all
+#%>%
+#    group_by(variable) %>% 
+#    summarise(median = median(placement, na.rm = TRUE)) ##?????????? is this what we want? then no need for boxplot
 
 select_RFvar_all%>%
   group_by(variable)%>%
   ggplot() +
   geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
-
-# ## Plot top predictors
-# top_preds_outcome %>% 
-#   arrange(desc(total)) %>%
-#   ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
-#   geom_col(aes(fill = top_20)) +
-#   geom_hline(yintercept = 20, color = "yellow") +
-#   xlab("Predictor Variable") + 
-#   ylab("Average Importance") +
-#   ggtitle("Variable Importance based on Bootstrap") +
-#   coord_flip() +
-#   theme_dark()
-# 
-# top_preds_outcome %>% 
-#   arrange(avg_place)
 ```
 
 ## LASSO model
@@ -166,16 +151,18 @@ marijuana_out_lasso <- model_feature_selection(
                                                validation_frame = validation_frame,
                                                hyper_params = lasso_params,
                                                outcome = out_list, 
-                                               n = 5
+                                               n = 2
                                                )
+```
 
+
+```{r}
 ## This will give you a data frame of top predictors
-n=5
+n=2
 top_preds_outcome_lasso <- marijuana_out_lasso[[3]] %>%
   get_total_placement() %>% 
   mutate(avg_place = total /n,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
-top_preds_outcome_lasso
 
 # Box plot after feature selection
 select_LSvar_all <- marijuana_out_lasso[[3]]%>%
@@ -185,22 +172,6 @@ select_LSvar_all%>%
   group_by(variable)%>% 
   ggplot() +
   geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
-
-
-# Plot top predictors
-top_preds_outcome_lasso %>% 
-  arrange(desc(total)) %>%
-  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
-  geom_col(aes(fill = top_20)) +
-  geom_hline(yintercept = 20, color = "yellow") +
-  xlab("Predictor Variable") + 
-  ylab("Average Importance") +
-  ggtitle("Variable Importance based on Bootstrap") +
-  coord_flip() +
-  theme_dark()
-
-top_preds_outcome_lasso %>% 
-  arrange(avg_place)
 ```
 
 ## Model comparison
@@ -209,6 +180,20 @@ Here, we will comment in depth about the differences between these selected feat
 # Comparison of performance metrics
 
 # Comparison of top_n features
+top_lasso <- top_preds_outcome_lasso %>% 
+  dplyr::select(variable,avg_place)%>%
+  arrange(desc(avg_place))%>%
+  drop_na()
+
+top_rf <- top_preds_outcome_rf %>% 
+  dplyr::select(variable,avg_place)%>%
+  arrange(desc(avg_place))%>%
+  drop_na()
+
+library(fuzzyjoin)
+
+stringdist_left_join(top_lasso, top_rf,
+     by ="variable", distance_col = NULL)
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
