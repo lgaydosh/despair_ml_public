@@ -24,29 +24,29 @@ get_outcomes_df <- function(df, outcome, predictors){
   # returns: tibble with only outcome and predictors of interest
   
   # create tibble to return
- out <- df %>%
-   dplyr::select(outcome, predictors)
- 
- # return tibble
- return(out)
+  out <- df %>%
+    dplyr::select(outcome, predictors)
+  
+  # return tibble
+  return(out)
 }
 
 
 ##################
 # Helper function to create bootstrapped models for RF models
 rf_model <- function(outcome, 
-                          training_frame, 
-                          validation_frame,
-                          nfolds,
-                          hyper_params,
-                          model_seed = 42){  
+                     training_frame, 
+                     validation_frame,
+                     nfolds,
+                     hyper_params,
+                     model_seed = 42){  
   # train: bootstrapped training frame sent in to be created a model with
   # outcome: predicted variable 
   # training_frame: 90-10 split from the training_df
   # validation_frame: 90-10 split from the training_df
   # nfolds: number of fold
   # hyper_params: hyper parameters for random forest
-
+  
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
@@ -91,7 +91,7 @@ rf_model <- function(outcome,
   
   # Grab the top rf model, chosen by validation AUC
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
-
+  
   
   # return model and its performance on validation_frame
   return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
@@ -102,11 +102,11 @@ rf_model <- function(outcome,
 #####################
 # Helper function to create bootstrapped models for Lasso 
 lasso_model <- function(outcome, 
-                             training_frame, 
-                             validation_frame, 
-                             nfolds,
-                             hyper_params,
-                             model_seed = 42){  
+                        training_frame, 
+                        validation_frame, 
+                        nfolds,
+                        hyper_params,
+                        model_seed = 42){  
   # train: bootstrapped training frame sent in to be created a model with
   # outcome: predicted variable 
   # training_frame: 90-10 split from the training_df
@@ -153,7 +153,7 @@ lasso_model <- function(outcome,
   #print(str(best_lasso))
   #print(best_lasso@model$coefficients_table$names)
   
-   
+  
   # another way to both have lambda search and a line of code for cv metrics:
   # lasso_i <- h2o.glm(
   #   x=inputs,
@@ -166,7 +166,7 @@ lasso_model <- function(outcome,
   #   fold_assignment = "Stratified",
   #   seed = model_seed
   # )
-
+  
   
   # return model and its performance on validation_frame
   return(list(best_lasso, get_performance(validation_frame, best_lasso, outcome = outputs)))
@@ -183,7 +183,25 @@ lasso_model <- function(outcome,
 get_top_n_names <- function(model_h2o, top_n){
   # model_h2o: The h2o model object
   # top_n: The number of predictors to look at
+  #       if this is -1, it gets all predictors
   # return: data frame of variable importance
+  
+  if(top_n == -1){
+    n_all_params <- model_h2o@model$names %>% length()
+    out <- h2o.varimp(model_h2o)[1:n_all_params,1] %>% 
+      as.data.frame() %>% 
+      mutate_all(as.character)
+    
+    # add row_index
+    out <- out %>% mutate(placement = as.numeric(rownames(out)))
+    
+    # rename the period as variable name
+    names(out) <- c("variable", "placement")
+    
+    # return top_n predictors 
+    return(out)
+  }
+  
   
   # get names for top_n predictors
   out <- h2o.varimp(model_h2o)[1:top_n,1] %>% 
@@ -202,10 +220,6 @@ get_top_n_names <- function(model_h2o, top_n){
 
 # Example
 # h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
-
-
-
-
 
 
 ######################
@@ -260,25 +274,25 @@ model_feature_selection <- function(model_type,
     if (model_type == "RF"){
       #print("for loop")
       results <-  rf_model(outcome = outcome,
-                      training_frame = boot_training_frame,
-                      validation_frame = validation_frame,
-                      hyper_params = hyper_params,
-                      nfolds = k,
-                      model_seed = seed)
+                           training_frame = boot_training_frame,
+                           validation_frame = validation_frame,
+                           hyper_params = hyper_params,
+                           nfolds = k,
+                           model_seed = seed)
     }
     
     else if (model_type == "Lasso"){
       results <- lasso_model(outcome = outcome,
-                         training_frame = boot_training_frame,
-                         validation_frame = validation_frame,
-                         hyper_params = hyper_params,
-                         nfolds = k,
-                         model_seed = seed)      
+                             training_frame = boot_training_frame,
+                             validation_frame = validation_frame,
+                             hyper_params = hyper_params,
+                             nfolds = k,
+                             model_seed = seed)      
     }
     
     combined_models[[i]] <- results[[1]]
     combined_performances[[i]] <- results[[2]]
-    variable_imps[[i]] <- get_top_n_names(results[[1]], 20)
+    variable_imps[[i]] <- get_top_n_names(results[[1]], -1)
     
   }
   
