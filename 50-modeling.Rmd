@@ -29,6 +29,7 @@ strat_split <- function(df, strat_var, split_prop, train_out = T){
   return(out)
 }
 
+# Unused for now
 # Get total value based on placement of variable importance
 get_total_placement <- function(list){
   # list: a list of data frames returned from the get_top_n_names function
@@ -38,6 +39,21 @@ get_total_placement <- function(list){
     purrr::reduce(rbind) %>% 
     group_by(variable) %>% 
     summarise(total = sum(placement))
+  
+  # return tibble
+  return(out)
+}
+
+
+
+get_median_placement <- function(list){
+  # list: a list of data frames returned from the get_top_n_names function
+  # returns: a data frame grouped by all variables with median of the placements of those variables
+  
+  out <- list %>%
+    purrr::reduce(rbind) %>% 
+    group_by(variable) %>% 
+    summarise(median_placement = median(placement))
   
   # return tibble
   return(out)
