@@ -33,8 +33,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-
-pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample, h2o)
+pacman::p_load(SASxport, haven, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o)
 
 ```
 
@@ -44,49 +43,32 @@ h2o.init(nthreads = -1,
 ```
 
 # Dataset generation
-Here, we comment on the general size and shape of the data and provide justification if necessary.
-```{r load data}
-# Loading of joined data parameter list here (e.g., join type, predictor list, outcomes list)
-join_type <- 'inner'
-preds_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list) 
-out_list <- c('h5mn8')
 
-# Load joined data based on desired manner of join, predictor list, and outcome variable
-wave_data <- load_waves(1:5, filebase = 'Y:') # change filebase based on where you are running this from
-full_dataset <- get_working_dataset_full(feature_list = preds_list, wave_data) 
-
-
-# Report about the characteristics of the subjects left out of the join
-
-# Validate the generated dataset using asserts
-
-
-# I will use suicide_df for now
-```
+The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe:
+1. anxiety
+2. depression 
+3. optimism 
 
 ```{r}
+## set outcome variable of interest
+outcome = 'h5mn8' # This is the binary variable representing suicidal ideation at wave 5
+
 wave_data <- load_waves(1:5, filebase = 'Y:')
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
-
-## set outcome variable of interest
-outcome = 'h5mn8'
 
 ## get the aids that you want
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
 
 ## use the features and ids that you want to select out what you want
-working_ds <- full_dataset %>%
+suicide_ds <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
-                select(aid, predictor_list, outcome)
+                dplyr::select(aid, predictor_list, outcome)
+
+# Report about the characteristics of the subjects left out of the join
+
+# Validate the generated dataset using asserts
+
 ```
-
-```{r}
-aid_lists <- wave_data %>% map(select(aid))
-```
-
-
-
-
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
@@ -106,22 +88,24 @@ Here, we comment about the general characteristics of the data based on the prov
 ## RF model
 Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
 ```{r feature selection rf}
-# Function parameters
-# Get training frame
-training_df <- suicide_df %>% 
-  strat_split(strat_var = c("h5mn8"),split_prop = 0.7, train_out = TRUE)
 
-# Get testing frame
-testing_df <- suicide_df %>% 
-  strat_split(c("h5mn8"),0.7, FALSE)
+# creating training and testing data frame
+splits <- suicide_ds %>%
+  drop_na(outcome) %>%
+  rsample::initial_split(strat=outcome, prop=0.7)
 
+training_df <- rsample::training(splits)
+testing_df <- rsample::testing(splits)
 
-# Using splitstackshape::stratified to create a stratified split on the outcome variable - 90-10 split
-straps_splits <- stratified(as.data.frame(training_df), suicide_w5, 0.9, bothSets = T) 
+# split the training_df further into a training frame and validation frame that will be used to train the model
+# This validation frame will be used to tune the model
 
-# pull out training and validation frames
-training_frame <- straps_splits[[1]]
-validation_frame <- straps_splits[[2]]
+splits <- training_df %>%
+  drop_na(outcome) %>%
+  rsample::initial_split(strat=outcome, prop=0.9)
+
+training_frame <- rsample::training(splits)
+validation_frame <- rsample::testing(splits)
 
 
 # Spans of hyper parameters for random forest
@@ -135,14 +119,19 @@ rf_params <- list(max_depth = c(15,20,25,30),
                   min_rows = c(25,40,60))
 
 
+# define number of bootstraps
+n_boot = 2
+
 suicide_out <- model_feature_selection("RF",training_frame = training_frame,
                       validation_frame = validation_frame,
                       hyper_params = rf_params,
-                      outcome = suicide_w5, n = 2)
+                      outcome = outcome, n = n_boot)
 
-top_preds_outcome <- suicide_out[[3]] %>%
+
+
+top_preds_outcome_rf <- suicide_out[[3]] %>%
   get_total_placement() %>% 
-  mutate(avg_place = total /n,
+  mutate(avg_place = total /n_boot,
          top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
 
 # Box plot after feature selection
@@ -150,14 +139,82 @@ select_RFvar_all <- suicide_out[[3]]%>%
     purrr::reduce(rbind)
 
 select_RFvar_all
+```
 
+```{r}
 select_RFvar_all%>%
   group_by(variable)%>%
   ggplot() +
-  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement)) + 
+  coord_flip()
+```
+```{r}
+top_preds_outcome_rf %>% 
+  arrange(avg_place)
+```
 
+```{r}
 # Plot top predictors
-top_preds_outcome %>% 
+top_preds_outcome_rf %>% 
+  arrange(desc(total)) %>%
+  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  geom_col(aes(fill = top_20)) +
+  geom_hline(yintercept = 20, color = "yellow") +
+  xlab("Predictor Variable") + 
+  ylab("Average Importance") +
+  ggtitle("Variable Importance based on Bootstrap") +
+  coord_flip() +
+  theme_dark()
+```
+
+
+
+## LASSO model
+Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
+```{r feature selection lasso}
+# Function parameters
+lasso_params <- list(alpha = c(1))
+# Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
+
+suicide_out_lasso <- model_feature_selection( "Lasso",
+                                               training_frame = training_frame,
+                                               validation_frame = validation_frame,
+                                               hyper_params = lasso_params,
+                                               outcome = outcome, 
+                                               n = n_boot)
+
+## This will give you a data frame of top predictors
+
+top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
+  get_total_placement() %>% 
+  mutate(avg_place = total /n_boot,
+         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+
+top_preds_outcome_lasso %>% 
+  arrange(avg_place)
+```
+
+```{r}
+# Box plot after feature selection
+select_LSvar_all <- suicide_out_lasso[[3]]%>%
+    purrr::reduce(rbind)
+
+select_LSvar_all
+```
+
+
+```{r}
+select_LSvar_all%>%
+  group_by(variable)%>% 
+  ggplot() +
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
+  coord_flip()
+```
+
+
+```{r}
+# Plot top predictors
+top_preds_outcome_lasso %>% 
   arrange(desc(total)) %>%
   ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
   geom_col(aes(fill = top_20)) +
@@ -168,35 +225,29 @@ top_preds_outcome %>%
   coord_flip() +
   theme_dark()
 
-top_preds_outcome %>% 
-  arrange(avg_place)
-
-# Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report average performance metrics.
-
-
-results <- testing_df %>% 
-  get_metrics(h2o_model = rf_final_model)
-
-
-
-```
-
-## LASSO model
-Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
-```{r feature selection lasso}
-# Function parameters
-
-# Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
-
 ```
 
 ## Model comparison
 Here, we will comment in depth about the differences between these selected features
-```{r feature selection comparison}
-# Comparison of performance metrics
 
-# Comparison of top_n features
+
+```{r}
+top_lasso <- top_preds_outcome_lasso %>% 
+  mutate(var_name = sub("\\..*", "", variable)) %>% # get the name of the variable before 
+  .$var_name
+
+top_rf <- top_preds_outcome_rf %>% 
+  .$variable
+
+top_model_preds <- c(top_lasso, top_rf)
+
+top_model_preds %>% table()
 ```
+
+
+
+
+
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
 Here, we will discuss the performance of the final models, including performance metrics.  We will comment on the most important features that it selected.
