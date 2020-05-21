@@ -130,34 +130,42 @@ suicide_out <- model_feature_selection("RF",training_frame = training_frame,
 
 
 top_preds_outcome_rf <- suicide_out[[3]] %>%
-  get_total_placement() %>% 
-  mutate(avg_place = total /n_boot,
-         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+  get_median_placement() %>% 
+  drop_na() %>% 
+  mutate(top_20 = if_else(median_placement <= 20, "Top 20", "Not Top 20"))
 
 # Box plot after feature selection
 select_RFvar_all <- suicide_out[[3]]%>%
-    purrr::reduce(rbind)
+  purrr::reduce(rbind) %>% 
+  drop_na()
 
 select_RFvar_all
 ```
+This table returns variable importance placements that returned from each of the bootstrapped models.
+
 
 ```{r}
+# Needs to be fixed so that axes don't overlap each other and obscure understanding
 select_RFvar_all%>%
   group_by(variable)%>%
   ggplot() +
-  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement)) + 
+  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
+  scale_x_discrete(expand = c(-0.001,0))+ 
+  labs(y = "Placements", x = "Variables")+
   coord_flip()
 ```
+
 ```{r}
 top_preds_outcome_rf %>% 
-  arrange(avg_place)
+  arrange(median_placement)
 ```
 
 ```{r}
 # Plot top predictors
 top_preds_outcome_rf %>% 
-  arrange(desc(total)) %>%
-  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  drop_na() %>% 
+  arrange(desc(median_placement)) %>%
+  ggplot(aes(x = reorder(variable, -median_placement), y = median_placement)) +
   geom_col(aes(fill = top_20)) +
   geom_hline(yintercept = 20, color = "yellow") +
   xlab("Predictor Variable") + 
@@ -166,7 +174,6 @@ top_preds_outcome_rf %>%
   coord_flip() +
   theme_dark()
 ```
-
 
 
 ## LASSO model
@@ -186,41 +193,42 @@ suicide_out_lasso <- model_feature_selection( "Lasso",
 ## This will give you a data frame of top predictors
 
 top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
-  get_total_placement() %>% 
-  mutate(avg_place = total /n_boot,
-         top_20 = if_else(avg_place <= 20, "Top 20", "Not Top 20"))
+  get_median_placement() %>% 
+  drop_na() %>% 
+  mutate(top_20 = if_else(median_placement <= 20, "Top 20", "Not Top 20"))
 
 top_preds_outcome_lasso %>% 
-  arrange(avg_place)
+  arrange(median_placement)
 ```
 
 ```{r}
 # Box plot after feature selection
 select_LSvar_all <- suicide_out_lasso[[3]]%>%
-    purrr::reduce(rbind)
+  purrr::reduce(rbind) %>% 
+  drop_na()
 
 select_LSvar_all
 ```
-
 
 ```{r}
 select_LSvar_all%>%
   group_by(variable)%>% 
   ggplot() +
   geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
+  #scale_x_discrete(expand = c(-0.001,0))+ 
+  labs(y = "Placements", x = "Variables")+
   coord_flip()
 ```
-
 
 ```{r}
 # Plot top predictors
 top_preds_outcome_lasso %>% 
-  arrange(desc(total)) %>%
-  ggplot(aes(x = reorder(variable, -avg_place), y = avg_place)) +
+  arrange(desc(median_placement)) %>%
+  ggplot(aes(x = reorder(variable, -median_placement), y = median_placement)) +
   geom_col(aes(fill = top_20)) +
   geom_hline(yintercept = 20, color = "yellow") +
   xlab("Predictor Variable") + 
-  ylab("Average Importance") +
+  ylab("Median Placment")+
   ggtitle("Variable Importance based on Bootstrap") +
   coord_flip() +
   theme_dark()
@@ -230,24 +238,15 @@ top_preds_outcome_lasso %>%
 ## Model comparison
 Here, we will comment in depth about the differences between these selected features
 
-
+We will take a look at the median ranking of the features that are returned
 ```{r}
-top_lasso <- top_preds_outcome_lasso %>% 
-  mutate(var_name = sub("\\..*", "", variable)) %>% # get the name of the variable before 
-  .$var_name
-
-top_rf <- top_preds_outcome_rf %>% 
-  .$variable
-
-top_model_preds <- c(top_lasso, top_rf)
-
-top_model_preds %>% table()
+top_preds_outcome_lasso %>% 
+  arrange(median_placement)
 ```
-
-
-
-
-
+```{r}
+top_preds_outcome_rf %>% 
+  arrange(median_placement)
+```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
 Here, we will discuss the performance of the final models, including performance metrics.  We will comment on the most important features that it selected.
@@ -256,17 +255,45 @@ The subject matter experts will comment on the relevance of these features to th
 ## RF model
 Here, we will comment on the behavior and performance of the final rf model.
 ```{r final model evaluation rf}
+
+# Spans of hyper parameters for random forest
+#   ntrees  : 50-150
+#   max_depths : 15-30
+#   mtries : -1,-2,3,4,5
+#   min_rows : 25 - 60
+rf_params <- list(max_depth = c(15,20,25,30), 
+                  ntrees = c(50,75,100,125,150),
+                  mtries = -1,
+                  min_rows = c(25,40,60))
+
+
 # Function parameters
+final_model_rf <- rf_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = rf_params)
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
+# testing_df %>% 
+#   get_metric_set(list(final_model_rf[[1]]))
+
 ```
+
 
 ## LASSO model
 Here, we'll comment on the behavior and performance of the final lasso model.
 ```{r final model evaluation lasso}
 # Function parameters
+lasso_params <- list(alpha = c(1))
+
+final_model_lasso <- lasso_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = lasso_params)
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
+# testing_df %>% 
+#   get_metric_set(list(final_model_lasso[[1]]))
+
+# Call final modeling function and show visualization of results.  Report performance metric stats.
+```
+
+```{r}
+plot_h2o_metric_set(df = testing_df, model_list = list(final_model_rf[[1]], final_model_lasso[[1]]))
 ```
 
 ## Final model comparison
