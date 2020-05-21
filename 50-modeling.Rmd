@@ -6,7 +6,6 @@ output: html_document
 The purpose of this document is to create the final models used for the exploration in the file 60 series.
 
 ```{r load libraries}
-# This loads our libraries
 
 ```
 
