@@ -1,0 +1,46 @@
+---
+title: "utils"
+output: html_document
+---
+
+#Utility functions
+The purpose of this notebook is to provide utility functions that assist in the analysis, but are also completely tangential to the analysis.
+
+```{r}
+library(pacman)
+pacman::p_load(arrow, tidyverse)
+```
+We'll be using arrow as a file format here due to its fast and robust performance, as well as its fidelity in retaining datatypes from the initial dataframe.  For more information, see [here](https://arrow.apache.org/docs/r/articles/arrow.html).
+
+## Test filepath saving location and parquet
+```{r}
+
+save_filepath_remote <- 'G:/DSI/test.parquet'
+save_filepath_local <- './test.parquet'
+test_iris <- iris %>% tibble()
+
+#Can we write CSVs?
+write_csv(test_iris, path=save_filepath_local)
+#write_csv(test_iris, path=save_filepath_remote)
+
+#Can we write parquets?
+write_parquet(test_iris, path=save_filepath_local)
+#write_parquet(test_iris, path=save_filepath_remote)
+
+```
+Can write locally, but not remotely.  Probably an issue with file permissions.
+
+## Create fully joined dataset and save to vu1file
+```{r create-and-save-full-join}
+source('function_import.R');
+```
+
+```{r}
+wave_data <- load_waves(1:5, filebase='G:/')
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+```
+
+```{r}
+save_filepath <- 'G:/DSI/wave1-5_full'
+```
+
