@@ -58,6 +58,50 @@ get_median_placement <- function(list){
   # return tibble
   return(out)
 }
+
+
+# function to plot a boxplot showing the variance in feature placements
+plot_median_placements <- function(df_placements, top_n = 20){
+  # input: df_placements - dataframe with all variables in model and their median placements from the models
+  # ouput: barplot of the median placements
+  
+  df_placements <- df_placements %>%   
+    mutate(top_x = if_else(median_placement <= top_n, paste0("Top ", top_n), paste0("Not Top ", top_n)))
+  
+  df_placements %>% 
+    drop_na() %>% 
+    arrange(desc(median_placement)) %>%
+    ggplot(aes(x = reorder(variable, -median_placement), y = median_placement)) +
+    geom_col(aes(fill = top_x)) +
+    geom_hline(yintercept = top_n, color = "yellow") +
+    xlab("Predictor Variable") + 
+    ylab("Median Placement") +
+    ggtitle("Median Variable Importance based on Bootstrap") +
+    coord_flip() +
+    theme_dark()
+  
+}
+
+# function to plot a boxplot showing the variance in feature placements
+plot_placement_boxplot <- function(placements){
+  # input: list of placements from the bootstrapped samples
+  # ouput: boxplot of placements of variables from the bootstraps
+  
+  
+  combined_placements <- placements %>%
+    purrr::reduce(rbind) %>% 
+    drop_na()
+  
+  # Needs to be fixed so that axes don't overlap each other and obscure understanding
+  combined_placements %>%
+    group_by(variable)%>%
+    ggplot() +
+    geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
+    scale_x_discrete(expand = c(-0.001,0))+ 
+    labs(y = "Placements", x = "Variables")+
+    coord_flip()
+  
+}
 ```
 
 ```{r create splits for training and validating}

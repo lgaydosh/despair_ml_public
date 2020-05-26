@@ -127,52 +127,29 @@ suicide_out <- model_feature_selection("RF",training_frame = training_frame,
                       hyper_params = rf_params,
                       outcome = outcome, n = n_boot)
 
+```
 
-
-top_preds_outcome_rf <- suicide_out[[3]] %>%
+```{r}
+boot_med_placements_rf <- suicide_out[[3]] %>%
   get_median_placement() %>% 
   drop_na() %>% 
-  mutate(top_20 = if_else(median_placement <= 20, "Top 20", "Not Top 20"))
+  arrange(median_placement)
 
-# Box plot after feature selection
-select_RFvar_all <- suicide_out[[3]]%>%
-  purrr::reduce(rbind) %>% 
-  drop_na()
-
-select_RFvar_all
+boot_med_placements_rf
 ```
 This table returns variable importance placements that returned from each of the bootstrapped models.
 
 
-```{r}
+```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
-select_RFvar_all%>%
-  group_by(variable)%>%
-  ggplot() +
-  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
-  scale_x_discrete(expand = c(-0.001,0))+ 
-  labs(y = "Placements", x = "Variables")+
-  coord_flip()
+plot_placement_boxplot(suicide_out[[3]])
+
 ```
 
-```{r}
-top_preds_outcome_rf %>% 
-  arrange(median_placement)
-```
+```{r fig.width = 10, fig.height = 12}
+boot_med_placements_rf %>% 
+  plot_median_placements(top_n = 30)
 
-```{r}
-# Plot top predictors
-top_preds_outcome_rf %>% 
-  drop_na() %>% 
-  arrange(desc(median_placement)) %>%
-  ggplot(aes(x = reorder(variable, -median_placement), y = median_placement)) +
-  geom_col(aes(fill = top_20)) +
-  geom_hline(yintercept = 20, color = "yellow") +
-  xlab("Predictor Variable") + 
-  ylab("Average Importance") +
-  ggtitle("Variable Importance based on Bootstrap") +
-  coord_flip() +
-  theme_dark()
 ```
 
 
@@ -191,47 +168,29 @@ suicide_out_lasso <- model_feature_selection( "Lasso",
                                                n = n_boot)
 
 ## This will give you a data frame of top predictors
+```
 
-top_preds_outcome_lasso <- suicide_out_lasso[[3]] %>%
+
+```{r }
+boot_med_placements_lasso <- suicide_out_lasso[[3]] %>%
   get_median_placement() %>% 
   drop_na() %>% 
-  mutate(top_20 = if_else(median_placement <= 20, "Top 20", "Not Top 20"))
-
-top_preds_outcome_lasso %>% 
   arrange(median_placement)
+
+boot_med_placements_lasso
 ```
 
-```{r}
-# Box plot after feature selection
-select_LSvar_all <- suicide_out_lasso[[3]]%>%
-  purrr::reduce(rbind) %>% 
-  drop_na()
+```{r fig.width = 10, fig.height = 12}
 
-select_LSvar_all
+plot_placement_boxplot(suicide_out_lasso[[3]])
+
 ```
 
-```{r}
-select_LSvar_all%>%
-  group_by(variable)%>% 
-  ggplot() +
-  geom_boxplot(aes(x = fct_reorder(variable, -placement), y = placement))+
-  #scale_x_discrete(expand = c(-0.001,0))+ 
-  labs(y = "Placements", x = "Variables")+
-  coord_flip()
-```
 
-```{r}
+```{r fig.width = 10, fig.height = 12}
 # Plot top predictors
-top_preds_outcome_lasso %>% 
-  arrange(desc(median_placement)) %>%
-  ggplot(aes(x = reorder(variable, -median_placement), y = median_placement)) +
-  geom_col(aes(fill = top_20)) +
-  geom_hline(yintercept = 20, color = "yellow") +
-  xlab("Predictor Variable") + 
-  ylab("Median Placment")+
-  ggtitle("Variable Importance based on Bootstrap") +
-  coord_flip() +
-  theme_dark()
+boot_med_placements_lasso %>% 
+  plot_median_placements(top_n = 30)
 
 ```
 
@@ -243,6 +202,7 @@ We will take a look at the median ranking of the features that are returned
 top_preds_outcome_lasso %>% 
   arrange(median_placement)
 ```
+
 ```{r}
 top_preds_outcome_rf %>% 
   arrange(median_placement)
@@ -270,9 +230,9 @@ rf_params <- list(max_depth = c(15,20,25,30),
 # Function parameters
 final_model_rf <- rf_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = rf_params)
 
-# Call final modeling function and show visualization of results.  Report performance metric stats.
-# testing_df %>% 
-#   get_metric_set(list(final_model_rf[[1]]))
+#Call final modeling function and show visualization of results.  Report performance metric stats.
+testing_df %>%
+  get_metric_set(list(final_model_rf[[1]]))
 
 ```
 
@@ -286,8 +246,8 @@ lasso_params <- list(alpha = c(1))
 final_model_lasso <- lasso_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = lasso_params)
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
-# testing_df %>% 
-#   get_metric_set(list(final_model_lasso[[1]]))
+testing_df %>%
+  get_metric_set(list(final_model_lasso[[1]]))
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
 ```
