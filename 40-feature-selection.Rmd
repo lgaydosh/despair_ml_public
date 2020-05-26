@@ -420,13 +420,10 @@ permute_var_imp <- function(df_predict, outcome, model_h2o){
   # make prediction frame h2o object
   df_predict_h2o <- df_predict %>% as.h2o()
   
-  # predict data for model
-  df_predictions <- h2o.predict(object = model_h2o, newdata = df_predict_h2o) 
-  
   # Get metrics from unpermuted data
   true_metric_vals <- get_performance(test_data = df_predict, test_model = model_h2o, outcome = outcome)
   
-  # get rmse for permuted data sets
+  # get metrics for permuted data sets
   permuted_models_metric <- permute_list_h2o %>% 
     map(~get_performance(test_data = .x, test_model = model_h2o, outcome = outcome)) 
   
@@ -440,11 +437,11 @@ permute_var_imp <- function(df_predict, outcome, model_h2o){
 }
 
 # example dataset
-# mtcars2 <- mtcars %>% mutate(vs = factor(vs))
+mtcars2 <- mtcars %>% mutate(vs = factor(vs))
 
 # example 1
-# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"), 
-#                            y = "vs", 
+# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"),
+#                            y = "vs",
 #                            training_frame = as.h2o(mtcars2))
 
 # permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = rf_h2o)
@@ -467,17 +464,10 @@ boot_permute_var_imp <- function(df_predict, outcome, model_h2o, n){
   # model_h2o: h2o model object
   # n: number of bootstraps
   # return: data frame with all bootstrapped permutation importances
-<<<<<<< HEAD
-  
+
   # bootstrap the data
   b_df <- bootstraps(df_predict, times = n)
-  
-=======
-  
-  # bootstrap the data
-  b_df <- bootstraps(df_predict, times = n)
-  
->>>>>>> b0db3db6c930a2a1e76df2a345b7476373d73ad8
+
   # pull the bootstrap samples
   df_predict_list <- b_df$splits %>% map(rsample::training)
 
