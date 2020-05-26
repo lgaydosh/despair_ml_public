@@ -1,6 +1,8 @@
 ---
 title: "40-feature-selection"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 This notebook details the functions required to perform feature selection.  The 
@@ -380,6 +382,7 @@ permute_columns <- function(df, outcome){
 plot_permute_var_imp <- function(df_permute_var_imp, metric){
   # df_permute_var_imp: data frame of permutation metrics from permute_var_imp()
   # metric: metric to plot, NOT passed as a string
+  # return: ggplot bar graph of permutation importance
   
   # create dataframe we can use for ggplot (mostly to grab the names below)
   plot_df <- df_permute_var_imp %>% 
@@ -405,42 +408,29 @@ plot_permute_var_imp <- function(df_permute_var_imp, metric){
 
 ```{r permutation variable importance function}
 # Note, make sure that factors are factors!
-permute_var_imp <- function(df_train, df_test, outcome, model_type){
-  # df_train: training data to train the model
-  # df_test: testing or validation frame
+permute_var_imp <- function(df_predict, outcome, model_h2o){
+  # df_predict: data to predict
   # outcome: outcome of interest
-  # model_type: string specifying model type. Either "random_forest" or "glm"
-  # metric: type of metric to use. Either "auc" or "rmse"
+  # model_h2o: h2o model object
+  # return: data frame of permutation importances
   
   # make permuted data frames h2o objects
-  permute_list_h2o <- permute_columns(df = df_train, outcome = outcome)
+  permute_list_h2o <- permute_columns(df = df_predict, outcome = outcome)
   
-  # make training/testing frames h2o objects
-  df_train_h2o <- df_train %>% as.h2o()
-  df_test_h2o <- df_test %>% as.h2o()
+  # make prediction frame h2o object
+  df_predict_h2o <- df_predict %>% as.h2o()
   
-  
-  if (model_type == "random_forest") {
-    
-    # build randomforest in h2o
-    model_fit <- h2o.randomForest(y = outcome,
-                                  training_frame = df_train_h2o)
-  }
-  else {
-    
-    # fit glm model - note that this is for binomial outcome
-    model_fit <- h2o.glm(y = outcome,
-                         training_frame = df_train_h2o,
-                         family = "binomial")
-  }
+  # predict data for model
+  df_predictions <- h2o.predict(object = model_h2o, newdata = df_predict_h2o) 
   
   # Get metrics from unpermuted data
-  true_metric_vals <- get_performance(test_data = df_test, test_model = model_fit, outcome = outcome)
+  true_metric_vals <- get_performance(test_data = df_predict, test_model = model_h2o, outcome = outcome)
   
   # get rmse for permuted data sets
   permuted_models_metric <- permute_list_h2o %>% 
-    map(~get_performance(test_data = .x, test_model = model_fit, outcome = outcome)) 
+    map(~get_performance(test_data = .x, test_model = model_h2o, outcome = outcome)) 
   
+  # calculate permutation importance (dif. between permuted and non-permuted predictions)
   out <- permuted_models_metric %>%
     map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
     mutate(variable = names(permute_list_h2o)) %>% 
@@ -453,45 +443,77 @@ permute_var_imp <- function(df_train, df_test, outcome, model_type){
 # mtcars2 <- mtcars %>% mutate(vs = factor(vs))
 
 # example 1
-# permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "random_forest")
+# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"), 
+#                            y = "vs", 
+#                            training_frame = as.h2o(mtcars2))
+
+# permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = rf_h2o)
 
 # example 2
-# permute_var_imp(mtcars2, mtcars2, outcome = "vs", model_type = "glm")
+# glm_h2o <- h2o.glm(x = c("mpg", "cyl", "disp"),
+#                    y = "vs", 
+#                    training_frame = as.h2o(mtcars2), 
+#                    family = "binomial")
 
-# x <- permute_var_imp_x(df_train = mtcars2, df_test = mtcars2, outcome = "vs", model_type = "random_forest")
+# permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = glm_h2o)
 ```
 
 ```{r permutation variable importance bootstrap}
 
 # bootstrap permutation variable importance
-boot_permute_var_imp <- function(df_train, outcome, model_type, metric, n){
-  # df_train: data set to bootstrap
+boot_permute_var_imp <- function(df_predict, outcome, model_h2o, n){
+  # df_predict: data set to bootstrap
   # outcome: outcome of interest
-  # model_type: 
+  # model_h2o: h2o model object
+  # n: number of bootstraps
+  # return: data frame with all bootstrapped permutation importances
   
-  b_df <- bootstraps(df_train, times = n)
+  # bootstrap the data
+  b_df <- bootstraps(df_predict, times = n)
   
-  train_list <- b_df$splits %>% map(rsample::training)
-  test_list <- b_df$splits %>% map(rsample::testing)
+  # pull the bootstrap samples
+  df_predict_list <- b_df$splits %>% map(rsample::training)
+
+  # compute permutation importance
+  out <- df_predict_list %>% 
+    map_df(~permute_var_imp(df_predict = .x, 
+                         outcome = outcome, 
+                         model_h2o = model_h2o))
   
-  out <- map2_df(.x = train_list, 
-                 .y = test_list, 
-                 .f = permute_var_imp,
-                 outcome = outcome, 
-                 model_type = model_type)
-  
+  # return df of bootstrapped permutation importance
   return(out)
 }
 
+# example dataset
+# mtcars2 <- mtcars %>% mutate(vs = factor(vs))
 
 # Example 1
-# x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "glm", n = 3)
+# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"), 
+#                            y = "vs", 
+#                            training_frame = as.h2o(mtcars2))
+
+# x <- boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = rf_h2o, n = 2)
 
 # Example 2
-# x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "random_forest", n = 2)
+# glm_h2o <- h2o.glm(x = c("mpg", "cyl", "disp"),
+#                    y = "vs", 
+#                    training_frame = as.h2o(mtcars2), 
+#                    family = "binomial")
+
+# x <- boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = glm_h2o, n = 2)
+
+# Example 3
+# Get permutation importance for two models
+# model_list <- list(rf_mod = rf_h2o, glm_mod = glm_h2o)
+# y <- model_list %>% 
+#   map(~boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = .x, n = 2))
+# y$rf_mod
+# y$glm_mod
 
 # Look at graph
 # plot_permute_var_imp(x, pr_auc)
+# plot_permute_var_imp(y$rf_mod, accuracy)
+# plot_permute_var_imp(y$glm_mod, roc_auc)
 ```
 
 
