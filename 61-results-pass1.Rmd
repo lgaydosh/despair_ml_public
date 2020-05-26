@@ -6,19 +6,84 @@ output: html_document
 The purpose of this document is to explore the results of the models built in the 40 and 50 series.
 ```{r load libraries}
 # These are libraries needed to run the code below
+library(pacman)
+pacman::p_load(tidyverse)
 ```
 
 # `get_performance` metric functions
-The following functions perform the plotting functionality based on the outputs of the `get_performance` function from a list of several generated models.  `get_performance()` returns a tibble of performance as measured by several different metrics.
+The following functions perform the aggregation and plotting functionality based on the outputs of the `get_performance` function from a list of several generated models.  The functions can either operate on a model and tibble or on a list generated containing the outputs of the `get_performance` function.  `get_performance()` returns a tibble of performance as measured by several different metrics.
 
-```{r }
+```{r helper functions}
+# This function returns the metrics for a set of models on an input dataframe
+get_metric_set_from_models <- function(df, model_list){
+  # df: Training or testing frame
+  # model_list: list of h2o model objects
+  # return: tibble with all applicable metrics for each model tested on df
+
+  metric_set <- model_list %>%
+  map_df(get_performance, test_data = df) %>% 
+  mutate(model = factor(1:length(model_list))) %>% 
+  select(model, everything())
+  
+  # return metric set
+  return(metric_set)
+}
+
+# This function returns the metrics for a set of models from the performance metrics
+get_metric_set_from_perfs <- function(perf_list){
+  
+  metric_set <- perf_list %>% 
+    purrr::reduce(rbind) %>%
+    mutate(model = factor(1:length(perf_list))) %>% 
+    select(model, everything())
+  
+  # return metric set
+  return(metric_set)
+  
+}
+
+```
+
+The following function compares the performance for one or more models.
+
+```{r main plotting function}
+
+plot_metric_set <- function(df_metrics){
+  # df_metrics: metrics from get_metric_set_* functions
+  # return: ggplot object (scatterplot) comparing all models across all applicable metrics
+  
+  # pivot metrics to put in tidy format and plot
+  df_metrics %>% 
+    pivot_longer(cols = -model,
+                 names_to = "metric",
+                 values_to = "metric_val") %>% 
+    drop_na() %>% 
+    ggplot() +
+    geom_point(aes(x = metric, y = metric_val, color = model), size = 3) +
+    xlab("Metric") +
+    ylab("Metric Value") +
+    ggtitle("Model Comparison Plot") +
+    theme_classic() +
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_text(size = 11))
+}
 
 ```
 
 ## Use cases and unit tests
+The following section describes the usage of the functions above.  More aggressive testing should be utilized for the unit tests.
 
-```{r}
+```{r metrics use cases}
+# generating the metrics from a dataframe and a model
+metrics <- testing_df %>% 
+  get_metric_set_from_models(boot_mods)
 
+#aggregating the metrics from a list of performance tibbles
+metrics <- perf_list %>%
+  get_metric_set_from_perfs()
+
+#plot the outputs
+plot_metric_set(metrics)
 ```
 
 
