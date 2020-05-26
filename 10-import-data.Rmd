@@ -39,8 +39,8 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 
 ## use the features and ids that you want to select out what you want
 working_ds <- full_dataset %>%
-                filter(aid %in% inner_aids) %>%
-                dplyr::select(aid, predictor_list, outcome)
+  filter(aid %in% inner_aids) %>%
+  dplyr::select(aid, predictor_list, outcome)
 ```
 
 
@@ -59,8 +59,8 @@ get_unique_varnames <- function(df_list, var_name='aid'){
   
   # Get list of var_names
   var_list <- df_list %>%
-              bind_rows() %>%
-              dplyr::select(var_name)
+    bind_rows() %>%
+    dplyr::select(var_name)
   
   # Return the unique ones
   return (distinct(var_list))
@@ -146,10 +146,10 @@ load_file <- function(f_path, use_clean_names = TRUE) {
   #     mutate(wave_no = wave_no)
   # }
   
-    # If you want clean names
+  # If you want clean names
   if(use_clean_names){
-  read_data <- read_data %>%
-              clean_names()
+    read_data <- read_data %>%
+      clean_names()
   }
   
   return(read_data)
@@ -178,7 +178,7 @@ load_using_chooser <- function(use_clean_names = TRUE) {
   
   # Load data; returned as list of tibbles
   file_data <- files %>%
-              map(load_file, use_clean_names)
+    map(load_file, use_clean_names)
   
   return(file_data)
 }
@@ -204,7 +204,7 @@ load_waves <- function(wave_no_list, use_clean_names = TRUE, filebase='~/gvfs/sm
   
   # Load data; returned as lists
   file_data <- files %>%
-              map(load_file, use_clean_names)
+    map(load_file, use_clean_names)
   
   return(file_data)
 }
@@ -357,29 +357,27 @@ add_demographics <- function(df){
 ## Binarize "times used" outcome variables by 0 vs rest of values
 Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
 ```{r}
+
+binary_helper <- function(x){
+  if_else(x >0, 1, 0)
+}
+
 binarize_var <- function(df, variable){
   
-  df[[variable]] <- as.character(df[[variable]])
-  df[[variable]] <- as.numeric(df[[variable]])
-  df[[variable]] <- ifelse(df[[variable]] > 0, 1, 0)
-  df[[variable]] <- as.character(df[[variable]])
-  df[[variable]] <- as.factor(df[[variable]])
-  
-  return(df[[variable]])
+  df %>% 
+    mutate_at(vars(matches(variable)), as.character) %>% 
+    mutate_at(vars(matches(variable)), as.numeric) %>% 
+    mutate_at(vars(matches(variable)), binary_helper) %>% 
+    mutate_at(vars(matches(variable)), as.character) %>% 
+    mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
 }
 
 
-
 # Example:
-# test_data<-depression
-# test_data$h1fs1
-# test_data[["h1fs1"]]
-# test_data[["h1fs1"]] <- binarize_var(test_data,"h1fs1")
+# working_ds
+# working_ds <- working_ds %>% binarize_var('times_used_x')
 
 ```
-
-
-
 
 
 ## Lists of Selected Predictor Variables
@@ -397,10 +395,10 @@ optimism_list <- c("h4pe7","h5pe1","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3")
 
 # List of all Depression Variables
 depression_list <- c(
-                     "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
-                     "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
-                     "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
-                     "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d")                                          # Wave 5 ~ 5 vars
+  "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
+  "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
+  "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
+  "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d")                                          # Wave 5 ~ 5 vars
 
 diagnosed_depression_list <- c("h4id5h","h5id6g")
 
