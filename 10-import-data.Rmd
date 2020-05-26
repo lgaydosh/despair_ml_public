@@ -347,8 +347,17 @@ add_demographics <- function(df){
     mutate(age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12)) %>% 
     mutate(age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12)) %>% 
     mutate(age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
-    left_join(race, by ="aid") %>% 
-    dplyr::select(-one_of(c('birth_in_months'))) 
+    dplyr::select(-one_of(c('birth_in_months'))) %>%
+    
+    mutate(one_race5 = case_when( #one race: first analyze those with multiple races
+                        (h5od8==1) ~ 1, #1 = white
+                        (h5od8==2) ~ 2, #2 = black
+                        (h5od8>=3)&&(h5od8<=7) ~ 3, #3= hispanic
+                        (h5od8>=9)&&(h5od8<=15) ~ 4, #4 = asian
+                        (h5od8>=16)&&(h5od8<=22) ~ 5, #5 = other
+                        #then analyze only 1 race response
+                        (h5od8==997) ~ 1*h5od4a +2*h5od4b +3*h5od5c +4*h5od5d +5*sum(h5ode,h5odf,h5odg), 
+                        TRUE ~ NA))
 }
 ```
 
@@ -403,7 +412,7 @@ depression_list <- c(
 diagnosed_depression_list <- c("h4id5h","h5id6g")
 
 # List of all Demographic Variable
-demographic_list <- c("race1","mulrace1","race1rul","bio_sex")
+demographic_list <- c("one_race5","bio_sex") #removed "race1","mulrace1","race1rul"
 
 demographic_list_comp <- c("age_w1", "age_w3", "age_w4", "age_w5")
 
