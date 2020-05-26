@@ -348,7 +348,7 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   
   #some counting for class counts
   cls_cnt <- preds %>%
-    group_by(actual) %>%
+    group_by(actual, .drop=FALSE) %>%
     summarise(cnt=n()) %>%
     ungroup() %>%
     as_tibble()
