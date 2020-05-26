@@ -467,10 +467,17 @@ boot_permute_var_imp <- function(df_predict, outcome, model_h2o, n){
   # model_h2o: h2o model object
   # n: number of bootstraps
   # return: data frame with all bootstrapped permutation importances
+<<<<<<< HEAD
   
   # bootstrap the data
   b_df <- bootstraps(df_predict, times = n)
   
+=======
+  
+  # bootstrap the data
+  b_df <- bootstraps(df_predict, times = n)
+  
+>>>>>>> b0db3db6c930a2a1e76df2a345b7476373d73ad8
   # pull the bootstrap samples
   df_predict_list <- b_df$splits %>% map(rsample::training)
 
