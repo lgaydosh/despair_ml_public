@@ -15,7 +15,7 @@ editor_options:
 The purpose of this document is to verify the behavior of certain parts of the project and determine if they're working similarly on everyone's machines.  Make sure you run `10-import-data.Rmd` first.
 
 ```{r libraries used}
-pacman::p_load(tidyverse, yardstick, janitor, h2o)
+pacman::p_load(tidyverse, yardstick, janitor, h2o, testit)
 ```
 
 ```{r constants and settings}
@@ -369,12 +369,14 @@ aids_5 <- wave_data[[5]] %>% pull(aid)
 Alright.  Now, let's do some setdiffs to make sure that all of the elements that are in whatever other wave are in wave 1.  `setdiff(x,y)` returns the elements of `x` that are *not* in `y`.
 
 ```{r}
-setdiff(aids_2, aids_1)
+wave2_bad <- setdiff(aids_2, aids_1)
+wave2_bad
 ```
 whoops!
 
 ```{r}
-setdiff(aids_3, aids_1)
+wave3_bad <- setdiff(aids_3, aids_1)
+wave3_bad
 ```
 WHOOPS
 
@@ -387,4 +389,88 @@ yay!
 setdiff(aids_5, aids_1)
 ```
 yay!
+
+# Remove errant AIDS from the analysis
+In this part of the notebook, we provide the code which enumerates the bad AIDs and then writes them to a file on a secure server.  These values can be read from the server and then removed from the analysis. 
+
+The following defines the total number of AIDS that should thusly be removed from a fully joined dataset.
+```{r}
+bad_aids <- union(wave2_bad, wave3_bad)
+str_c('Total number of bad AIDS: ', length(bad_aids))
+str_c('Total number of rows in joined dataset: ', nrow(full_dataset))
+ds_size_after_removal <- nrow(full_dataset) - length(bad_aids)
+str_c('Full join dataset size after removal: ', ds_size_after_removal)
+```
+
+# The following code writes the bad aids to the server; the filename will be exclusion_aids.csv
+
+Test with dummy data first
+```{r}
+filename <- 'G:/DSI/exclusion_aids.csv'
+test_aids <- tibble(bad_aids = 1:13)
+write_csv(test_aids, filename)
+```
+
+Write with real data
+```{r}
+bad_aids <- tibble(bad_aids)
+write_csv(bad_aids, filename)
+```
+
+Read data to make sure that it is the same as the original data
+```{r}
+read_aids <- read_csv(filename, col_types = cols(col_character()))
+testit::assert(nrow(read_aids) %==% nrow(bad_aids)) #size is the same
+testit::assert(sum(map2_int(pull(read_aids), pull(bad_aids), identical)) %==% nrow(bad_aids)) #values are the same
+```
+
+Function to remove bad aids from the dataset
+```{r}
+excl_aids_fname <- 'G:/DSI/exclusion_aids.csv'
+
+#Get bad aids
+excl_aids <- read_csv(excl_aids_fname, col_types = cols(col_character()))
+
+#Remove bad aids from dataset
+filtered_ds <- full_dataset %>%
+  filter( !(aid %in% pull(excl_aids)))
+
+testit::assert(nrow(filtered_ds) %==% ds_size_after_removal)
+```
+
+The analogous function to achieve this purpose is included in 10-load-data, and is shown below:
+```{r}
+remove_subjects_not_in_wave1 <- function(df, excl_fname = 'G:/DSI/exclusion_aids.csv'){
+
+  n_subjs <- nrow(df)
+  
+  #Get bad aids
+  excl_aids <- read_csv(excl_fname, col_types=cols(col_character()))
+
+  #Remove bad aids from dataset
+  filtered_ds <- df %>%
+    filter( !(aid %in% pull(read_aids)))
+  
+  #Give information on what was performed
+  warning(str_c(n_subjs - nrow(filtered_ds), " subjects removed from dataset.\n"))
+  
+  return(filtered_ds)
+}
+```
+
+Use case/unit tests
+```{r}
+#Test for standard case
+test_ds <- full_dataset %>%
+  remove_subjects_not_in_wave1()
+
+testit::assert(nrow(test_ds) == 20745)
+
+#Test for case where nothing should be removed
+safe_ds <- wave_data[[4]] %>%
+  remove_subjects_not_in_wave1()
+
+testit::assert(nrow(safe_ds) %==% nrow(wave_data[[4]]))
+```
+The function correctly removes 29 subjects from the fully joined dataset and 0 subjects from the Wave 4 dataset.
 
