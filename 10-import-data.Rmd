@@ -361,7 +361,31 @@ add_demographics <- function(df){
 }
 ```
 
+The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.
 
+```{r remove errant subjects}
+# This function removes subjects that are not present in Wave 1
+remove_subjects_not_in_wave1 <- function(df, excl_fname = 'G:/DSI/exclusion_aids.csv'){
+  
+  #df: dataset of interest with AIDs as column
+  #returns: df with errant subjects removed
+
+  #Get the total number of subjects for usage later
+  n_subjs <- nrow(df)
+  
+  #Get bad aids fom file
+  excl_aids <- read_csv(excl_fname, col_types=cols(col_character()))
+
+  #Remove bad aids from dataset
+  filtered_ds <- df %>%
+    filter( !(aid %in% pull(read_aids)) )
+  
+  #Tell the user about the results of this function
+  warning(str_c(n_subjs - nrow(filtered_ds), " subjects removed from dataset.\n"))
+  
+  return(filtered_ds)
+}
+```
 
 ## Binarize "times used" outcome variables by 0 vs rest of values
 Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
