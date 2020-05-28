@@ -8,6 +8,66 @@ output: html_notebook
 The purpose of this notebook is to investigate the strange behavior of `h2o.grid`.  The strange behavior is that h2o.grid, when called on multiple different datasets, appears to return the same results every single time, even though the dataset is different.  This notebook will use some of the existing functions in 40 and ensure that their behavior is as expected.
 
 ```{r}
-
+library(pacman)
+pacman::p_load(tidyverse, h2o)
 ```
+
+
+```{r load the data}
+## load waves and join them
+wave_data <- load_waves(1:5)
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
+## set outcome variable of interest
+outcome = 'h5mn8'
+
+## get the aids that you want
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+```
+
+```{r create dataset of interest}
+## use the features and ids that you want to select out what you want
+working_ds <- mini_dataset %>%
+  filter(aid %in% inner_aids) %>%
+  select(aid, predictor_list, outcome) %>%
+  remove_subjects_not_in_wave1() %>%
+  drop_na(outcome)
+
+## split the data into what you want
+data_splits <- working_ds %>%
+  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
+
+# assemble list
+training_df <- data_splits$train
+validation_df <- data_splits$valid
+testing_df <- data_splits$test
+```
+```{r}
+h2o.init()
+```
+
+```{r}
+rf_params <- list(max_depth = 50, 
+                  ntrees = 150,
+                  mtries = c(-1,20))
+
+lasso_params <- list(alpha = c(1))
+
+
+# define number of bootstraps
+n_boot = 2
+
+suicide_rf <- model_feature_selection("RF", training_frame = training_df,
+                      validation_frame = validation_df,
+                      hyper_params = rf_params,
+                      outcome = outcome, n = n_boot)
+
+suicide_lasso <- model_feature_selection("Lasso", training_frame = training_df,
+                      validation_frame = validation_df,
+                      hyper_params = lasso_params,
+                      outcome = outcome, n = n_boot)
+```
+This seems to work satisfactorally.  It looks like the issue was that whenever you provide a grid_name as a constant (i.e., the same between different calls to the function), it cannot append on the data based on different training data.  The `h2o.remove_all` function fixed this.  However, when you make yet another call, then sometimes, the H2o object is then missing.
+
+We can get around this by just providing a random hash long enough that we can expect that it will not be repeated.  We appended another part, e.g. `rf` or `lasso` just to help out with the randomness.  This approach seems to fix the issue without removing information from the h2o process space.
 

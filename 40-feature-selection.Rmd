@@ -11,7 +11,7 @@ This notebook details the functions required to perform feature selection.  The
 library(pacman)
 pacman::p_load(tidyverse, h2o, yardstick,
                data.table, splitstackshape, #splitstackshape has stratified function
-               boot, rsample)
+               boot, rsample, stringi)
 ```
 
 
@@ -32,8 +32,9 @@ get_outcomes_df <- function(df, outcome, predictors){
   # return tibble
   return(out)
 }
+```
 
-
+```{r rf modeling function}
 ##################
 # Helper function to create bootstrapped models for RF models
 rf_model <- function(outcome, 
@@ -47,26 +48,21 @@ rf_model <- function(outcome,
   # training_frame: 90-10 split from the training_df
   # validation_frame: 90-10 split from the training_df
   # nfolds: number of fold
-  # hyper_params: hyper parameters for random forest
+  # hyper_params: list of named hyper parameters for random forest
   
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
   inputs <- setdiff(names(training_frame), outcome)
-  
-  #print(inputs)
-  
-  
-  #print("before grid")
-  # Launch grid search with given algorithm and parameters
-  
-  #h2o.rm(rf_grid, cascade = TRUE)
-  h2o.removeAll()
+
+  # create random grid name
+  grid_name <- str_c('rf_', stringi::stri_rand_strings(1, 30))
+  #print(grid_name)
   
   rf_grid <- h2o.grid("randomForest", x = inputs, y = outputs,
-                      grid_id = "rf_grid",
+                      grid_id = grid_name,
                       training_frame = as.h2o(training_frame),
-                      model_id = "rf_covType_v1",
+                      #model_id = "rf_covType_v1",
                       stopping_rounds = 2,
                       nfolds = nfolds,
                       fold_assignment = "Stratified",
@@ -87,7 +83,7 @@ rf_model <- function(outcome,
   
   
   # Get the grid results, sorted by validation AUC
-  rf_gridperf <- h2o.getGrid(grid_id = "rf_grid",
+  rf_gridperf <- h2o.getGrid(grid_id = grid_name,
                              sort_by = "auc",
                              decreasing = TRUE)
   
@@ -98,9 +94,9 @@ rf_model <- function(outcome,
   # return model and its performance on validation_frame
   return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
 }
+```
 
-
-
+```{r lasso modeling function}
 #####################
 # Helper function to create bootstrapped models for Lasso 
 lasso_model <- function(outcome, 
@@ -109,22 +105,23 @@ lasso_model <- function(outcome,
                         nfolds,
                         hyper_params,
                         model_seed = 42){  
-  # train: bootstrapped training frame sent in to be created a model with
-  # outcome: predicted variable 
-  # training_frame: 90-10 split from the training_df
-  # validation_frame: 90-10 split from the training_df
-  # nfolds: number of fold
+  # outcome: variable to be predicted
+  # training_frame: data to be trained on
+  # validation_frame: hold-out data for performance evaluation
+  # nfolds: number of folds for k-fold cross validation
   
   
   #initialize function parameters for h2o.randomForest
   outputs <- outcome
   inputs <- setdiff(names(training_frame), outcome)
   
-  h2o.removeAll()
+  # create random grid name
+  grid_name <- str_c('lasso_',stringi::stri_rand_strings(1, 30))
+  #print(grid_name)
   
   # Launch grid search with given algorithm and parameters
   lasso_grid <- h2o.grid("glm", x = inputs, y = outputs,
-                         grid_id = "lasso_grid",
+                         grid_id = grid_name,
                          training_frame = as.h2o(training_frame),
                          lambda_search = TRUE,
                          family = "binomial",
@@ -145,7 +142,7 @@ lasso_model <- function(outcome,
   
   
   # Get the grid results, sorted by validation AUC
-  lasso_gridperf <- h2o.getGrid(grid_id = "lasso_grid",
+  lasso_gridperf <- h2o.getGrid(grid_id = grid_name,
                                 sort_by = "auc",
                                 decreasing = TRUE)
   
@@ -174,10 +171,10 @@ lasso_model <- function(outcome,
   return(list(best_lasso, get_performance(validation_frame, best_lasso, outcome = outputs)))
   
 }
+```
 
 
-
-
+```{r get top features}
 ############################
 # Get names of variables for top n predictors of random forest
 # This should be called in the for loop after building the model on each bootstrap. 
@@ -189,26 +186,17 @@ get_top_n_names <- function(model_h2o, top_n){
   # return: data frame of variable importance
   
   if(top_n == -1){
-    n_all_params <- model_h2o@model$names %>% length()
-    out <- h2o.varimp(model_h2o)[1:n_all_params,1] %>% 
+    out <- h2o.varimp(model_h2o)[ ,1] %>% 
       as.data.frame() %>% 
       mutate_all(as.character)
     
-    # add row_index
-    out <- out %>% mutate(placement = as.numeric(rownames(out)))
+  } else {
     
-    # rename the period as variable name
-    names(out) <- c("variable", "placement")
-    
-    # return top_n predictors 
-    return(out)
+    # get names for top_n predictors
+    out <- h2o.varimp(model_h2o)[1:top_n,1] %>% 
+      as.data.frame() %>% 
+      mutate_all(as.character)
   }
-  
-  
-  # get names for top_n predictors
-  out <- h2o.varimp(model_h2o)[1:top_n,1] %>% 
-    as.data.frame() %>% 
-    mutate_all(as.character)
   
   # add row_index
   out <- out %>% mutate(placement = as.numeric(rownames(out)))
@@ -222,8 +210,9 @@ get_top_n_names <- function(model_h2o, top_n){
 
 # Example
 # h2o_model_list[[i]] <- h2o_model %>% get_top_n_names(top_n = 50) %>% as_tibble()
+```
 
-
+```{r top-level modeling function}
 ######################
 # Convenience function to select from either "RF" or "Lasso"; seperate functions can be found in 41-modeling-rf and 42-modeling-lasso.
 ## return : a list of three lists: 
@@ -247,34 +236,31 @@ model_feature_selection <- function(model_type,
   # outcome : name of the outcome variable
   # top_n : top n important variables to be extracted from the models generated
   
-  # print("model_feature_selection")
+  # Ensure 'aid' is not in the dataframe
+  if(var_in_df(training_frame, 'aid')){
+    training_frame <- select(training_frame, -aid)
+    warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
+  }
   
+  if(var_in_df(validation_frame, 'aid')){
+    validation_frame <- select(validation_frame, -aid)
+    warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
+  }
+  
+  # Create bootstraps
   straps <- training_frame %>% bootstraps(times = n, strata = outcome)
   
   combined_models <- list()
   combined_performances <- list()
   variable_imps <- list()
   
-  
+  #run for each split
   for(i in 1:length(straps$splits)){
-    
-    # if (model_type == "RF"){
-    #   results <- as.data.frame(straps$splits[[i]])%>%
-    #     rf_model(outcome = outcome,
-    #                   training_frame = training_frame,
-    #                   validation_frame = validation_frame,
-    #                   # max_depths_tune = max_depths_tune, 
-    #                   # ntrees_tune = ntree_tune,
-    #                   hyper_params = hyper_params,
-    #                   nfolds = k,
-    #                   model_seed = seed)
-    # }
     
     boot_training_frame <- straps$splits[[i]] %>% as.data.frame() # bootstrapped training frame
     
     
     if (model_type == "RF"){
-      #print("for loop")
       results <-  rf_model(outcome = outcome,
                            training_frame = boot_training_frame,
                            validation_frame = validation_frame,
@@ -291,15 +277,18 @@ model_feature_selection <- function(model_type,
                              nfolds = k,
                              model_seed = seed)      
     }
+    else{
+      stop(str_c("The model: ", model_type, " you've requested is not available.  Available models are RF and Lasso."))
+    }
     
+    #return aggregated results.
     combined_models[[i]] <- results[[1]]
     combined_performances[[i]] <- results[[2]]
     variable_imps[[i]] <- get_top_n_names(results[[1]], -1)
     
   }
   
-  
-  return(list(combined_models, combined_performances, variable_imps))
+  return(list(models = combined_models, perfs = combined_performances, mdi = variable_imps))
   
 }
 
