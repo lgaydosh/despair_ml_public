@@ -50,6 +50,17 @@ rf_model <- function(outcome,
   # nfolds: number of fold
   # hyper_params: list of named hyper parameters for random forest
   
+   # Ensure 'aid' is not in the dataframe
+  if(var_in_df(training_frame, 'aid')){
+    training_frame <- select(training_frame, -aid)
+    warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
+  }
+  
+  if(var_in_df(validation_frame, 'aid')){
+    validation_frame <- select(validation_frame, -aid)
+    warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
+  }
+  
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
@@ -109,6 +120,17 @@ lasso_model <- function(outcome,
   # training_frame: data to be trained on
   # validation_frame: hold-out data for performance evaluation
   # nfolds: number of folds for k-fold cross validation
+  
+  # Ensure 'aid' is not in the dataframe
+  if(var_in_df(training_frame, 'aid')){
+    training_frame <- select(training_frame, -aid)
+    warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
+  }
+  
+  if(var_in_df(validation_frame, 'aid')){
+    validation_frame <- select(validation_frame, -aid)
+    warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
+  }
   
   
   #initialize function parameters for h2o.randomForest
@@ -235,17 +257,6 @@ model_feature_selection <- function(model_type,
   # hyper_params : hyperparams for random forest 
   # outcome : name of the outcome variable
   # top_n : top n important variables to be extracted from the models generated
-  
-  # Ensure 'aid' is not in the dataframe
-  if(var_in_df(training_frame, 'aid')){
-    training_frame <- select(training_frame, -aid)
-    warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
-  }
-  
-  if(var_in_df(validation_frame, 'aid')){
-    validation_frame <- select(validation_frame, -aid)
-    warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
-  }
   
   # Create bootstraps
   straps <- training_frame %>% bootstraps(times = n, strata = outcome)
