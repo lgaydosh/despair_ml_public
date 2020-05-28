@@ -44,7 +44,7 @@ get_metric_set_from_perfs <- function(perf_list){
   metric_set <- perf_list %>% 
     purrr::reduce(rbind) %>%
     mutate(model = factor(1:length(perf_list))) %>% 
-    select(model, everything())
+    dplyr::select(model, everything())
   
   # return metric set
   return(metric_set)
