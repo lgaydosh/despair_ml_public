@@ -89,3 +89,19 @@ plot_h2o_metric_set <- function(df, model_list, ...){
 }
 ```
 
+```{r feature selection comparison}
+compare_feature_select <- function(df_joined = joined_results){
+  # df_joined_results: output from joined results df
+  df_joined %>% 
+    mutate(median_dif_rf_lasso = median_rank.rf - median_rank.lasso) %>% 
+    group_by(predictor) %>%
+    ggplot() +
+    geom_point(aes(x = fct_reorder(predictor, -median_dif_rf_lasso), y = median_dif_rf_lasso))+
+    scale_x_discrete(expand = c(-0.001,0))+ 
+    labs(y = "Placements", x = "Variables")+
+    coord_flip()
+}
+
+# joined_results %>% slice(1:20) %>%  compare_feature_select()
+```
+
