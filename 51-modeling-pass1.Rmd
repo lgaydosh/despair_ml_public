@@ -359,3 +359,36 @@ lasso_final_model <- h2o.glm(
 )
 ```
 
+# Extracting relevant attributes from the data
+In this section, I explore how to extract the label names from the variables based on the dataframe attributes
+```{r}
+#get a single wave
+wave1 <- load_waves(c(1))
+wave1 <- wave1[[1]]
+
+#we can get the attributes like so
+attributes(wave1$aid)$label
+
+#make an example field and determine how to extract everything before the .
+test_var <- c('h1fs1.3')
+res <- str_split(test_var, '[.]', simplify=TRUE); res
+attributes(wave1[[res[1,1]]])
+
+```
+The purpose of this function is to get the attributes based on the one-hot encoded variables + factor levels.  It is replicated and more well commented in 50.
+```{r}
+get_attribute_name <- function(var_str, ref_data){
+  #browser()
+  res <- str_split(var_str, '[.]', simplify=TRUE)
+  
+  lookup_name <- ref_data[[res[1,1]]]
+  
+  if(is.null(lookup_name))
+    att_name <- var_str
+  else{
+    att_name <- str_c(attributes(lookup_name), '.', res[1,2])
+  }
+  return(tibble(att_name))
+}
+```
+

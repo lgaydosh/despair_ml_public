@@ -1,10 +1,17 @@
 ---
 title: "71-experiments-suicidal"
-output: 
+output:
+  html_notebook:
+    code_folding: hide
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
   html_document:
-    code_folding: 'show'
-    toc: true
-    toc_depth: 3
+    df_print: paged
+    toc: yes
+editor_options:
+  chunk_output_type: inline
 ---
 
 ```{r}
@@ -16,17 +23,11 @@ source("function_import.R")
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Experiments Template
-
-**Purpose.** The purpose of this document is to serve as a template for the future experiments that will be conducted using the code in this repo.  To generate the desired document, you may erase this and the above lines so that the experiment name directly follows the document title.
-
-# Experiment name
-
 **Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
 
 **Subject inclusion.** For this investigation, we will omit the entirety of Wave 2.  This is commonly done in analyses of AddHealth data due the design of the original study.  Otherwise, our dataset will include only subjects who have predictor and outcome data in _all_ of the waves.
 
-**Outcome variables.** Specifically, we will model two binary outcomes variables: _suicidal ideation_ and _marijuana use_, assessed at Wave 5.  
+**Outcome variables.** In this experiment, we assess _suicidal ideation_ at Wave 5.  
 
 **Predictor variables.** The predictors for these models are hand-picked, and based on previous work, relevance, and subject matter expertise. The set of predictors and the set of outcomes are disjoint.  Predictors from Waves 1-4 (excluding Wave 2, see above) are included, and will be detailed in the following analysis.
 
@@ -37,9 +38,9 @@ pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scale
 
 ```
 
-```{r h2o initialization}
-h2o.init(nthreads = -1,
-         max_mem_size = "8G")  
+```{r initializations}
+h2o.init() 
+future::plan(multiprocess)
 ```
 
 # Dataset generation
@@ -53,7 +54,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ## set outcome variable of interest
 outcome = 'h5mn8' # This is the binary variable representing suicidal ideation at wave 5
 
-wave_data <- load_waves(1:5, filebase = 'Y:')
+wave_data <- load_waves(1:5, filebase = 'G:/')
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 
 ## get the aids that you want
@@ -61,11 +62,14 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 
 ## use the features and ids that you want to select out what you want
 suicide_ds <- full_dataset %>%
-                filter(aid %in% inner_aids) %>%
-                dplyr::select(aid, predictor_list, outcome)
+  dplyr::select(aid, predictor_list, outcome) %>% 
+  filter(aid %in% inner_aids) %>%
+  remove_subjects_not_in_wave1() %>%
+  mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as_factor) %>%
+  drop_na(outcome)
 
 # Report about the characteristics of the subjects left out of the join
-count_not_joined(wave_data = wave_data, number_waves_joined = 4)
+count_not_joined(wave_data = wave_data, number_waves_joined = 5)
 
 # Validate the generated dataset using asserts
 
@@ -107,118 +111,132 @@ suicide_ds %>%
                     title_size = 15)
 ```
 
-# Robust feature selection {.tabset .tabset-fade .tabset-pills}
+# Machine learning split of the data
+
+In this section, we split the data to ensure that our model is able to generalize to other datasets.
+```{r}
+## split the data into relevant proportions desired
+data_splits <- suicide_ds %>%
+  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
+
+# assemble list
+training_df <- data_splits$train
+validation_df <- data_splits$valid
+testing_df <- data_splits$test
+```
+
+# Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 - Here, we will justify the feature selection based on performance metrics; we assert that because of good model performance, we can expect that the features selected are reasonable because the models fit the data well (without being overtrained)
 - Here, the subject matter experts will comment on the selected features and their general applicability to the outcomes of interest.
 - Lastly, we will comment on differences in results between RF and LASSO
 
 ## RF model
-Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
-```{r feature selection rf}
+The RF models are chosen based on a grid search using the following the parameters: 
 
-# creating training and testing data frame
-splits <- suicide_ds %>%
-  drop_na(outcome) %>%
-  rsample::initial_split(strat=outcome, prop=0.7)
+  - max depth: maximum depth allowed for a single tree in the RF  
+  - number of trees: maximum number of trees allowed in the RF  
+  - mtries: the number of columns sampled for each tree split  
+  - min_rows: the minimum number of rows required to split the internal node
+  - balance classes: whether to balance the classes or not
+  - stopping_metric: metric which results in early stopping of training of the model
+  - categorical encoding: use one hot encoding to create straightforward comparison with LASSO
 
-training_df <- rsample::training(splits)
-testing_df <- rsample::testing(splits)
-
-# split the training_df further into a training frame and validation frame that will be used to train the model
-# This validation frame will be used to tune the model
-
-splits <- training_df %>%
-  drop_na(outcome) %>%
-  rsample::initial_split(strat=outcome, prop=0.9)
-
-training_frame <- rsample::training(splits)
-validation_frame <- rsample::testing(splits)
-
+```{r feature selection rf, include=FALSE}
 
 # Spans of hyper parameters for random forest
-#   ntrees  : 50-150
-#   max_depths : 15-30
-#   mtries : -1,-2,3,4,5
-#   min_rows : 25 - 60
-rf_params <- list(max_depth = c(15,20,25,30), 
-                  ntrees = c(50,75,100,125,150),
-                  mtries = -1,
-                  min_rows = c(25,40,60))
+# rf_params <- list(max_depth = c(20, 50),
+#                   ntrees = 150,
+#                   mtries = c(-1, 5, 20),
+#                   min_rows = c(10, 25, 40),
+#                   balance_classes = c(TRUE, FALSE),
+#                   stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
+#                   categorical_encoding = 'one_hot_explicit')
 
+rf_params <- list(max_depth = c(20, 50),
+                  balance_classes = TRUE,
+                  categorical_encoding= 'one_hot_explicit')
 
 # define number of bootstraps
 n_boot = 2
 
-suicide_out <- model_feature_selection("RF",training_frame = training_frame,
-                      validation_frame = validation_frame,
+suicide_rf <- model_feature_selection("RF",training_frame = training_df,
+                      validation_frame = validation_df,
                       hyper_params = rf_params,
                       outcome = outcome, n = n_boot)
 
 ```
 
-```{r}
-boot_med_placements_rf <- suicide_out[[3]] %>%
-  get_median_placement() %>% 
-  drop_na() %>% 
-  arrange(median_placement)
+The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
 
-boot_med_placements_rf
+```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
+get_metric_set_from_perfs(suicide_rf$perfs) %>%
+  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
+         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+  summarise_if(is.numeric, mean, na.rm=TRUE)
 ```
-This table returns variable importance placements that returned from each of the bootstrapped models.
+As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with suicidal ideation.
+
+```{r}
+boot_rf_ranks <- suicide_rf$mdi %>%
+  get_median_placement() %>% 
+  dplyr::rename(predictor = variable, median_rank = median_placement) %>%
+  #drop_na() %>% 
+  arrange(median_rank)
+
+boot_rf_ranks <- map_df(boot_rf_ranks$predictor, get_attribute_name, full_dataset) %>%
+  bind_cols(boot_rf_ranks) %>%
+  dplyr::select(predictor, att_name, median_rank)
+
+boot_rf_ranks
+```
+This table returns variable importance ranks that returned from each of the bootstrapped models.
 
 
 ```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
-plot_placement_boxplot(suicide_out[[3]])
-
-```
-
-```{r fig.width = 10, fig.height = 12}
-boot_med_placements_rf %>% 
-  plot_median_placements(top_n = 30)
-
+plot_placement_boxplot(suicide_rf$mdi)
 ```
 
 
 ## LASSO model
 Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
-```{r feature selection lasso}
+```{r feature selection lasso, include=FALSE}
 # Function parameters
 lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
 
-suicide_out_lasso <- model_feature_selection( "Lasso",
-                                               training_frame = training_frame,
-                                               validation_frame = validation_frame,
+suicide_lasso <- model_feature_selection( "Lasso",
+                                               training_frame = training_df,
+                                               validation_frame = validation_df,
                                                hyper_params = lasso_params,
                                                outcome = outcome, 
                                                n = n_boot)
+```
 
-## This will give you a data frame of top predictors
+```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
+get_metric_set_from_perfs(suicide_lasso$perfs) %>%
+  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
+         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+  summarise_if(is.numeric, mean, na.rm=TRUE)
 ```
 
 
 ```{r}
-boot_med_placements_lasso <- suicide_out_lasso[[3]] %>%
+boot_lasso_ranks <- suicide_lasso$mdi %>%
   get_median_placement() %>% 
-  drop_na() %>% 
-  arrange(median_placement)
+  dplyr::rename(predictor = variable, median_rank = median_placement) %>%
+  #drop_na() %>% 
+  arrange(median_rank)
 
-boot_med_placements_lasso
+boot_lasso_ranks <- map_df(boot_lasso_ranks$predictor, get_attribute_name, full_dataset) %>%
+  bind_cols(boot_lasso_ranks) %>%
+  dplyr::select(predictor, att_name, median_rank)
+
+boot_lasso_ranks
 ```
 
 ```{r fig.width = 10, fig.height = 12}
-
-plot_placement_boxplot(suicide_out_lasso[[3]])
-
-```
-
-
-```{r fig.width = 10, fig.height = 12}
-# Plot top predictors
-boot_med_placements_lasso %>% 
-  plot_median_placements(top_n = 30)
-
+plot_placement_boxplot(suicide_lasso$mdi)
 ```
 
 ## Model comparison
@@ -226,13 +244,11 @@ Here, we will comment in depth about the differences between these selected feat
 
 We will take a look at the median ranking of the features that are returned
 ```{r}
-top_preds_outcome_lasso %>% 
-  arrange(median_placement)
-```
+joined_results <- full_join(boot_rf_ranks, boot_lasso_ranks, by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = rowMeans(dplyr::select(., median_rank.rf, median_rank.lasso), na.rm=TRUE)) %>%
+  arrange(mean_rank)
 
-```{r}
-top_preds_outcome_rf %>% 
-  arrange(median_placement)
+joined_results
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
@@ -243,24 +259,31 @@ The subject matter experts will comment on the relevance of these features to th
 Here, we will comment on the behavior and performance of the final rf model.
 ```{r final model evaluation rf}
 
-# Spans of hyper parameters for random forest
-#   ntrees  : 50-150
-#   max_depths : 15-30
-#   mtries : -1,-2,3,4,5
-#   min_rows : 25 - 60
-rf_params <- list(max_depth = c(15,20,25,30), 
-                  ntrees = c(50,75,100,125,150),
-                  mtries = -1,
-                  min_rows = c(25,40,60))
+# # Spans of hyper parameters for random forest
+# rf_params <- list(max_depth = c(20, 50),
+#                   ntrees = 150,
+#                   mtries = c(-1, 5, 20),
+#                   min_rows = c(10, 25, 40),
+#                   balance_classes = c(TRUE, FALSE),
+#                   stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
+#                   categorical_encoding = 'one_hot_explicit')
 
+rf_params <- list(max_depth = c(20, 50),
+                  balance_classes = TRUE,
+                  categorical_encoding= 'one_hot_explicit')
 
 # Function parameters
-final_model_rf <- rf_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = rf_params)
+final_model_rf <- rf_model(outcome,
+                           training_frame = training_df,
+                           validation_frame = validation_df,
+                           nfolds = 5,
+                           hyper_params = rf_params)
 
-#Call final modeling function and show visualization of results.  Report performance metric stats.
-testing_df %>%
-  get_metric_set(list(final_model_rf[[1]]))
+```
 
+```{r}
+# show model final performance
+final_model_rf[[2]]
 ```
 
 
@@ -270,29 +293,35 @@ Here, we'll comment on the behavior and performance of the final lasso model.
 # Function parameters
 lasso_params <- list(alpha = c(1))
 
-final_model_lasso <- lasso_model(training_frame = training_frame, validation_frame = validation_frame, outcome = outcome, nfolds = 5, hyper_params = lasso_params)
-
-# Call final modeling function and show visualization of results.  Report performance metric stats.
-testing_df %>%
-  get_metric_set(list(final_model_lasso[[1]]))
-
-# Call final modeling function and show visualization of results.  Report performance metric stats.
+final_model_lasso <- lasso_model(training_frame = training_df,
+                                 validation_frame = validation_df,
+                                 outcome = outcome,
+                                 nfolds = 5,
+                                 hyper_params = lasso_params)
 ```
 
 ```{r}
-plot_h2o_metric_set(df = testing_df, model_list = list(final_model_rf[[1]], final_model_lasso[[1]]))
+# show model final performance
+final_model_lasso[[2]]
 ```
+
 
 ## Final model comparison
 Here, we'll describe the differences between the final models.
 ```{r final model comparison}
+
 # Comparison of performance metrics
+get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
+  plot_metric_set()
+get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]])) %>%
+  plot_metric_set()
 
 # Comparison of top_n features
 ```
 
 # Outcome variable discussion
 Here, the subject matter experts will comment on the the differences in the features obtained between the studied outcomes variables and discuss the discrepancies and/or cohesion.
+
 ```{r outcome variable comparison}
 # Show differences in features obtained
 
