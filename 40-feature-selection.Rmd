@@ -397,7 +397,7 @@ permute_columns <- function(df, outcome){
   # df: input data frame
   # outcome: outcome variable (not permuted)
   
-  predictor_names <- df %>% select(-outcome) %>% names()
+  predictor_names <- df %>% dplyr::select(-outcome) %>% names()
   
   df_permute_list <- predictor_names %>% map(permute_column, df = df)
   
@@ -419,7 +419,7 @@ plot_permute_var_imp <- function(df_permute_var_imp, metric){
   plot_df <- df_permute_var_imp %>% 
     group_by(variable) %>% 
     summarise_all(mean) %>% 
-    select(variable, {{metric}})
+    dplyr::select(variable, {{metric}})
   
   # Plot the metric
   plot_df %>% 
@@ -462,7 +462,7 @@ permute_var_imp <- function(df_predict, outcome, model_h2o){
   out <- permuted_models_metric %>%
     map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
     mutate(variable = names(permute_list_h2o)) %>% 
-    select(variable, everything())
+    dplyr::select(variable, everything())
   
   return(out)
 }
