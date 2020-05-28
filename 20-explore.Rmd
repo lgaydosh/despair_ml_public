@@ -200,3 +200,165 @@ graph_correlation <- function(df,
 # iris %>% graph_correlation(var_type = "all", x_axis_size = 10)
 ```
 
+```{r explore aids not joined}
+
+# This anti_joins specified wave with wave 1 to see what's missing from wave 1
+not_in_wave_1 <- function(wave_num, wave_list){
+  # wave_num: what wave to anti_join with wave 1
+  # wave_list: list containing all waves
+  
+  out <- anti_join(wave_list[[wave_num]],
+                   wave_list[[1]], 
+                   by = "aid") %>% nrow()
+  return(out)
+}
+
+
+# This anti_joins all two-wave combinations and extracts number of rows
+anti_join_2_waves <- function(combos){
+  # combos: dataframe of all 2 way combinations for wave numbers
+  
+  val1 <- combos[1]
+  val2 <- combos[2]
+  
+  out <- reduce(list(wave_data[[val1]],
+                     wave_data[[val2]]), 
+                .f = anti_join, 
+                by = "aid") %>% nrow()
+  return(out)
+}
+
+# This anti_joins all three-wave combinations and extracts number of rows
+anti_join_3_waves <- function(combos){
+  # combos: dataframe of all 3 way combinations for wave numbers
+  
+  val1 <- combos[1]
+  val2 <- combos[2]
+  val3 <- combos[3]
+  
+  out <- reduce(list(wave_data[[val1]],
+                     wave_data[[val2]], 
+                     wave_data[[val3]]), 
+                .f = anti_join, 
+                by = "aid") %>% nrow()
+  return(out)
+}
+
+# This anti_joins all four-wave combinations and extracts number of rows
+anti_join_4_waves <- function(combos){
+  # combos: dataframe of all 4 way combinations for wave numbers
+  
+  val1 <- combos[1]
+  val2 <- combos[2]
+  val3 <- combos[3]
+  val4 <- combos[4]
+  
+  out <- reduce(list(wave_data[[val1]], 
+                     wave_data[[val2]],
+                     wave_data[[val3]], 
+                     wave_data[[val4]]), 
+                .f = anti_join, 
+                by = "aid") %>% nrow()
+  return(out)
+}
+
+# plotting function for visualizing the anti-joins above
+plot_anti_join_waves <- function(dropped_sums){
+  # dropped_sums: output from any of the anti-join functions above
+  
+  dropped_sums %>% 
+  pivot_longer(cols = everything(),
+               names_to = "waves",
+               values_to = "total_dropped") %>% 
+  ggplot() +
+  geom_bar(aes(x = reorder(waves, total_dropped), 
+               y = total_dropped), 
+           stat = "identity", fill = "light blue") +
+  ggtitle("Total AIDs Dropped") +
+  xlab("Wave Combos") +
+  ylab("Total Dropped") +
+  theme_dark()
+}
+
+# Two waves
+explore_two_waves <- function(wave_combos){
+  # wave_combos: unique wave combinations as list
+  
+  # get 2-way anti-joins and total dropped from each one
+  dropped_2_waves <- wave_combos$two_waves %>%
+    map_dfc(anti_join_2_waves)
+
+  # rename the list
+  names(dropped_2_waves) <- wave_combos$two_waves %>% map_df(str_c, collapse = ",")
+  
+  # pivot the list and plot
+  two_way_plot <- dropped_2_waves %>% plot_anti_join_waves()
+  
+  return(two_way_plot)
+}
+
+# Thre waves
+explore_three_waves <- function(wave_combos){
+  # wave_combos: unique wave combinations as list
+  
+    # Get 3-way wave combinations and total dropped
+  dropped_3_waves <- wave_combos$three_waves %>%
+    map_dfc(anti_join_3_waves)
+  
+  # rename the list
+  names(dropped_3_waves) <- wave_combos$three_waves %>% map_df(str_c, collapse = ",")
+  
+  # plot it
+  three_way_plot <- dropped_3_waves %>% plot_anti_join_waves()
+  
+  return(three_way_plot)
+}
+
+# four waves
+explore_four_waves <- function(wave_combos){
+  # wave_combos: unique wave combinations as list 
+  
+    # Get 4-way wave combinations and total dropped
+  dropped_4_waves <- wave_combos$four_waves %>% 
+    map_dfc(anti_join_4_waves)
+  
+  # rename the list appropriately
+  names(dropped_4_waves) <- wave_combos$four_waves %>% map_df(str_c, collapse = ",")
+  
+  # plot it
+  four_way_plot <- dropped_4_waves %>% plot_anti_join_waves()
+  
+  return(four_way_plot)
+
+}
+
+# function used
+count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
+  # wave_data: wave data list from file 10 data read
+  # number_waves_joined: Number of joined waves to explore
+
+    # Get all wave combinations for sizes 1 - 4 without repeats
+  wave_combos <- 2:4 %>% 
+    map(gtools::combinations, n = 5, v = 1:5, repeats.allowed = FALSE) %>%
+    map(t) %>% 
+    map(as_tibble)
+  
+  # Name the list appropriately
+  names(wave_combos) <- c("two_waves", "three_waves", "four_waves")
+
+  if(number_waves_joined == 2){
+    out <- explore_two_waves(wave_combos = wave_combos)
+  }
+  
+  else if(number_waves_joined == 3){
+    out <- explore_three_waves(wave_combos = wave_combos)
+  }
+  
+  else 
+    out <- explore_four_waves(wave_combos = wave_combos)
+  
+  return(out)
+
+}
+```
+
