@@ -65,6 +65,7 @@ suicide_ds <- full_dataset %>%
                 dplyr::select(aid, predictor_list, outcome)
 
 # Report about the characteristics of the subjects left out of the join
+count_not_joined(wave_data = wave_data, number_waves_joined = 4)
 
 # Validate the generated dataset using asserts
 
@@ -74,10 +75,36 @@ suicide_ds <- full_dataset %>%
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
 ```{r eda}
 # Visualize distributions of variables of interest
+suicide_ds %>% 
+  dplyr::select(-aid) %>%
+  graph_bar_discrete(df = .,
+                   plot_title = "Distributions of Discrete Variables",
+                   max_categories = 50,
+                   num_rows = 3,
+                   num_cols = 3,
+                   x_axis_size = 12,
+                   y_axis_size = 12,
+                   title_size = 15)
 
 # Visualize missingness
+graph_missing(suicide_ds, 
+              only_missing = TRUE,
+              title = "Percent Missing",
+              box_line_size = .5,
+              label_size = .5,
+              x_axis_size = 12,
+              y_axis_size = 12,
+              title_size = 15)
 
 # Visualize correlation among predictors
+suicide_ds %>% 
+  graph_correlation(var_type = "all",
+                    max_categories = 3,
+                    plot_title = "Heatmap of all variables",
+                    x_axis_size = 12,
+                    x_angle = 90,
+                    y_axis_size = 12,
+                    title_size = 15)
 ```
 
 # Robust feature selection {.tabset .tabset-fade .tabset-pills}
@@ -171,7 +198,7 @@ suicide_out_lasso <- model_feature_selection( "Lasso",
 ```
 
 
-```{r }
+```{r}
 boot_med_placements_lasso <- suicide_out_lasso[[3]] %>%
   get_median_placement() %>% 
   drop_na() %>% 
