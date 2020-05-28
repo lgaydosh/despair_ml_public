@@ -71,3 +71,5 @@ This seems to work satisfactorally.  It looks like the issue was that whenever y
 
 We can get around this by just providing a random hash long enough that we can expect that it will not be repeated.  We appended another part, e.g. `rf` or `lasso` just to help out with the randomness.  This approach seems to fix the issue without removing information from the h2o process space.
 
+Note that one-hot encoding (explicit) proceeds as described [here](https://groups.google.com/forum/#!topic/h2ostream/bSic0Rm8-98).
+

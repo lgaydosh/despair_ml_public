@@ -87,8 +87,37 @@ get_median_placement <- function(list){
   # return tibble
   return(out)
 }
+```
 
+Both LASSO and RF can produce one-hot encoded variables/factors.  However, when we get the outputs, we need to be able to look up the variable and get the actual label that goes with it (e.g., 'FELT SAD').  This function puts those two things together - takes a variable like `h1fs1.3` , splits it into `h1fs1` and `3`, and then looks up the `h1fs1` in the ref_data.
 
+```{r get attribute names}
+#The purpose of this function is to get the attribute names from the one-hot encoded variable.  This is meant to be used with 
+#a map_df function.
+# var_str: input variable; can be a string, with or without the one-hot encoding
+# ref_data: data which contains the labels for the variables. This could be full_dataset (dataset after joining waves)
+# returns: a tibble with the lookup label
+get_attribute_name <- function(var_str, ref_data){
+  
+  # split string
+  res <- str_split(var_str, '[.]', simplify=TRUE)
+  
+  # Try to look up the variable
+  lookup_name <- ref_data[[res[1,1]]]
+  
+  # If the lookup failed, return the original variable name.  Otherwise, return the label.
+  if(is.null(lookup_name))
+    att_name <- var_str
+  else{
+    att_name <- str_c(attributes(lookup_name), '.', res[1,2])
+  }
+  
+  # Return the name of interest.
+  return(tibble(att_name))
+}
+```
+
+```{r}
 # function to plot a boxplot showing the variance in feature placements
 plot_median_placements <- function(df_placements, top_n = 20){
   # input: df_placements - dataframe with all variables in model and their median placements from the models
