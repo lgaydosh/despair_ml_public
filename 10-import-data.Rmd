@@ -378,7 +378,7 @@ remove_subjects_not_in_wave1 <- function(df, excl_fname = 'G:/DSI/exclusion_aids
 
   #Remove bad aids from dataset
   filtered_ds <- df %>%
-    filter( !(aid %in% pull(read_aids)) )
+    filter( !(aid %in% pull(bad_aids)) )
   
   #Tell the user about the results of this function
   warning(str_c(n_subjs - nrow(filtered_ds), " subjects removed from dataset.\n"))

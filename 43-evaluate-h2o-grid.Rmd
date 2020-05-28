@@ -1,0 +1,13 @@
+---
+title: "43-evaluate-h2o-grid"
+output: html_notebook
+---
+
+# 43-evaluate-h2o-grid
+
+The purpose of this notebook is to investigate the strange behavior of `h2o.grid`.  The strange behavior is that h2o.grid, when called on multiple different datasets, appears to return the same results every single time, even though the dataset is different.  This notebook will use some of the existing functions in 40 and ensure that their behavior is as expected.
+
+```{r}
+
+```
+
