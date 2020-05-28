@@ -52,12 +52,12 @@ rf_model <- function(outcome,
   
    # Ensure 'aid' is not in the dataframe
   if(var_in_df(training_frame, 'aid')){
-    training_frame <- select(training_frame, -aid)
+    training_frame <- dplyr::select(training_frame, -aid)
     warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
   }
   
   if(var_in_df(validation_frame, 'aid')){
-    validation_frame <- select(validation_frame, -aid)
+    validation_frame <- dplyr::select(validation_frame, -aid)
     warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
   }
   
@@ -123,12 +123,12 @@ lasso_model <- function(outcome,
   
   # Ensure 'aid' is not in the dataframe
   if(var_in_df(training_frame, 'aid')){
-    training_frame <- select(training_frame, -aid)
+    training_frame <- dplyr::select(training_frame, -aid)
     warning("`aid` is in your training data frame.  Dropping for modeling purposes.\n")
   }
   
   if(var_in_df(validation_frame, 'aid')){
-    validation_frame <- select(validation_frame, -aid)
+    validation_frame <- dplyr::select(validation_frame, -aid)
     warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
   }
   
