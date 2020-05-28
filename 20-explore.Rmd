@@ -14,7 +14,8 @@ library(DataExplorer)
 ```
 
 ```{r generic missing}
-graph_missing <- function(df, 
+graph_missing <- function(df,
+                          only_missing = TRUE,
                           title = "Percent Missing", 
                           box_line_size = .3, 
                           label_size = .15, 
@@ -22,6 +23,7 @@ graph_missing <- function(df,
                           y_axis_size = 12, 
                           title_size = 15){
   # df: data frame to plot missingness
+  # only_missing: if set TRUE, then only graph variables with missing values
   # title: graph title
   # box_line_size: size of box-line around percent missing
   # label_size: size of label
@@ -29,7 +31,10 @@ graph_missing <- function(df,
   # y_axis_size: font size for y-axis
   # title_size = font size for title
   
-  plot_missing(data = df,
+  if(only_missing == TRUE) {
+    df <- df %>% select_if(~sum(is.na(.)) > 0)
+    
+     plot_missing(data = df,
                title = title,
                geom_label_args = list(label.size = box_line_size, 
                                       label.r = unit(0, "lines"),
@@ -37,6 +42,20 @@ graph_missing <- function(df,
                theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
                                    axis.text.x = element_text(size = x_axis_size),
                                    axis.text.y = element_text(size = y_axis_size)))
+    
+  }
+  
+  else {
+     plot_missing(data = df,
+               title = title,
+               geom_label_args = list(label.size = box_line_size, 
+                                      label.r = unit(0, "lines"),
+                                      label.padding = unit(label_size, "lines")),
+               theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
+                                   axis.text.x = element_text(size = x_axis_size),
+                                   axis.text.y = element_text(size = y_axis_size)))
+  }
+  
 }
 
 # Example
@@ -170,6 +189,7 @@ graph_correlation <- function(df,
                               max_categories = 10, 
                               plot_title = "Heatmap of all variables",
                               x_axis_size = 12,
+                              x_angle = 45,
                               y_axis_size = 12,
                               title_size = 15){
   # df: data frame to create heatmap for
@@ -177,6 +197,7 @@ graph_correlation <- function(df,
   # max_categories: maximum number of categories allowed for each discrete feature
   # plot_title: Title of graph
   # x_axis_size: size of x-axis
+  # x_angle: angle to tilt x-axis labels
   # y_axis_size: size of y-axis
   # title_size: size of graph title
   # return: heatmap
@@ -186,7 +207,7 @@ graph_correlation <- function(df,
                      maxcat = max_categories,
                      title = plot_title,
                      theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
-                               axis.text.x = element_text(size = x_axis_size),
+                               axis.text.x = element_text(angle = x_angle, size = x_axis_size),
                                axis.text.y = element_text(size = y_axis_size)))
 }
 
