@@ -34,7 +34,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o)
+pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o, furrr)
 
 ```
 
