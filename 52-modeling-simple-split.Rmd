@@ -1,0 +1,183 @@
+---
+title: "52-modeling-simple-split"
+output: html_notebook
+---
+
+The purpose of this notebook is to build on the previous 51-modeling-pass1.Rmd and implement a more simplified and correct version of the `strat_split` method.
+
+```{r load libraries}
+library(pacman)
+pacman::p_load(tidyverse, testit)
+```
+
+
+## Load data of interest
+Note that here, I don't particularly remove any AIDs or do anything dramatic.  Really, the point is just to arrive at a dataset that I can split on.
+
+```{r}
+wave_data <- load_waves(1:5)
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
+## set outcome variable of interest
+outcome = 'h5mn8'
+
+## use the features and ids that you want to select out what you want
+working_ds <- full_dataset %>%
+  filter(aid %in% inner_aids) %>%
+  dplyr::select(aid, predictor_list, {{outcome}})
+```
+
+## Easily splitting the data
+The splits we'd like to achieve are as so:
+
+```{r}
+# creating training and testing data frame
+working_ds <- full_dataset %>%
+  select(aid, all_of({{predictor_list}}), all_of({{outcome}})) %>%
+  drop_na({{outcome}})
+
+splits <- working_ds %>%
+  rsample::initial_split(strat={{outcome}}, prop=0.7)
+
+training_df <- rsample::training(splits)
+testing_df <- rsample::testing(splits)
+
+# split the training_df further into a training frame and validation frame that will be used to train the model
+# This validation frame will be used to tune the model
+
+splits <- training_df %>%
+  rsample::initial_split(strat={{outcome}}, prop=0.9)
+
+training_frame <- rsample::training(splits)
+validation_frame <- rsample::testing(splits)
+
+```
+
+## Lets put this into a functional form:
+The correct behavior of this method has been verified and its final form appears in 50.
+```{r split data function}
+
+split_data <- function(df, strat_var, ratios=c(0.7,0.2,0.1)){
+  
+  #assertions
+  testit::assert("sum of the ratios must be 1!" , sum(ratios)==1.0)
+  
+  #split data
+  splits <- df %>%
+      rsample::initial_split(strat = {{strat_var}}, prop = sum(ratios[-length(ratios)]))
+  
+  #get data splits
+  train = rsample::training(splits)
+  test = rsample::testing(splits)
+  
+  #create split list for 2 splits
+  split_list <- list(train = train,
+                  test = test)
+  
+  #split for 3 splits
+  if(length(ratios)==3){
+    
+    # Get data sizes
+    data_szs <- nrow(df) * ratios
+    
+    # Get train/valid ratio
+    new_ratio <- data_szs[[1]]/(data_szs[[1]] + data_szs[[2]])
+    
+    # Get new splits
+    res <- split_data(train, strat_var, ratios=c(new_ratio, 1-new_ratio))
+    split_list <- list(train=res$train,
+                    valid=res$test,
+                    test = test)
+  }
+  else if (length(ratios)!=2){
+    stop('You can only have 2 or 3 splits in the data.')
+  }
+  
+  return(split_list)
+}
+
+```
+
+The following function is just a helper to check the ratios that were generated
+```{r}
+print_ratio <- function(df, outcome){
+  
+  pos <- df %>%
+    filter({{outcome}}==1) %>%
+    summarise(n())
+  
+  neg <- df %>%
+    filter({{outcome}}==0) %>%
+    summarise(n())
+  
+  return(pos/neg)
+    
+}
+```
+
+## Use cases and unit test
+### Train/test split only
+```{r}
+#test with seed
+set.seed(2345)
+
+outcome='h5mn8'
+
+szs = c(0.7, 0.3)
+
+#test results
+tvt_split <- working_ds %>%
+  split_data(outcome, szs)
+
+tvt_split$train
+tvt_split$test
+
+tibble(
+  original_ratio = pull(print_ratio(working_ds, get(outcome))),
+  train_ratio = pull(print_ratio(tvt_split$train, get(outcome))),
+  test_ratio = pull(print_ratio(tvt_split$test, get(outcome)))
+)
+
+tibble(
+  original_size = nrow(working_ds),
+  train_sz_hyp = szs[[1]] * nrow(working_ds),
+  train_sz = nrow(tvt_split$train),
+  test_sz_hyp = szs[[2]] * nrow(working_ds),
+  test_sz = nrow(tvt_split$test)
+)
+```
+Looks like the ratios of 0:1 are correct and the sizes of the generated splits are additionally correct.
+
+### Train/valid/test split verification
+```{r}
+
+szs = c(0.7, 0.2, 0.1)
+
+#test results
+tvt_split <- working_ds %>%
+  split_data(outcome, szs)
+
+tvt_split$train
+tvt_split$valid
+tvt_split$test
+
+tibble(
+  original_ratio = pull(print_ratio(working_ds, get(outcome))),
+  train_ratio = pull(print_ratio(tvt_split$train, get(outcome))),
+  valid_ratio = pull(print_ratio(tvt_split$valid, get(outcome))),
+  test_ratio = pull(print_ratio(tvt_split$test, get(outcome)))
+)
+
+tibble(
+  original_size = nrow(working_ds),
+  train_sz_hyp = szs[[1]] * nrow(working_ds),
+  train_sz = nrow(tvt_split$train),
+  valid_sz_hyp = szs[[2]] * nrow(working_ds),
+  valid_sz = nrow(tvt_split$valid),
+  test_sz_hyp = szs[[3]] * nrow(working_ds),
+  test_sz = nrow(tvt_split$test)
+)
+```
+This function additionally appears to be working with 3 splits.  The estimated sizes are correct as well as 
+
+

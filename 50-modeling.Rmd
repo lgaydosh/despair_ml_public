@@ -6,29 +6,58 @@ output: html_document
 The purpose of this document is to create the final models used for the exploration in the file 60 series.
 
 ```{r load libraries}
+library(pacman)
+pacman::p_load(tidyverse, testit)
+```
+
+The following function is used to split the data
+```{r split data function}
+# df: dataframe to split
+# strat_var: outcome variable to split on.  Can be a string if desired, e.g., outcome='h5mn8' ...%>%split_data(outcome)
+# ratios: a list of the ratios for 2 or 3 splits.  Each split requires a ratio (e.g., train+test requires two ratios)
+# returns: a list of dfs entitled 'train, test', or 'train, valid, test' corresponding to the input ratios.
+split_data <- function(df, strat_var, ratios=c(0.7,0.2,0.1)){
+  
+  #assertions
+  testit::assert("sum of the ratios must be 1!" , sum(ratios)==1.0)
+  
+  #split data
+  splits <- df %>%
+      rsample::initial_split(strat = {{strat_var}}, prop = sum(ratios[-length(ratios)]))
+  
+  #get data splits
+  train = rsample::training(splits)
+  test = rsample::testing(splits)
+  
+  #create split list for 2 splits
+  split_list <- list(train = train,
+                  test = test)
+  
+  #split for 3 splits
+  if(length(ratios)==3){
+    
+    # Get data sizes
+    data_szs <- nrow(df) * ratios
+    
+    # Get train/valid ratio
+    new_ratio <- data_szs[[1]]/(data_szs[[1]] + data_szs[[2]])
+    
+    # Get new splits
+    res <- split_data(train, strat_var, ratios=c(new_ratio, 1-new_ratio))
+    split_list <- list(train=res$train,
+                    valid=res$test,
+                    test = test)
+  }
+  else if (length(ratios)!=2){
+    stop('You can only have 2 or 3 splits in the data.')
+  }
+  
+  return(split_list)
+}
 
 ```
 
-```{r convenience functions}
-# This function performs a stratified split
-strat_split <- function(df, strat_var, split_prop, train_out = T){
-  # df: input dataframe
-  # strat_var: variable to stratify on
-  # train_prop: proption to split for train/testing
-  # train_out: set to TRUE for training frame, set to FALSE for validation frame
-  # returns: training or testing tibble
-  
-  # create stratified split
-  splits <- stratified(df, strat_var, split_prop, bothSets = T)
-  train <- splits[[1]]
-  test <- splits[[2]]
-  
-  # return tibble of training set if train_out == True
-  if(train_out == T){out <- train}
-  else{out<-test}
-  return(out)
-}
-
+```{r ranking and visualization}
 # Unused for now
 # Get total value based on placement of variable importance
 get_total_placement <- function(list){
