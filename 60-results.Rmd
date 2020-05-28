@@ -55,7 +55,7 @@ get_metric_set_from_perfs <- function(perf_list){
 ```{r metric comparison ploting functions}
 # This function returns a visualization of all the metrics for the models being compared
 
-plot_metric_set <- function(df_metrics){
+plot_metric_set <- function(df_metrics, x_text_angle = 90, plot_title = "Model Comparison Plot"){
   # df_metrics: metrics from get_metric_set_* functions
   # return: ggplot object (scatterplot) comparing all models across all applicable metrics
   
@@ -69,13 +69,23 @@ plot_metric_set <- function(df_metrics){
     geom_point(aes(x = metric, y = metric_val, color = model), size = 3) +
     xlab("Metric") +
     ylab("Metric Value") +
-    ggtitle("Model Comparison Plot") +
+    ggtitle(plot_title) +
     theme_classic() +
     theme(plot.title = element_text(hjust = 0.5),
-          axis.text = element_text(size = 11))
+          axis.text.x = element_text(angle = x_text_angle, size = 11),
+          axis.text.y = element_text(size = 11))
 }
 
 ```
 
-
+```{r plot metrics from list of h2o models}
+plot_h2o_metric_set <- function(df, model_list, ...){
+  # df: data frome to get metrics for (likely testing df)
+  # model_list: list of models to get metrics for and plot
+  # ...: parameters passed to plot_metric_set
+  model_list %>% 
+    map_df(~get_metric_set_from_models(df = df, model_list = model_list)) %>% 
+    plot_metric_set(...)
+}
+```
 
