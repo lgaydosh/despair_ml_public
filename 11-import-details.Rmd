@@ -98,8 +98,12 @@ add_demographics <- function(df){
                         (h5od8>=9)&&(h5od8<=15) ~ 4, #4 = asian
                         (h5od8>=16)&&(h5od8<=22) ~ 5, #5 = other
                         #then analyze only 1 race response
-                        (h5od8==997) ~ 1*h5od4a +2*h5od4b +3*h5od5c +4*h5od5d +5*sum(h5ode,h5odf,h5odg), 
-                        TRUE ~ NA))
+                        (h5od4a==1) ~ 1, #1 = white
+                        (h5od4b==1) ~ 2, #2 = black
+                        (h5od4c==1) ~ 3, #3= hispanic
+                        (h5od4d==1) ~ 4, #4 = asian
+                        ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5, #other
+                        TRUE ~ -1)) #missing data
 }
 
 
