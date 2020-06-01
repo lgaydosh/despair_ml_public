@@ -221,6 +221,82 @@ graph_correlation <- function(df,
 # iris %>% graph_correlation(var_type = "all", x_axis_size = 10)
 ```
 
+```{r cramers v function for measure of association}
+pairwise_cramers_v <- function(df){
+  # df: data frame to use for pairwise cramer's v calculation
+  # out: 3 column tibble with all pairwise combos and cramer's v
+  
+  df_factors <- df %>% dplyr::select_if(is.factor)
+  
+  df_factors %>%
+    as.list() %>%
+    expand_grid(var1 = ., var2 = ., .name_repair = "minimal") %>% 
+    mutate(cramer_v = map2_dbl(var1, var2, rcompanion::cramerV, bias.correct = TRUE)) %>% 
+    as_tibble() %>% 
+    mutate(var1 = pull(expand_grid(names(df_factors), 
+                                   names(df_factors), 
+                                   .name_repair = "minimal")[,1]),
+           var2 = pull(expand_grid(names(df_factors), 
+                                   names(df_factors), 
+                                   .name_repair = "minimal")[,2])) %>% 
+    dplyr::select(var1, var2, cramer_v)
+}
+
+# Example 1
+# iris2 <- iris %>% 
+#   mutate(new1 = as_factor(round(Sepal.Width)),
+#          new2 = as_factor(round(Sepal.Length)),
+#          new3 = as_factor(round(Petal.Length))) %>% 
+#   as_tibble()
+
+# iris2 %>% 
+#   pairwise_cramers_v()
+```
+
+```{r graph cramers v}
+# Plot it
+plot_cramer_v <- function(df, value_cutoff = 0, 
+                          x_axis_angle = 90, 
+                          plot_title = "Association among Categorical Variables",
+                          interactive = FALSE){
+  
+  # df: output from pairwise_cramers_v function
+  # x_axis_angle: angle to write text for x-axis
+  # plot_title: title of graph
+  # Interactive: Whether to return interactive plot with plotly
+  # return: heatmap filled by cramers_v value
+  
+ out <-  df %>% 
+    filter(cramer_v >= value_cutoff) %>% 
+    ggplot() +
+    geom_raster(aes(x = var1, y = var2, fill = cramer_v)) +
+    theme(axis.text.x = element_text(angle = x_axis_angle),
+          axis.title = element_blank()) +
+    ggtitle(plot_title)
+    
+ 
+ if(interactive){
+   ggplotly(out)
+ }
+ 
+ else out
+ 
+}
+
+# Example 1
+# iris2 <- iris %>% 
+#   mutate(new1 = as_factor(round(Sepal.Width)),
+#          new2 = as_factor(round(Sepal.Length)),
+#          new3 = as_factor(round(Petal.Length))) %>% 
+#   as_tibble()
+
+# iris2 %>% 
+#   pairwise_cramers_v() %>% 
+#   plot_cramer_v()
+
+```
+
+
 ```{r explore aids not joined}
 
 # This anti_joins specified wave with wave 1 to see what's missing from wave 1
