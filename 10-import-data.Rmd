@@ -447,7 +447,7 @@ diagnosed_depression_list <- c("h4id5h","h5id6g")
 # List of all Demographic Variable
 demographic_list <- c("one_race5","bio_sex") #removed "race1","mulrace1","race1rul"
 
-demographic_list_comp <- c("age_w1", "age_w3", "age_w4", "age_w5")
+demographic_age_list <- c("age_w1", "age_w3", "age_w4", "age_w5")
 
 # Total predictor variable list
 predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list)
