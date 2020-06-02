@@ -7,7 +7,7 @@ The purpose of this document is to explore the results of the models built in th
 
 ```{r load libraries}
 library(pacman)
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse, plotly)
 ```
 
 ## Helper functions
@@ -90,18 +90,47 @@ plot_h2o_metric_set <- function(df, model_list, ...){
 ```
 
 ```{r feature selection comparison}
-compare_feature_select <- function(df_joined = joined_results){
+compare_feature_select <- function(df_joined = joined_results, 
+                                   interactive = FALSE, 
+                                   top_n = 100,
+                                   opacity = 0.50,
+                                   plot_title = "Permutation Importance of Predictors by Model"){
+  
   # df_joined_results: output from joined results df
-  df_joined %>% 
-    mutate(median_dif_rf_lasso = median_rank.rf - median_rank.lasso) %>% 
-    group_by(predictor) %>%
+  # interactive: whether to return ggplotly object, helpful for many predictors
+  # top_n: top predictors to plot ; for all predictors just use a large a number
+  # opacity: how opaque to make the lines in the graph, scale 0 to 1
+  # plot_title: title of plot to use
+  
+  out <- df_joined %>% 
+    slice(1:top_n) %>% 
+    pivot_longer(cols = c("median_rank.rf", "median_rank.lasso"),
+                 names_to = "model",
+                 values_to = "median_rank") %>% 
     ggplot() +
-    geom_point(aes(x = fct_reorder(predictor, -median_dif_rf_lasso), y = median_dif_rf_lasso))+
-    scale_x_discrete(expand = c(-0.001,0))+ 
-    labs(y = "Placements", x = "Variables")+
+    geom_point(aes(x = fct_reorder(predictor, -mean_rank), 
+                   y = median_rank, color = model)) +
+    geom_line(aes(x = fct_reorder(predictor, -mean_rank), 
+                  y = median_rank, 
+                  group = predictor), 
+              alpha = opacity) +
+    xlab("Variables") +
+    ylab("Placements") +
+    ggtitle(plot_title) +
     coord_flip()
+  
+  if(interactive) {
+    ggplotly(out)
+  }
+  
+  else 
+    out
 }
 
-# joined_results %>% slice(1:20) %>%  compare_feature_select()
+# joined_results %>% 
+#   compare_feature_select(interactive = TRUE,
+#                          top_n = 100,
+#                          opacity = 0.50,
+#                          plot_title = "Permutation Importance of Predictors by Model")
 ```
 
