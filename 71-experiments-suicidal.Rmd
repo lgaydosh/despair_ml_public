@@ -34,7 +34,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o, furrr, rcompanion, plotly)
+pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o, furrr, rcompanion, ggcorrplot, plotly)
 
 ```
 
@@ -100,11 +100,11 @@ graph_missing(suicide_ds,
               y_axis_size = 12,
               title_size = 15)
 
-# Visualize correlation among predictors
+# Visualize correlation among first 20 predictors
 suicide_ds %>% 
+  select(1:20) %>% 
   pairwise_cramers_v() %>% 
-  plot_cramer_v(value_cutoff = 0.2,
-                x_axis_angle = 90,
+  plot_cramer_v(x_axis_angle = 90,
                 plot_title = "Association among Categorical Variables",
                 interactive = TRUE)
 ```

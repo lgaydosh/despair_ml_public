@@ -1,6 +1,8 @@
 ---
 title: "20-explore"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Basic Exploration
@@ -328,49 +330,56 @@ pairwise_cramers_v <- function(df){
 #   pairwise_cramers_v()
 ```
 
-```{r graph cramers v}
-# Plot it
-plot_cramer_v <- function(df, value_cutoff = 0, 
+```{r better plot cramer v}
+plot_cramer_v <- function(df,
                           x_axis_angle = 90, 
                           plot_title = "Association among Categorical Variables",
                           interactive = FALSE){
-  
   # df: output from pairwise_cramers_v function
   # x_axis_angle: angle to write text for x-axis
   # plot_title: title of graph
   # Interactive: Whether to return interactive plot with plotly
   # return: heatmap filled by cramers_v value
   
- out <-  df %>% 
-    filter(cramer_v >= value_cutoff) %>% 
-    ggplot() +
-    geom_raster(aes(x = var1, y = var2, fill = cramer_v)) +
-    theme(axis.text.x = element_text(angle = x_axis_angle),
+  # Create n x n matrix for variables using cramer's v
+   df_wide <-  df %>% 
+    pivot_wider(names_from = var1, values_from = cramer_v)
+    
+   # make it a matrix but drop first column b/c it's the row names, not a column
+   df_matrix <- df_wide %>% dplyr::select(-var2) %>% as.matrix()
+   
+    # Add row names to matrix 
+   dimnames(df_matrix) <- list(df_wide$var2, df_wide$var2)
+   
+   # graph it
+  out <-  df_matrix %>%
+    ggcorrplot::ggcorrplot(hc.order = FALSE, 
+                                       type = "lower",
+                                       legend.title = "Cramer's V Statistic") +
+     theme(axis.text.x = element_text(angle = x_axis_angle),
           axis.title = element_blank()) +
     ggtitle(plot_title)
-    
- 
+
  if(interactive){
    ggplotly(out)
  }
  
  else out
- 
+  
 }
 
 # Example 1
-# iris2 <- iris %>% 
+# iris2 <- iris %>%
 #   mutate(new1 = as_factor(round(Sepal.Width)),
 #          new2 = as_factor(round(Sepal.Length)),
-#          new3 = as_factor(round(Petal.Length))) %>% 
+#          new3 = as_factor(round(Petal.Length))) %>%
 #   as_tibble()
 
-# iris2 %>% 
-#   pairwise_cramers_v() %>% 
-#   plot_cramer_v()
+# iris2 %>%
+#   pairwise_cramers_v() %>%
+#   plot_cramer_v(interactive = TRUE)
 
 ```
-
 
 ```{r explore aids not joined}
 
