@@ -315,6 +315,11 @@ get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_las
   plot_metric_set()
 
 # Comparison of top_n features
+joined_results %>%
+  compare_feature_select(interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors by Model")
 ```
 
 # Outcome variable discussion
