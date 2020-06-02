@@ -108,8 +108,13 @@ get_attribute_name <- function(var_str, ref_data){
   # If the lookup failed, return the original variable name.  Otherwise, return the label.
   if(is.null(lookup_name))
     att_name <- var_str
-  else{
-    att_name <- str_c(attributes(lookup_name), '.', res[1,2])
+  else {
+    # If no splitting was necessary (i.e. no one-hot encoding)
+    if(length(res)==1) {
+      att_name <- str_c(attributes(lookup_name))
+    }
+    else
+      att_name <- str_c(attributes(lookup_name), '.', res[1,2])
   }
   
   # Return the name of interest.
