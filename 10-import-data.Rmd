@@ -365,14 +365,19 @@ add_demographics <- function(df){
 }
 ```
 
-The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.
+The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.  Details of this function in file `project-component-verification.Rmd`
 
 ```{r remove errant subjects}
 # This function removes subjects that are not present in Wave 1
-remove_subjects_not_in_wave1 <- function(df, excl_fname = 'G:/DSI/exclusion_aids.csv'){
-  
+remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth'){
   #df: dataset of interest with AIDs as column
   #returns: df with errant subjects removed
+  
+  # Default file ending
+  file_end = '/DSI/exclusion_aids.csv'
+  
+  #Create filepath
+  excl_fname = str_c(filebase, file_end)
 
   #Get the total number of subjects for usage later
   n_subjs <- nrow(df)
