@@ -104,17 +104,17 @@ compare_feature_select <- function(df_joined = joined_results,
   
   out <- df_joined %>% 
     slice(1:top_n) %>% 
-    pivot_longer(cols = c("median_rank.rf", "median_rank.lasso"),
+    pivot_longer(cols = c("overall_rank.rf", "overall_rank.lasso"),
                  names_to = "model",
-                 values_to = "median_rank") %>% 
+                 values_to = "overall_rank") %>% 
     ggplot() +
-    geom_point(aes(x = fct_reorder(predictor, -mean_rank), 
-                   y = median_rank, color = model)) +
-    geom_line(aes(x = fct_reorder(predictor, -mean_rank), 
-                  y = median_rank, 
+    geom_point(aes(x = fct_reorder(att_name, -mean_rank), 
+                   y = overall_rank, color = model)) +
+    geom_line(aes(x = fct_reorder(att_name, -mean_rank), 
+                  y = overall_rank, 
                   group = predictor), 
               alpha = opacity) +
-    xlab("Variables") +
+    xlab("Predictors") +
     ylab("Placements") +
     ggtitle(plot_title) +
     coord_flip()
