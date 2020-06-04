@@ -240,3 +240,39 @@ x <- boot_permute_var_imp(mtcars2, outcome = "vs", model_type = "random_forest",
 # Look at graph
 plot_permute_var_imp(x, pr_auc)
 ```
+
+## Permute varimp compatibility with h2o.varimp aggregated format; note that this is moved to the 50 series for convenience; these were written directly with no unwrapping
+```{r}
+# This function is a wrapper of permute_var_imp to work on a list of models
+get_aggregated_permute_imp <- function(mdl_list, newdata_df, outcome='h5mn8'){
+  #mdl_list: list of models, e.g., generated from model_selection_bootstrap
+  #newdata_df: the dataframe you wish to compute the permutation importance upon
+  #outcome: outcome of interest
+  #returns: tibble of aggregated results
+  agg_pi <- mdl_list %>%
+    map_df(~permute_var_imp(df_predict=newdata_df, outcome=outcome, model_h2o=.x)) %>%
+    as_tibble()
+  
+  return(agg_pi)
+}
+```
+
+```{r}
+# This function returns the overall placements of the features using the aggregated list of permutated feature importances
+get_permute_placement <- function(agg_permute_df, metric_oi='pr_auc'){
+  #agg_permute_df: aggregated metrics of permuted variables (e.g., from get_aggregated_permute_imp)
+  #metric_oi: the metric of interest to be pulled from the dataframe
+  #returns: returns overall ordered placements for each of the predictors
+  
+  var_placements <- agg_permute_df %>%
+    group_by(variable) %>%
+    summarise_all(mean) %>%
+    dplyr::arrange(desc(get(metric_oi))) %>%
+    mutate(overall_rank = 1:nrow(.)) %>%
+    dplyr::rename(predictor=variable) %>%
+    dplyr::select(predictor, overall_rank, metric_oi)
+  
+  return(var_placements)
+}
+```
+

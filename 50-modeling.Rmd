@@ -72,9 +72,10 @@ get_total_placement <- function(list){
   # return tibble
   return(out)
 }
+```
 
 
-
+```{r median placement of bootstrap performances}
 get_median_placement <- function(list, use_base_var = FALSE){
   # list: a list of data frames returned from the get_top_n_names function
   # use_base_var: a boolean indicating if you want to reduce a one-hot encoded name to its base name
@@ -87,13 +88,19 @@ get_median_placement <- function(list, use_base_var = FALSE){
     dplyr::rename(oh_var = variable)%>%
     mutate(variable = str_split(oh_var,'[.]', simplify=TRUE)[,1]) %>%
     group_by(variable) %>% 
-    summarise(median_placement = median(placement))
+    dplyr::rename(predictor=variable) %>%
+    summarise(median_rank = median(placement)) %>%
+    arrange(median_rank) %>%
+    mutate(overall_rank = 1:nrow(.))
     
   } else {
   out <- list %>%
     purrr::reduce(rbind) %>% 
+    dplyr::rename(predictor=variable) %>%
     group_by(variable) %>% 
-    summarise(median_placement = median(placement))
+    summarise(median_rank = median(placement)) %>% 
+    arrange(median_rank) %>%
+    mutate(overall_rank = 1:nrow(.))
   }
   
   # return tibble
@@ -135,6 +142,18 @@ get_attribute_name <- function(var_str, ref_data){
 ```
 
 ```{r}
+add_attribute_names <- function(att_df, col_name, ref_df){
+  
+  #browser()
+  named_df <- map_df(att_df[[col_name]], get_attribute_name, ref_df) %>%
+    bind_cols(att_df)
+  
+  return(named_df)
+}
+```
+
+
+```{r}
 # function to plot a boxplot showing the variance in feature placements
 plot_median_placements <- function(df_placements, top_n = 20){
   # input: df_placements - dataframe with all variables in model and their median placements from the models
@@ -156,7 +175,9 @@ plot_median_placements <- function(df_placements, top_n = 20){
     theme_dark()
   
 }
+```
 
+```{r placement plots}
 # function to plot a boxplot showing the variance in feature placements
 plot_placement_boxplot <- function(placements){
   # input: list of placements from the bootstrapped samples
@@ -177,6 +198,213 @@ plot_placement_boxplot <- function(placements){
     coord_flip()
   
 }
+```
+
+```{r permute columns function}
+######################
+# Permute a single column of the data frame
+permute_column <- function(df, column){
+  # df: input data frame
+  # column: column to permute
+  
+  df[,column] <- df %>% pull(column) %>% sample()
+  return(df)
+}
+
+# Permute all columns (not outcome)
+permute_columns <- function(df, outcome){
+  # df: input data frame
+  # outcome: outcome variable (not permuted)
+  
+  predictor_names <- df %>% dplyr::select(-outcome) %>% names()
+  
+  df_permute_list <- predictor_names %>% map(permute_column, df = df)
+  
+  names(df_permute_list) <- predictor_names
+  
+  return(df_permute_list)
+}
+```
+
+```{r plot permutation importance}
+######################
+# plot the variable importance
+plot_permute_var_imp <- function(df_permute_var_imp, metric){
+  # df_permute_var_imp: data frame of permutation metrics from permute_var_imp()
+  # metric: metric to plot, NOT passed as a string
+  # return: ggplot bar graph of permutation importance
+  
+  # create dataframe we can use for ggplot (mostly to grab the names below)
+  plot_df <- df_permute_var_imp %>% 
+    dplyr::select(predictor, {{metric}}, att_name)
+  
+  # Plot the metric
+  plot_df %>% 
+    ggplot() + 
+    ylab(str_c(names(plot_df)[2], " ", "(True - Permuted)")) +
+    xlab("Predictor") +
+    ggtitle("Permutation Importance") +
+    geom_bar(aes(x = reorder(att_name, {{metric}}), 
+                 y = {{metric}}), 
+             stat = "identity",
+             fill = "light blue") +
+    coord_flip() +
+    theme_dark()
+}
+
+```
+
+
+```{r permutation variable importance function}
+# Note, make sure that factors are factors!
+permute_var_imp <- function(df_predict, outcome, model_h2o){
+  # df_predict: data to predict
+  # outcome: outcome of interest
+  # model_h2o: h2o model object
+  # return: data frame of permutation importances
+  
+  # make permuted data frames h2o objects
+  permute_list_h2o <- permute_columns(df = df_predict, outcome = outcome)
+  
+  # make prediction frame h2o object
+  # df_predict_h2o <- df_predict %>% as.h2o()
+  
+  # Get metrics from unpermuted data
+  true_metric_vals <- get_performance(test_data = df_predict, test_model = model_h2o, outcome = outcome)
+  
+  # get metrics for permuted data sets
+  permuted_models_metric <- permute_list_h2o %>% 
+    map(~get_performance(test_data = .x, test_model = model_h2o, outcome = outcome)) 
+  
+  # calculate permutation importance (dif. between permuted and non-permuted predictions)
+  out <- permuted_models_metric %>%
+    map_df(function(permute_mets = .x, real_mets = true_metric_vals) real_mets - permute_mets) %>% 
+    mutate(variable = names(permute_list_h2o)) %>% 
+    dplyr::select(variable, everything())
+  
+  return(out)
+}
+
+# example dataset
+# mtcars2 <- mtcars %>% mutate(vs = factor(vs))
+
+# example 1
+# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"),
+#                            y = "vs",
+#                            training_frame = as.h2o(mtcars2))
+
+# x <- permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = rf_h2o)
+
+# example 2
+# glm_h2o <- h2o.glm(x = c("mpg", "cyl", "disp"),
+#                    y = "vs", 
+#                    training_frame = as.h2o(mtcars2), 
+#                    family = "binomial")
+
+# x2 <- permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = glm_h2o)
+# graph it
+# plot_permute_var_imp(x, pr_auc)
+# plot_permute_var_imp(x2, roc_auc)
+
+# Example 3
+# Use for how it will likely be implemented in the 70 series
+# model_list <- list(glm_mod = glm_h2o, rf_mod = rf_h2o)
+# y <- model_list %>%
+#   map(~permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = .x))
+# y$glm_mod %>% plot_permute_var_imp(pr_auc)
+# y$rf_mod %>% plot_permute_var_imp(roc_auc)
+```
+
+```{r}
+# This function is a wrapper of permute_var_imp to work on a list of models
+get_aggregated_permute_imp <- function(mdl_list, newdata_df, outcome='h5mn8'){
+  #mdl_list: list of models, e.g., generated from model_selection_bootstrap
+  #newdata_df: the dataframe you wish to compute the permutation importance upon
+  #outcome: outcome of interest
+  #returns: tibble of aggregated results
+  agg_pi <- mdl_list %>%
+    map_df(~permute_var_imp(df_predict=newdata_df, outcome=outcome, model_h2o=.x)) %>%
+    as_tibble()
+  
+  return(agg_pi)
+}
+```
+
+```{r}
+# This function returns the overall placements of the features using the aggregated list of permutated feature importances
+get_permute_placement <- function(agg_permute_df, metric_oi='pr_auc'){
+  #agg_permute_df: aggregated metrics of permuted variables (e.g., from get_aggregated_permute_imp)
+  #metric_oi: the metric of interest to be pulled from the dataframe
+  #returns: returns overall ordered placements for each of the predictors
+  
+  var_placements <- agg_permute_df %>%
+    group_by(variable) %>%
+    summarise_all(mean) %>%
+    dplyr::arrange(desc(get(metric_oi))) %>%
+    mutate(overall_rank = 1:nrow(.)) %>%
+    dplyr::rename(predictor=variable) %>%
+    dplyr::select(predictor, overall_rank, metric_oi)
+  
+  return(var_placements)
+}
+```
+
+```{r permutation variable importance bootstrap}
+
+# bootstrap permutation variable importance
+# boot_permute_var_imp <- function(df_predict, outcome, model_h2o, n){
+#   # df_predict: data set to bootstrap
+#   # outcome: outcome of interest
+#   # model_h2o: h2o model object
+#   # n: number of bootstraps
+#   # return: data frame with all bootstrapped permutation importances
+# 
+#   # bootstrap the data
+#   b_df <- bootstraps(df_predict, times = n)
+# 
+#   # pull the bootstrap samples
+#   df_predict_list <- b_df$splits %>% map(rsample::training)
+# 
+#   # compute permutation importance
+#   out <- df_predict_list %>%
+#     map_df(~permute_var_imp(df_predict = .x,
+#                          outcome = outcome,
+#                          model_h2o = model_h2o))
+# 
+#   # return df of bootstrapped permutation importance
+#   return(out)
+# }
+
+# example dataset
+# mtcars2 <- mtcars %>% mutate(vs = factor(vs))
+# 
+# # Example 1
+# rf_h2o <- h2o.randomForest(x = c("mpg", "cyl", "disp"),
+#                            y = "vs",
+#                            training_frame = as.h2o(mtcars2))
+# 
+# # x <- boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = rf_h2o, n = 2)
+# 
+# # Example 2
+# glm_h2o <- h2o.glm(x = c("mpg", "cyl", "disp"),
+#                    y = "vs",
+#                    training_frame = as.h2o(mtcars2),
+#                    family = "binomial")
+# 
+# # x <- boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = glm_h2o, n = 2)
+# 
+# # Example 3
+# # Get permutation importance for two models
+# model_list <- list(rf_mod = rf_h2o, glm_mod = glm_h2o)
+# y <- model_list %>%
+#   map(~boot_permute_var_imp(df_predict = mtcars2, outcome = "vs", model_h2o = .x, n = 2))
+# y$rf_mod
+# y$glm_mod
+# 
+# # Look at graph
+# plot_permute_var_imp(x, pr_auc)
+# plot_permute_var_imp(y$rf_mod, accuracy)
+# plot_permute_var_imp(y$glm_mod, roc_auc)
 ```
 
 ```{r create splits for training and validating}
