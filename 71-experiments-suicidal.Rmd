@@ -40,7 +40,13 @@ pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scale
 
 ```{r initializations}
 h2o.init() 
+h2o.no_progress()
 future::plan(multiprocess)
+```
+
+```{r seeds for reproducibility}
+seed= 3895
+set.seed(seed)
 ```
 
 # Dataset generation
@@ -54,18 +60,21 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ## set outcome variable of interest
 outcome = 'h5mn8' # This is the binary variable representing suicidal ideation at wave 5
 
-wave_data <- load_waves(1:5, filebase = 'G:/')
+wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+```
 
+```{r}
 ## get the aids that you want
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
 
 ## use the features and ids that you want to select out what you want
 suicide_ds <- full_dataset %>%
-  dplyr::select(aid, predictor_list, outcome) %>% 
+  add_demographics() %>%
+  dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
-  mutate_at(vars(starts_with("h"), starts_with("r"), starts_with("m")), as_factor) %>%
+  mutate_at(vars(-starts_with("age_")), as_factor) %>%
   drop_na(outcome)
 
 # Report about the characteristics of the subjects left out of the join
@@ -101,12 +110,12 @@ graph_missing(suicide_ds,
               title_size = 15)
 
 # Visualize correlation among first 20 predictors
-suicide_ds %>% 
-  select(1:20) %>% 
-  pairwise_cramers_v() %>% 
-  plot_cramer_v(x_axis_angle = 90,
-                plot_title = "Association among Categorical Variables",
-                interactive = TRUE)
+# suicide_ds %>% 
+#   select(1:20) %>% 
+#   pairwise_cramers_v() %>% 
+#   plot_cramer_v(x_axis_angle = 90,
+#                 plot_title = "Association among Categorical Variables",
+#                 interactive = TRUE)
 ```
 
 # Machine learning split of the data
@@ -142,57 +151,81 @@ The RF models are chosen based on a grid search using the following the paramete
 ```{r feature selection rf, include=FALSE}
 
 # Spans of hyper parameters for random forest
-# rf_params <- list(max_depth = c(20, 50),
-#                   ntrees = 150,
-#                   mtries = c(-1, 5, 20),
-#                   min_rows = c(10, 25, 40),
-#                   balance_classes = c(TRUE, FALSE),
-#                   stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
-#                   categorical_encoding = 'one_hot_explicit')
+rf_params <- list(max_depth = 50,
+                  ntrees = 150,
+                  mtries = seq(-1, 20, by=5),
+                  min_rows = seq(10, 40, by=10),
+                  balance_classes = c(TRUE, FALSE),
+                  stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
+                  categorical_encoding = 'one_hot_explicit')
 
-rf_params <- list(max_depth = c(20, 50),
-                  balance_classes = TRUE,
-                  categorical_encoding= 'one_hot_explicit')
+# rf_params <- list(max_depth = c(20, 50),
+#                   balance_classes = TRUE,
+#                   categorical_encoding= 'one_hot_explicit')
 
 # define number of bootstraps
-n_boot = 2
+n_boot = 50
 
 suicide_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
-                      outcome = outcome, n = n_boot)
+                      outcome = outcome, n = n_boot, seed=seed)
 
 ```
 
 The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
 
 ```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
-get_metric_set_from_perfs(suicide_rf$perfs) %>%
+mean_bs_rf_perf <- get_metric_set_from_perfs(suicide_rf$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
          tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
-  summarise_if(is.numeric, mean, na.rm=TRUE)
+  summarise_if(is.numeric, mean, na.rm=TRUE) %>%
+  mutate(model = 'bs_rf') %>%
+  dplyr::select(model, everything())
+
+mean_bs_rf_perf
 ```
 As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with suicidal ideation.
 
 ```{r}
-boot_rf_ranks <- suicide_rf$mdi %>%
-  get_median_placement() %>% 
-  dplyr::rename(predictor = variable, median_rank = median_placement) %>%
-  #drop_na() %>% 
-  arrange(median_rank)
+boot_rf_mdi <- suicide_rf$mdi %>%
+  get_median_placement(use_base_var = TRUE) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, att_name, overall_rank)
 
-boot_rf_ranks <- map_df(boot_rf_ranks$predictor, get_attribute_name, full_dataset) %>%
-  bind_cols(boot_rf_ranks) %>%
-  dplyr::select(predictor, att_name, median_rank)
-
-boot_rf_ranks
+head(boot_rf_mdi, 20)
 ```
 This table returns variable importance ranks that returned from each of the bootstrapped models.
-
 
 ```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
 plot_placement_boxplot(suicide_rf$mdi)
+```
+
+Now, let's look at the permutation importance:
+
+```{r}
+boot_rf_perm_plt <- suicide_rf$models %>%
+  get_aggregated_permute_imp(training_df, outcome='h5mn8')
+```
+
+```{r}
+met <- 'pr_auc'
+boot_rf_perm <- boot_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(boot_rf_perm, 20)
+```
+
+
+Now, let's look at these models together:
+```{r fig.width = 16, fig.height = 14}
+cbind(boot_rf_mdi[1:20,], select(boot_rf_perm[1:20,], -met))
+```
+```{r fig.width = 10, fig.height = 12}
+plot_permute_var_imp(boot_rf_perm, metric = pr_auc)
 ```
 
 
@@ -212,70 +245,109 @@ suicide_lasso <- model_feature_selection( "Lasso",
 ```
 
 ```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
-get_metric_set_from_perfs(suicide_lasso$perfs) %>%
+mean_bs_lasso_perf <- get_metric_set_from_perfs(suicide_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
          tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
-  summarise_if(is.numeric, mean, na.rm=TRUE)
+  summarise_if(is.numeric, mean, na.rm=TRUE) %>% 
+  mutate(model='bs_lasso') %>%
+  dplyr::select(model, everything())
+
+mean_bs_lasso_perf
 ```
 
 
 ```{r}
-boot_lasso_ranks <- suicide_lasso$mdi %>%
-  get_median_placement() %>% 
-  dplyr::rename(predictor = variable, median_rank = median_placement) %>%
-  #drop_na() %>% 
-  arrange(median_rank)
+boot_lasso_mdi <- suicide_lasso$mdi %>%
+  get_median_placement(use_base_var = TRUE) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, att_name, overall_rank)
 
-boot_lasso_ranks <- map_df(boot_lasso_ranks$predictor, get_attribute_name, full_dataset) %>%
-  bind_cols(boot_lasso_ranks) %>%
-  dplyr::select(predictor, att_name, median_rank)
-
-boot_lasso_ranks
+head(boot_lasso_mdi, 20)
 ```
 
 ```{r fig.width = 10, fig.height = 12}
 plot_placement_boxplot(suicide_lasso$mdi)
 ```
 
-## Model comparison
-Here, we will comment in depth about the differences between these selected features
+Now, let's look at the permutation importance:
 
-We will take a look at the median ranking of the features that are returned
 ```{r}
-joined_results <- full_join(boot_rf_ranks, boot_lasso_ranks, by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
-  mutate(mean_rank = rowMeans(dplyr::select(., median_rank.rf, median_rank.lasso), na.rm=TRUE)) %>%
-  arrange(mean_rank)
-
-joined_results
+boot_lasso_perm_plt <- suicide_lasso$models %>%
+  get_aggregated_permute_imp(training_df, outcome='h5mn8')
 ```
 
+```{r}
+met <- 'pr_auc'
+boot_lasso_perm <- boot_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(boot_lasso_perm, 20)
+```
+
+```{r fig.width = 10, fig.height = 12}
+plot_permute_var_imp(boot_lasso_perm, metric = pr_auc)
+```
+
+Now, let's compare these feature importances based on mdi vs permutation importance:
+```{r fig.width = 16, fig.height = 14}
+cbind(boot_lasso_mdi[1:20,], select(boot_lasso_perm[1:20,], -met))
+```
+
+## Model performance comparison
+```{r}
+bs_comp_perfs <- rbind(mean_bs_rf_perf, mean_bs_lasso_perf) 
+bs_comp_perfs
+```
+
+## Predictor comparison based on model type
+Here, we look at the aggregated results of the bootstrapped predictors and compare the models generated to each other.
+```{r}
+joined_results <- boot_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.rf, overall_rank.lasso), na.rm=TRUE)) %>%
+  arrange(mean_rank)
+
+head(joined_results, 20)
+```
+
+```{r fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+joined_results %>%
+  compare_feature_select(interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors by Model")
+```
+
+
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
-Here, we will discuss the performance of the final models, including performance metrics.  We will comment on the most important features that it selected.
-The subject matter experts will comment on the relevance of these features to the outcomes of interest.
 
 ## RF model
 Here, we will comment on the behavior and performance of the final rf model.
 ```{r final model evaluation rf}
 
 # # Spans of hyper parameters for random forest
-# rf_params <- list(max_depth = c(20, 50),
-#                   ntrees = 150,
-#                   mtries = c(-1, 5, 20),
-#                   min_rows = c(10, 25, 40),
-#                   balance_classes = c(TRUE, FALSE),
-#                   stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
-#                   categorical_encoding = 'one_hot_explicit')
+rf_params <- list(max_depth = seq(10, 50, by=10),
+                  ntrees = 150,
+                  mtries = seq(-1, 30, by=5),
+                  min_rows = seq(10, 30, by=5),
+                  balance_classes = c(TRUE, FALSE),
+                  stopping_metric = c('mean_per_class_error', 'AUCPR', 'misclassification'),
+                  categorical_encoding = 'one_hot_explicit')
 
-rf_params <- list(max_depth = c(20, 50),
-                  balance_classes = TRUE,
-                  categorical_encoding= 'one_hot_explicit')
+# rf_params <- list(max_depth = seq(20, 50, 20),
+#                   balance_classes = TRUE,
+#                   categorical_encoding= 'one_hot_explicit')
 
 # Function parameters
 final_model_rf <- rf_model(outcome,
                            training_frame = training_df,
                            validation_frame = validation_df,
                            nfolds = 5,
-                           hyper_params = rf_params)
+                           hyper_params = rf_params, seed=seed)
 
 ```
 
@@ -306,20 +378,24 @@ final_model_lasso[[2]]
 
 ## Final model comparison
 Here, we'll describe the differences between the final models.
-```{r final model comparison}
-
+```{r final model comparison, fig.width = 10, fig.height = 12}
 # Comparison of performance metrics
-get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
-  plot_metric_set()
-get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]])) %>%
-  plot_metric_set()
+valid_perf <- get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
+  mutate(model = c('rf', 'lasso'))
 
-# Comparison of top_n features
-joined_results %>%
-  compare_feature_select(interactive = TRUE,
-                         top_n = 100,
-                         opacity = 0.50,
-                         plot_title = "Permutation Importance of Predictors by Model")
+testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]])) %>%
+  mutate(model = c('rf', 'lasso'))
+
+print(valid_perf)
+print(testing_perf)
+```
+
+```{r fig.width = 6, fig.height = 8}
+# Show plots side by side
+metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv')
+valid_plt <- plot_metric_set(dplyr::select(valid_perf, metrics_of_interest), plot_title = "Model comparison for validation set")
+test_plt <- plot_metric_set(dplyr::select(testing_perf, metrics_of_interest), plot_title = "Model comparison for testing set")
+gridExtra::grid.arrange(valid_plt, test_plt)
 ```
 
 # Outcome variable discussion
