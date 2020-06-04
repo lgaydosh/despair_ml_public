@@ -342,8 +342,8 @@ add_demographics <- function(df){
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
   # race info consists of three variables - mulrace1, race1, race1rul
   df %>% 
-    mutate(birth_in_months = (as.double(paste("19",h1gi1y,sep=""))*12 )+ as.double(h1gi1m)) %>% 
-    mutate(age_w1 = floor((((as.double(paste("19",iyear,sep=""))*12 )+imonth) - birth_in_months)/12) ) %>% 
+    mutate(birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m)) %>% 
+    mutate(age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12) ) %>% 
     mutate(age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12)) %>% 
     mutate(age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12)) %>% 
     mutate(age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
