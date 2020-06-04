@@ -5,3 +5,5 @@
 
 *.nb.html
 *.html
+*.utf8.md
+*.knit.md
