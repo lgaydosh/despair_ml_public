@@ -392,3 +392,17 @@ get_attribute_name <- function(var_str, ref_data){
 }
 ```
 
+# Aggregating relevant one-hot encoded variables into a single variable (e.g., h5ss0b.1, h5ss0b.2 into h5ss0b)
+
+```{r}
+# start with something like mdi from models
+
+out <- suicide_rf$mdi %>%
+  purrr::reduce(rbind) %>%
+  dplyr::rename(oh_var = variable)%>%
+  mutate(variable = str_split(oh_var,'[.]', simplify=TRUE)[,1]) %>%
+  group_by(variable) %>% 
+  summarise(median_placement = median(placement))
+  
+```
+

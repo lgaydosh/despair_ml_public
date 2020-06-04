@@ -75,14 +75,26 @@ get_total_placement <- function(list){
 
 
 
-get_median_placement <- function(list){
+get_median_placement <- function(list, use_base_var = FALSE){
   # list: a list of data frames returned from the get_top_n_names function
+  # use_base_var: a boolean indicating if you want to reduce a one-hot encoded name to its base name
   # returns: a data frame grouped by all variables with median of the placements of those variables
   
+  if(use_base_var == TRUE){
+    
+    out <- list %>%
+    purrr::reduce(rbind) %>%
+    dplyr::rename(oh_var = variable)%>%
+    mutate(variable = str_split(oh_var,'[.]', simplify=TRUE)[,1]) %>%
+    group_by(variable) %>% 
+    summarise(median_placement = median(placement))
+    
+  } else {
   out <- list %>%
     purrr::reduce(rbind) %>% 
     group_by(variable) %>% 
     summarise(median_placement = median(placement))
+  }
   
   # return tibble
   return(out)
