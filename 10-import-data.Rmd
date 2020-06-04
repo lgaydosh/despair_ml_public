@@ -360,8 +360,8 @@ add_demographics <- function(df){
                         (h5od4b==1) ~ 2, #2 = black
                         (h5od4c==1) ~ 3, #3= hispanic
                         (h5od4d==1) ~ 4, #4 = asian
-                        ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5, #other
-                        TRUE ~ -1)) #missing data
+                        ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5)) #other
+                        #otherwise NA default
 }
 ```
 
