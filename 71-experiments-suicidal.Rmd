@@ -50,7 +50,7 @@ set.seed(seed)
 ```
 # Pipeline overview
 ```{r echo=FALSE, out.width='50%'}
-knitr::include_graphics('./img/pipeline_overview.png')
+knitr::include_graphics('./img/pipeline_overview.jpg')
 ```
 # Dataset generation
 
