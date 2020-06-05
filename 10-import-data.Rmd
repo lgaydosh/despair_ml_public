@@ -340,7 +340,7 @@ add_demographics <- function(df){
   # df : joined waves input
   # return : new data frame with race and age information at each wave. 
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
-  # race info consists of three variables - mulrace1, race1, race1rul
+  # race info comes from wave 5
   df %>% 
     mutate(birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m)) %>% 
     mutate(age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12) ) %>% 
@@ -395,6 +395,30 @@ remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server
   return(filtered_ds)
 }
 ```
+
+
+These functions create the outcomes of prescription and illegal drug uses.
+```{r}
+add_pres_drug <- function(df){
+  # df : joined waves input
+  # return : new data frame with additional variable indicating prescription drug use
+  df %>% 
+    mutate(p_drug = case_when(
+                    ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
+                    ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 1)) ~ 0)
+    )
+}
+add_ill_drug <- function(df){
+  # df : joined waves input
+  # return : new data frame with additional variable indicating illegal drug use
+  df %>% 
+    mutate(i_drug = case_when(
+                    ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
+                    ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 1)) ~ 0)
+    )
+}
+```
+
 
 ## Binarize "times used" outcome variables by 0 vs rest of values
 Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
