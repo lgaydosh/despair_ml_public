@@ -405,7 +405,8 @@ add_pres_drug <- function(df){
   df %>% 
     mutate(p_drug = case_when(
                     ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
-                    ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 1)) ~ 0)
+                    #TRUE ~ 0)
+                    ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 0)) ~ 0)
     )
 }
 add_ill_drug <- function(df){
@@ -414,7 +415,7 @@ add_ill_drug <- function(df){
   df %>% 
     mutate(i_drug = case_when(
                     ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
-                    ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 1)) ~ 0)
+                    ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
     )
 }
 ```
