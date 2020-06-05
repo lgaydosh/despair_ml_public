@@ -212,7 +212,7 @@ Now, let's look at the permutation importance:
 
 ```{r get rf permutation importance, warning=FALSE, message=FALSE}
 boot_rf_perm_plt <- suicide_rf$models %>%
-  get_aggregated_permute_imp(training_df, outcome='h5mn8')
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 
 ```{r aggregate rf perm results}
@@ -282,13 +282,12 @@ plot_placement_boxplot(suicide_lasso$mdi)
 #### Permutation importance
 ```{r message=FALSE, warning=FALSE}
 boot_lasso_perm_plt <- suicide_lasso$models %>%
-  get_aggregated_permute_imp(training_df, outcome='h5mn8')
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 
 ```{r aggregate lasso permutations and get metrics}
-met <- 'pr_auc'
 boot_lasso_perm <- boot_lasso_perm_plt %>%
-  get_permute_placement(metric_oi=met) %>%
+  get_permute_placement(metric_oi=met) %>% #set in random forest section
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
