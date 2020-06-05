@@ -94,7 +94,8 @@ compare_feature_select <- function(df_joined = joined_results,
                                    interactive = FALSE, 
                                    top_n = 100,
                                    opacity = 0.50,
-                                   plot_title = "Permutation Importance of Predictors by Model"){
+                                   plot_title = "Permutation Importance of Predictors by Model",
+                                   sel_cols = c("overall_rank.rf", "overall_rank.lasso")){
   
   # df_joined_results: output from joined results df
   # interactive: whether to return ggplotly object, helpful for many predictors
@@ -104,7 +105,7 @@ compare_feature_select <- function(df_joined = joined_results,
   
   out <- df_joined %>% 
     slice(1:top_n) %>% 
-    pivot_longer(cols = c("overall_rank.rf", "overall_rank.lasso"),
+    pivot_longer(cols = sel_cols,
                  names_to = "model",
                  values_to = "overall_rank") %>% 
     ggplot() +

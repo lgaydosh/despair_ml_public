@@ -190,7 +190,7 @@ mean_bs_rf_perf
 ```
 As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with suicidal ideation.
 
-### Feature importances
+### Feature importances: Random Forest
 #### Mean decrease in impurity (MDI)
 ```{r}
 boot_rf_mdi <- suicide_rf$mdi %>%
@@ -212,7 +212,7 @@ Now, let's look at the permutation importance:
 
 ```{r get rf permutation importance, warning=FALSE, message=FALSE}
 boot_rf_perm_plt <- suicide_rf$models %>%
-  get_aggregated_permute_imp(training_df, outcome='h5mn8')
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 
 ```{r aggregate rf perm results}
@@ -246,11 +246,11 @@ lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
 
 suicide_lasso <- model_feature_selection( "Lasso",
-                                               training_frame = training_df,
-                                               validation_frame = validation_df,
-                                               hyper_params = lasso_params,
-                                               outcome = outcome, 
-                                               n = n_boot)
+                                          training_frame = training_df,
+                                          validation_frame = validation_df,
+                                          hyper_params = lasso_params,
+                                          outcome = outcome, 
+                                          n = n_boot)
 ```
 
 ```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
@@ -264,7 +264,7 @@ mean_bs_lasso_perf <- get_metric_set_from_perfs(suicide_lasso$perfs) %>%
 mean_bs_lasso_perf
 ```
 
-### Feature importances
+### Feature importances: LASSO
 #### Coefficient-based variable importance
 ```{r}
 boot_lasso_mdi <- suicide_lasso$mdi %>%
@@ -282,13 +282,12 @@ plot_placement_boxplot(suicide_lasso$mdi)
 #### Permutation importance
 ```{r message=FALSE, warning=FALSE}
 boot_lasso_perm_plt <- suicide_lasso$models %>%
-  get_aggregated_permute_imp(training_df, outcome='h5mn8')
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 
 ```{r aggregate lasso permutations and get metrics}
-met <- 'pr_auc'
 boot_lasso_perm <- boot_lasso_perm_plt %>%
-  get_permute_placement(metric_oi=met) %>%
+  get_permute_placement(metric_oi=met) %>% #set in random forest section
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
@@ -363,16 +362,58 @@ final_model_rf <- rf_model(outcome,
 
 ```
 
+### Performance
 The final random forest performance metrics are shown below:
 ```{r}
 # show model final performance
 print(final_model_rf[[2]])
 ```
 
+### Features: permutation importance
+```{r get plottable permutation importance, message=FALSE, warning=FALSE}
+final_rf_perm_plt <- c(final_model_rf[[1]]) %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome)
+```
+
+```{r get metrics for final rf}
+final_rf_perm <- final_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_rf_perm, 20)
+```
+```{r plot rf final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_rf_perm, metric = pr_auc)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
+
+```{r}
+rf_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.final, overall_rank.bootstrap), na.rm=TRUE)) %>%
+  arrange(mean_rank)
+
+head(rf_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r fig.height=14, fig.width=16}
+# Comparison of top_n features
+rf_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
 
 ## LASSO model
 Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.
-```{r final model evaluation lasso}
+```{r final model evaluation lasso, message=FALSE, warning=FALSE}
 # Function parameters
 lasso_params <- list(alpha = c(1))
 
@@ -389,9 +430,76 @@ The final LASSO performance metrics are shown below:
 print(final_model_lasso[[2]])
 ```
 
+### Features: permutation importance
+```{r get plottable permutation importance lasso, message=FALSE, warning=FALSE}
+final_lasso_perm_plt <- c(final_model_lasso[[1]]) %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome)
+```
 
-## Final model comparison
-With the final models generated, we're now able to compare their performance metrics.  The following table shows the comparison between models in terms of the validation set.  We can select our final model based on the best performing model according to the metric.
+```{r get permute features for final lasso}
+final_lasso_perm <- final_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_lasso_perm, 20)
+```
+
+```{r plot lasso final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_lasso_perm, metric = pr_auc)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
+
+```{r}
+lasso_joined_results <- final_lasso_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.final, overall_rank.bootstrap), na.rm=TRUE)) %>%
+  arrange(mean_rank)
+
+head(lasso_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+lasso_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
+
+## Comparison: Final model features
+Here, we compare the features generated by the permutation importance between the two final models.
+
+```{r}
+rf_lasso_final_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(final_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.rf, overall_rank.lasso), na.rm=TRUE)) %>%
+  arrange(mean_rank)
+
+head(rf_lasso_final_joined_results, 20)
+```
+
+The following visualization provides the intuition about the differences in the rankings between the final model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
+
+```{r fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+rf_lasso_final_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Random Forest vs Lasso")
+```
+
+## Comparison: Final model performance
+With the final models generated, we're now able to compare their performance metrics.
 ```{r final model comparison, fig.width = 10, fig.height = 12}
 # Comparison of performance metrics
 valid_perf <- get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
@@ -399,19 +507,25 @@ valid_perf <- get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], fi
 
 testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]])) %>%
   mutate(model = c('rf', 'lasso'))
+```
 
+**Validation and selection.**
+The following table shows the comparison between models in terms of the validation set.  We can select our final model based on the best performing model according to the metric.
+```{r}
 print(valid_perf)
 ```
 
-This is the performance of both the models.  Note that although we don't use this test set to evaluate the final models, we can still see how our selected method would have performed.
+**Testing performance.**
+The following shows the performance of both the models on the test set.  Note that although we don't use this test set to evaluate the final models, we can still see how our selected method would have performed.
 ```{r}
 print(testing_perf)
 ```
 
 The following plots show a comparison between the performance of the models on the validation and test sets.  Again, we don't choose the model based on the test set, but curiosity dictates that we view this performance.
+
 ```{r fig.width = 6, fig.height = 8}
 # Show plots side by side
-metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv')
+metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv', 'pr_auc', 'roc_auc')
 valid_plt <- plot_metric_set(dplyr::select(valid_perf, metrics_of_interest), plot_title = "Model comparison for validation set")
 test_plt <- plot_metric_set(dplyr::select(testing_perf, metrics_of_interest), plot_title = "Model comparison for testing set")
 gridExtra::grid.arrange(valid_plt, test_plt)
