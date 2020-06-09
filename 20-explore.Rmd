@@ -11,8 +11,11 @@ Exploratory data analysis (an approach to analyzing data sets to summarize their
 
 
 ```{r load libraries}
-library(tidyverse)
-library(DataExplorer)
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman"))
+  install.packages("pacman")
+
+pacman::p_load(tidyverse, DataExplorer)
 ```
 
 ```{r generic missing}
