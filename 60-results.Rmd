@@ -19,14 +19,14 @@ The following functions are available for usage to evaluate the performance of t
 
 ```{r metric set from models}
 # This function returns the metrics for a set of models on an input dataframe
-get_metric_set_from_models <- function(df, model_list){
+get_metric_set_from_models <- function(df, model_list, out){
   
   # df: Training or testing frame
   # model_list: list of h2o model objects
   # return: tibble with all applicable metrics for each model tested on df
 
   metric_set <- model_list %>%
-  map(get_performance, test_data = df) %>% 
+  map(~get_performance(outcome = out, test_model = .x,  test_data = df)) %>% 
   get_metric_set_from_perfs()
   
   # return metric set

@@ -309,7 +309,7 @@ model_feature_selection <- function(model_type,
 # This function returns performance of a dataset (e.g., validation or test set) using the threshold from the training set.  For more use-case
 # information, see 53-modeling-imbalances.Rmd.
 ## returns : a one-row tibble of 25 performance metrics
-get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val=NULL, outcome='h5mn8'){
+get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val=NULL, outcome){
   
   # test_data: tibble of test data without aids.  Must contain the true values of the outcome
   # test_model: h2o model of interest
