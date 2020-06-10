@@ -20,7 +20,7 @@ split_data <- function(df, strat_var, ratios=c(0.7,0.2,0.1)){
   
   #assertions
   testit::assert("sum of the ratios must be 1!" , sum(ratios)==1.0)
-  
+
   #split data
   splits <- df %>%
       rsample::initial_split(strat = {{strat_var}}, prop = sum(ratios[-length(ratios)]))
@@ -76,14 +76,14 @@ get_total_placement <- function(list){
 
 
 ```{r median placement of bootstrap performances}
-get_median_placement <- function(list, use_base_var = FALSE){
+get_median_placement <- function(input_list, use_base_var = FALSE){
   # list: a list of data frames returned from the get_top_n_names function
   # use_base_var: a boolean indicating if you want to reduce a one-hot encoded name to its base name
   # returns: a data frame grouped by all variables with median of the placements of those variables
   
   if(use_base_var == TRUE){
     
-    out <- list %>%
+    out <- input_list %>%
     purrr::reduce(rbind) %>%
     dplyr::rename(oh_var = variable)%>%
     mutate(variable = str_split(oh_var,'[.]', simplify=TRUE)[,1]) %>%
@@ -94,7 +94,7 @@ get_median_placement <- function(list, use_base_var = FALSE){
     mutate(overall_rank = 1:nrow(.))
     
   } else {
-  out <- list %>%
+  out <- input_list %>%
     purrr::reduce(rbind) %>% 
     dplyr::rename(predictor=variable) %>%
     group_by(variable) %>% 
@@ -216,7 +216,7 @@ permute_columns <- function(df, outcome){
   # df: input data frame
   # outcome: outcome variable (not permuted)
   
-  predictor_names <- df %>% dplyr::select(-outcome) %>% names()
+  predictor_names <- df %>% dplyr::select(-outcome, -aid) %>% names()
   
   df_permute_list <- predictor_names %>% map(permute_column, df = df)
   
@@ -343,7 +343,7 @@ get_permute_placement <- function(agg_permute_df, metric_oi='pr_auc'){
     dplyr::arrange(desc(get(metric_oi))) %>%
     mutate(overall_rank = 1:nrow(.)) %>%
     dplyr::rename(predictor=variable) %>%
-    dplyr::select(predictor, overall_rank, metric_oi)
+    dplyr::select(predictor, overall_rank, all_of(metric_oi))
   
   return(var_placements)
 }

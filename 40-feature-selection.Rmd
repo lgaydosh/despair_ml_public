@@ -342,7 +342,7 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
     as_tibble() %>%
     dplyr::select(-predict) %>%
-    mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
+    mutate(predict = as_factor(as.numeric(p1>thresh_val))) %>%
     bind_cols(act) %>%
     mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
     mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
