@@ -244,7 +244,7 @@ plot_permute_var_imp(x, pr_auc)
 ## Permute varimp compatibility with h2o.varimp aggregated format; note that this is moved to the 50 series for convenience; these were written directly with no unwrapping
 ```{r}
 # This function is a wrapper of permute_var_imp to work on a list of models
-get_aggregated_permute_imp <- function(mdl_list, newdata_df, outcome='h5mn8'){
+get_aggregated_permute_imp <- function(mdl_list, newdata_df, outcome){
   #mdl_list: list of models, e.g., generated from model_selection_bootstrap
   #newdata_df: the dataframe you wish to compute the permutation importance upon
   #outcome: outcome of interest
