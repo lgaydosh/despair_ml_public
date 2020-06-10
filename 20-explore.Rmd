@@ -15,6 +15,7 @@ Exploratory data analysis (an approach to analyzing data sets to summarize their
 if (!require("pacman"))
   install.packages("pacman")
 
+pacman::p_install(plotly)
 pacman::p_load(tidyverse, DataExplorer)
 ```
 
@@ -251,7 +252,7 @@ plot_cramer_v <- function(df,
     ggtitle(plot_title)
 
  if(interactive){
-   ggplotly(out)
+   plotly::ggplotly(out)
  }
  
  else out

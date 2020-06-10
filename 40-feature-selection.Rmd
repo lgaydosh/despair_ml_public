@@ -10,8 +10,7 @@ This notebook details the functions required to perform feature selection.  The
 ```{r load libraries}
 library(pacman)
 pacman::p_load(tidyverse, h2o, yardstick,
-               data.table, splitstackshape, #splitstackshape has stratified function
-               boot, rsample, stringi)
+               rsample, stringi)
 ```
 
 

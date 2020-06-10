@@ -7,7 +7,8 @@ The purpose of this document is to explore the results of the models built in th
 
 ```{r load libraries}
 library(pacman)
-pacman::p_load(tidyverse, plotly)
+pacman::p_install(plotly)
+pacman::p_load(tidyverse)
 ```
 
 ## Helper functions
@@ -121,7 +122,7 @@ compare_feature_select <- function(df_joined = joined_results,
     coord_flip()
   
   if(interactive) {
-    ggplotly(out)
+    plotly::ggplotly(out)
   }
   
   else 
