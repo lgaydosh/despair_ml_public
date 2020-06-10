@@ -198,26 +198,24 @@ pairwise_cramers_v <- function(df){
   
   df_factors %>%
     as.list() %>%
-    expand_grid(var1 = ., var2 = ., .name_repair = "minimal") %>% 
+    expand.grid(var1 = ., var2 = .) %>% 
     mutate(cramer_v = map2_dbl(var1, var2, rcompanion::cramerV, bias.correct = TRUE)) %>% 
     as_tibble() %>% 
-    mutate(var1 = pull(expand_grid(names(df_factors), 
-                                   names(df_factors), 
-                                   .name_repair = "minimal")[,1]),
-           var2 = pull(expand_grid(names(df_factors), 
-                                   names(df_factors), 
-                                   .name_repair = "minimal")[,2])) %>% 
+    mutate(var1 = expand.grid(names(df_factors), 
+                                   names(df_factors))[,1],
+           var2 = expand.grid(names(df_factors), 
+                                   names(df_factors))[,2]) %>% 
     dplyr::select(var1, var2, cramer_v)
 }
 
 # Example 1
-# iris2 <- iris %>% 
+# iris2 <- iris %>%
 #   mutate(new1 = as_factor(round(Sepal.Width)),
 #          new2 = as_factor(round(Sepal.Length)),
-#          new3 = as_factor(round(Petal.Length))) %>% 
+#          new3 = as_factor(round(Petal.Length))) %>%
 #   as_tibble()
-
-# iris2 %>% 
+# 
+# iris2 %>%
 #   pairwise_cramers_v()
 ```
 
@@ -246,7 +244,8 @@ plot_cramer_v <- function(df,
   out <-  df_matrix %>%
     ggcorrplot::ggcorrplot(hc.order = FALSE, 
                                        type = "lower",
-                                       legend.title = "Cramer's V Statistic") +
+                                       #legend.title = "Cramer's V Statistic",
+                                       show.legend=FALSE) +
      theme(axis.text.x = element_text(angle = x_axis_angle),
           axis.title = element_blank()) +
     ggtitle(plot_title)
