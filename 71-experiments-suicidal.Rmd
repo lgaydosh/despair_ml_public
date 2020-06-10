@@ -34,7 +34,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, gtools, tidyverse, janitor, naniar, Hmisc, scales, reshape, HH, likert, reshape2,forcats,splitstackshape,rsample, h2o, furrr, rcompanion, ggcorrplot, plotly)
+pacman::p_install(plotly)
+pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
 
 ```
 
@@ -63,7 +64,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ## set outcome variable of interest
 outcome = 'h5mn8' # This is the binary variable representing suicidal ideation at wave 5
 
-wave_data <- load_waves(1:5, filebase='G:')
+wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
 
@@ -76,7 +77,7 @@ suicide_ds <- full_dataset %>%
   add_demographics() %>%
   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase='G:') %>%
+  remove_subjects_not_in_wave1() %>%
   mutate_at(vars(-starts_with("age_")), as_factor) %>%
   drop_na(outcome)
 
@@ -113,12 +114,12 @@ graph_missing(suicide_ds,
               title_size = 15)
 
 # Visualize correlation among first 20 predictors
-# suicide_ds %>% 
-#   select(1:20) %>% 
-#   pairwise_cramers_v() %>% 
-#   plot_cramer_v(x_axis_angle = 90,
-#                 plot_title = "Association among Categorical Variables",
-#                 interactive = TRUE)
+suicide_ds %>%
+  dplyr::select(1:20) %>%
+  pairwise_cramers_v() %>%
+  plot_cramer_v(x_axis_angle = 90,
+                plot_title = "Association among Categorical Variables",
+                interactive = TRUE)
 ```
 
 # Machine learning split of the data
@@ -157,7 +158,7 @@ The RF models are chosen based on a grid search using the following the paramete
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
                   mtries = seq(-1, 20, by=10),
-                  min_rows = seq(10, 40, by=10),
+                  min_rows = seq(20, 60, by=20),
                   balance_classes = c(TRUE, FALSE),
                   stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
@@ -228,7 +229,7 @@ head(boot_rf_perm, 20)
 #### MDI vs Permutation importance
 In this step, we assess the differences generated between the different types of importances.
 ```{r fig.width = 16, fig.height = 14}
-cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -met))
+cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -all_of(met)))
 ```
 As shown, the MDI importance suffers from imbalances due to the number of values associated with a predictor.  Because the wave ages have so many more values than the other factors, this artificially inflates their importance in MDI.  The permutation importance is more intuitive.
 
@@ -317,7 +318,7 @@ Here, we look at the aggregated results of the bootstrapped predictors and compa
 joined_results <- boot_rf_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
-  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.rf, overall_rank.lasso), na.rm=TRUE)) %>%
+  mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
   arrange(mean_rank)
 
 head(joined_results, 20)
@@ -344,7 +345,7 @@ In this step, we build the final model for the random forest.  We use slightly m
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
                   mtries = seq(-1, 30, by=5),
-                  min_rows = seq(5, 40, by=5),
+                  min_rows = seq(5, 60, by=5),
                   balance_classes = c(TRUE, FALSE),
                   stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
@@ -383,6 +384,7 @@ final_rf_perm <- final_rf_perm_plt %>%
 
 head(final_rf_perm, 20)
 ```
+
 ```{r plot rf final permutation, fig.width = 10, fig.height = 12}
 plot_permute_var_imp(final_rf_perm, metric = pr_auc)
 ```
@@ -393,7 +395,7 @@ This section investigates the differences in the bootstrap results vs the featur
 rf_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
-  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.final, overall_rank.bootstrap), na.rm=TRUE)) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
 head(rf_joined_results, 20)
@@ -455,7 +457,7 @@ This section investigates the differences in the bootstrap results vs the featur
 lasso_joined_results <- final_lasso_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
-  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.final, overall_rank.bootstrap), na.rm=TRUE)) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
 head(lasso_joined_results, 20)
@@ -480,7 +482,7 @@ Here, we compare the features generated by the permutation importance between th
 rf_lasso_final_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(final_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
-  mutate(mean_rank = rowMeans(dplyr::select(., overall_rank.rf, overall_rank.lasso), na.rm=TRUE)) %>%
+  mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
   arrange(mean_rank)
 
 head(rf_lasso_final_joined_results, 20)
@@ -505,7 +507,7 @@ With the final models generated, we're now able to compare their performance met
 valid_perf <- get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
   mutate(model = c('rf', 'lasso'))
 
-testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]])) %>%
+testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]]), out=outcome) %>%
   mutate(model = c('rf', 'lasso'))
 ```
 
@@ -523,12 +525,12 @@ print(testing_perf)
 
 The following plots show a comparison between the performance of the models on the validation and test sets.  Again, we don't choose the model based on the test set, but curiosity dictates that we view this performance.
 
-```{r fig.width = 6, fig.height = 8}
+```{r fig.width = 10, fig.height = 6}
 # Show plots side by side
 metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv', 'pr_auc', 'roc_auc')
-valid_plt <- plot_metric_set(dplyr::select(valid_perf, metrics_of_interest), plot_title = "Model comparison for validation set")
-test_plt <- plot_metric_set(dplyr::select(testing_perf, metrics_of_interest), plot_title = "Model comparison for testing set")
-gridExtra::grid.arrange(valid_plt, test_plt)
+valid_plt <- plot_metric_set(dplyr::select(valid_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for validation set")
+test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for testing set")
+gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
 ```
 
 # Outcome variable discussion
