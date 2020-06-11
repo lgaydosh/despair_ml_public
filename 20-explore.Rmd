@@ -15,7 +15,7 @@ Exploratory data analysis (an approach to analyzing data sets to summarize their
 if (!require("pacman"))
   install.packages("pacman")
 
-pacman::p_install(plotly)
+pacman::p_install(c(plotly, dotwhisker, broom), force = FALSE)
 pacman::p_load(tidyverse, DataExplorer)
 ```
 
@@ -270,6 +270,46 @@ plot_cramer_v <- function(df,
 #   plot_cramer_v(interactive = TRUE)
 
 ```
+
+```{r explore affect of joins with logistic regression}
+explore_dropped <- function(working_df, 
+                            wave_1_data = wave_data[[1]],
+                            plot_title = "Affect of Variables on Predicting Being Dropped",
+                            color_dot = "yellow",
+                            color_line = "light blue",
+                            zero_line_color = "light green",
+                            size_dot = 2, 
+                            size_line = 1){
+  # working_df: Data frame to use for further analysis
+  # wave_1_data: Data from wave 1
+  # return: dot plot for overlapping variables and their affects on predicting whether an aid is missing
+  
+  # get dropped aids
+  aids_dropped <- setdiff(wave_1_data$aid, working_df$aid)
+  
+  # get variables in both groups
+  vars_in_both_waves <- intersect(names(wave_1_data), names(working_df))
+  
+  # get dataset for regression
+  regress_dat <- wave_1_data %>% 
+    dplyr::select(all_of(vars_in_both_waves)) %>% 
+    mutate(dropped = aid %in% all_of(aids_dropped)) %>% 
+    dplyr::select(-aid)
+  
+  # perform regression and plot it
+  glm(dropped ~ ., data = regress_dat) %>% 
+    broom::tidy() %>% 
+    dotwhisker::dw_plot(dot_args = list(color = color_dot, size = size_dot),
+                        whisker_args = list(color = color_line, size = size_line)) +
+    ggtitle(plot_title) +
+    geom_vline(xintercept = 0, color = zero_line_color) +
+    theme_dark() 
+}
+
+# Example
+# suicide_ds %>% explore_dropped()
+```
+
 
 ```{r explore aids not joined}
 
