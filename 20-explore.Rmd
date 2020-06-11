@@ -15,7 +15,7 @@ Exploratory data analysis (an approach to analyzing data sets to summarize their
 if (!require("pacman"))
   install.packages("pacman")
 
-pacman::p_install(plotly, dotwhisker, broom, force = FALSE)
+pacman::p_install(plotly, dotwhisker, broom)
 pacman::p_load(tidyverse, DataExplorer)
 ```
 
