@@ -15,7 +15,7 @@ Exploratory data analysis (an approach to analyzing data sets to summarize their
 if (!require("pacman"))
   install.packages("pacman")
 
-pacman::p_install(plotly, dotwhisker, force = FALSE)
+pacman::p_install(plotly, dotwhisker, broom, force = FALSE)
 pacman::p_load(tidyverse, DataExplorer)
 ```
 
@@ -292,9 +292,9 @@ explore_dropped <- function(working_df,
   
   # get dataset for regression
   regress_dat <- wave_1_data %>% 
-    select(all_of(vars_in_both_waves)) %>% 
+    dplyr::select(all_of(vars_in_both_waves)) %>% 
     mutate(dropped = aid %in% all_of(aids_dropped)) %>% 
-    select(-aid)
+    dplyr::select(-aid)
   
   # perform regression and plot it
   glm(dropped ~ ., data = regress_dat) %>% 
