@@ -257,6 +257,9 @@ model_feature_selection <- function(model_type,
   # outcome : name of the outcome variable
   # top_n : top n important variables to be extracted from the models generated
   
+  # set seed for bootstraps synchronization
+  set.seed(seed)
+  
   # Create bootstraps
   straps <- training_frame %>% bootstraps(times = n, strata = outcome)
   
