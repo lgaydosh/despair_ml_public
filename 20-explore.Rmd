@@ -473,3 +473,65 @@ count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
 }
 ```
 
+
+
+
+```{r explore outcome}
+# This function takes a look at the outcome of interest and returns visualization that view the outcome
+explore_outcome <- function(df, column, binary = TRUE){
+  # df : working dataframe
+  # column : output column name  in string format
+  # binary : to indicate if the column is binary or not
+  
+  if (binary == TRUE){
+    df %>% 
+      dplyr::select(column) %>% 
+      group_by_(column) %>% 
+      summarize(count = n()) %>% 
+      ungroup()  %>% 
+        ggplot(aes_string(x = column, y = "count"))+
+        geom_col() +
+        theme_minimal() +
+        labs(title="Count of Outcome of Interest",
+        x = column, y = paste0("Count of ", column))
+  }
+  
+  else {
+    require(gridExtra)
+    plot1 <- df %>% 
+      dplyr::select(column) %>% 
+      group_by_(column) %>% 
+      summarize(count = n()) %>% 
+      ungroup()  %>% 
+        ggplot(aes_string(x = column, y = "count"))+
+        geom_col() +
+        theme_minimal() +
+        labs(title="Count of Outcome of Interest",
+        x = column, y = paste0("Count of ", column))
+      
+    plot2 <- df %>% 
+      binarize_var(column) %>% 
+      dplyr::select(column) %>% 
+      group_by_(column) %>% 
+      summarize(count = n()) %>% 
+      ungroup()  %>% 
+        ggplot(aes_string(x = column, y = "count"))+
+        geom_col() +
+        theme_minimal() +
+        labs(title="Count of Outcome of Interest (Binarized)",
+        x = column, y = paste0("Count of ", column))
+    
+    
+    grid.arrange(plot1, plot2, ncol=2)
+    
+  }
+}
+
+
+# Example
+# x <- floor(runif(50, min=0, max=3)) %>% as.data.frame() 
+# colnames(x) <- "Species"
+# x %>% explore_outcome("Species", binary = F)
+
+```
+
