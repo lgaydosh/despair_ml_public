@@ -492,7 +492,11 @@ explore_outcome <- function(df, column, binary = TRUE){
         ggplot(aes_string(x = column, y = "count"))+
         geom_col() +
         theme_minimal() +
+<<<<<<< HEAD
         labs(title="Count of Outcome",
+=======
+        labs(title="Count of Outcome of Interest",
+>>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
         x = column, y = paste0("Count of ", column))
   }
   
@@ -506,7 +510,11 @@ explore_outcome <- function(df, column, binary = TRUE){
         ggplot(aes_string(x = column, y = "count"))+
         geom_col() +
         theme_minimal() +
+<<<<<<< HEAD
         labs(title="Count of Outcome",
+=======
+        labs(title="Count of Outcome of Interest",
+>>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
         x = column, y = paste0("Count of ", column))
       
     plot2 <- df %>% 
@@ -518,7 +526,11 @@ explore_outcome <- function(df, column, binary = TRUE){
         ggplot(aes_string(x = column, y = "count"))+
         geom_col() +
         theme_minimal() +
+<<<<<<< HEAD
         labs(title="Count of Outcome (Binarized)",
+=======
+        labs(title="Count of Outcome of Interest (Binarized)",
+>>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
         x = column, y = paste0("Count of ", column))
     
     
