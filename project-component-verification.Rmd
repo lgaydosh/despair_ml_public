@@ -44,7 +44,7 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 # use the features and ids that you want to select out what you want
 working_ds <- full_dataset %>%
                 filter(aid %in% inner_aids) %>%
-                select(aid, predictor_list, outcome)
+                select(aid, all_of(predictor_list), outcome)
 
 ```
 
