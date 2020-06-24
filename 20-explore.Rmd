@@ -40,26 +40,26 @@ graph_missing <- function(df,
   if(only_missing == TRUE) {
     df <- df %>% select_if(~sum(is.na(.)) > 0)
     
-     plot_missing(data = df,
-               title = title,
-               geom_label_args = list(label.size = box_line_size, 
-                                      label.r = unit(0, "lines"),
-                                      label.padding = unit(label_size, "lines")),
-               theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
-                                   axis.text.x = element_text(size = x_axis_size),
-                                   axis.text.y = element_text(size = y_axis_size)))
+    plot_missing(data = df,
+                 title = title,
+                 geom_label_args = list(label.size = box_line_size, 
+                                        label.r = unit(0, "lines"),
+                                        label.padding = unit(label_size, "lines")),
+                 theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
+                                     axis.text.x = element_text(size = x_axis_size),
+                                     axis.text.y = element_text(size = y_axis_size)))
     
   }
   
   else {
-     plot_missing(data = df,
-               title = title,
-               geom_label_args = list(label.size = box_line_size, 
-                                      label.r = unit(0, "lines"),
-                                      label.padding = unit(label_size, "lines")),
-               theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
-                                   axis.text.x = element_text(size = x_axis_size),
-                                   axis.text.y = element_text(size = y_axis_size)))
+    plot_missing(data = df,
+                 title = title,
+                 geom_label_args = list(label.size = box_line_size, 
+                                        label.r = unit(0, "lines"),
+                                        label.padding = unit(label_size, "lines")),
+                 theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
+                                     axis.text.x = element_text(size = x_axis_size),
+                                     axis.text.y = element_text(size = y_axis_size)))
   }
   
 }
@@ -107,8 +107,8 @@ graph_scatterplot <- function(df,
                      nrow = num_rows,
                      ncol = num_cols,
                      theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
-                               axis.text.x = element_text(size = x_axis_size),
-                               axis.text.y = element_text(size = y_axis_size)))
+                                         axis.text.x = element_text(size = x_axis_size),
+                                         axis.text.y = element_text(size = y_axis_size)))
 }
 # Example
 # mtcars %>% 
@@ -118,13 +118,13 @@ graph_scatterplot <- function(df,
 
 ```{r generic frequency discrete}
 graph_bar_discrete <- function(df,
-                      plot_title = "Distributions of Discrete Variables",
-                      max_categories = 50,
-                      num_rows = 3,
-                      num_cols = 3,
-                      x_axis_size = 12,
-                      y_axis_size = 12,
-                      title_size = 15){
+                               plot_title = "Distributions of Discrete Variables",
+                               max_categories = 50,
+                               num_rows = 3,
+                               num_cols = 3,
+                               x_axis_size = 12,
+                               y_axis_size = 12,
+                               title_size = 15){
   # df: data frame to plot missingness
   # plot_title: Title of plot
   # num_bins: number of bins for the graph
@@ -178,8 +178,8 @@ graph_boxplot <- function(df,
                  nrow = num_rows,
                  ncol = num_cols,
                  theme_config = list(plot.title = element_text(hjust = 0.5, size = title_size),
-                               axis.text.x = element_text(size = x_axis_size),
-                               axis.text.y = element_text(size = y_axis_size)))
+                                     axis.text.x = element_text(size = x_axis_size),
+                                     axis.text.y = element_text(size = y_axis_size)))
 }
 
 # Example 1
@@ -202,9 +202,9 @@ pairwise_cramers_v <- function(df){
     mutate(cramer_v = map2_dbl(var1, var2, rcompanion::cramerV, bias.correct = TRUE)) %>% 
     as_tibble() %>% 
     mutate(var1 = expand.grid(names(df_factors), 
-                                   names(df_factors))[,1],
+                              names(df_factors))[,1],
            var2 = expand.grid(names(df_factors), 
-                                   names(df_factors))[,2]) %>% 
+                              names(df_factors))[,2]) %>% 
     dplyr::select(var1, var2, cramer_v)
 }
 
@@ -231,30 +231,30 @@ plot_cramer_v <- function(df,
   # return: heatmap filled by cramers_v value
   
   # Create n x n matrix for variables using cramer's v
-   df_wide <-  df %>% 
+  df_wide <-  df %>% 
     pivot_wider(names_from = var1, values_from = cramer_v)
-    
-   # make it a matrix but drop first column b/c it's the row names, not a column
-   df_matrix <- df_wide %>% dplyr::select(-var2) %>% as.matrix()
-   
-    # Add row names to matrix 
-   dimnames(df_matrix) <- list(df_wide$var2, df_wide$var2)
-   
-   # graph it
+  
+  # make it a matrix but drop first column b/c it's the row names, not a column
+  df_matrix <- df_wide %>% dplyr::select(-var2) %>% as.matrix()
+  
+  # Add row names to matrix 
+  dimnames(df_matrix) <- list(df_wide$var2, df_wide$var2)
+  
+  # graph it
   out <-  df_matrix %>%
     ggcorrplot::ggcorrplot(hc.order = FALSE, 
-                                       type = "lower",
-                                       #legend.title = "Cramer's V Statistic",
-                                       show.legend=FALSE) +
-     theme(axis.text.x = element_text(angle = x_axis_angle),
+                           type = "lower",
+                           #legend.title = "Cramer's V Statistic",
+                           show.legend=FALSE) +
+    theme(axis.text.x = element_text(angle = x_axis_angle),
           axis.title = element_blank()) +
     ggtitle(plot_title)
-
- if(interactive){
-   plotly::ggplotly(out)
- }
- 
- else out
+  
+  if(interactive){
+    plotly::ggplotly(out)
+  }
+  
+  else out
   
 }
 
@@ -378,17 +378,17 @@ plot_anti_join_waves <- function(dropped_sums){
   # dropped_sums: output from any of the anti-join functions above
   
   dropped_sums %>% 
-  pivot_longer(cols = everything(),
-               names_to = "waves",
-               values_to = "total_dropped") %>% 
-  ggplot() +
-  geom_bar(aes(x = reorder(waves, total_dropped), 
-               y = total_dropped), 
-           stat = "identity", fill = "light blue") +
-  ggtitle("Total AIDs Dropped") +
-  xlab("Wave Combos") +
-  ylab("Total Dropped") +
-  theme_dark()
+    pivot_longer(cols = everything(),
+                 names_to = "waves",
+                 values_to = "total_dropped") %>% 
+    ggplot() +
+    geom_bar(aes(x = reorder(waves, total_dropped), 
+                 y = total_dropped), 
+             stat = "identity", fill = "light blue") +
+    ggtitle("Total AIDs Dropped") +
+    xlab("Wave Combos") +
+    ylab("Total Dropped") +
+    theme_dark()
 }
 
 # Two waves
@@ -398,7 +398,7 @@ explore_two_waves <- function(wave_combos){
   # get 2-way anti-joins and total dropped from each one
   dropped_2_waves <- wave_combos$two_waves %>%
     map_dfc(anti_join_2_waves)
-
+  
   # rename the list
   names(dropped_2_waves) <- wave_combos$two_waves %>% map_df(str_c, collapse = ",")
   
@@ -412,7 +412,7 @@ explore_two_waves <- function(wave_combos){
 explore_three_waves <- function(wave_combos){
   # wave_combos: unique wave combinations as list
   
-    # Get 3-way wave combinations and total dropped
+  # Get 3-way wave combinations and total dropped
   dropped_3_waves <- wave_combos$three_waves %>%
     map_dfc(anti_join_3_waves)
   
@@ -429,7 +429,7 @@ explore_three_waves <- function(wave_combos){
 explore_four_waves <- function(wave_combos){
   # wave_combos: unique wave combinations as list 
   
-    # Get 4-way wave combinations and total dropped
+  # Get 4-way wave combinations and total dropped
   dropped_4_waves <- wave_combos$four_waves %>% 
     map_dfc(anti_join_4_waves)
   
@@ -440,15 +440,15 @@ explore_four_waves <- function(wave_combos){
   four_way_plot <- dropped_4_waves %>% plot_anti_join_waves()
   
   return(four_way_plot)
-
+  
 }
 
 # function used
 count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
   # wave_data: wave data list from file 10 data read
   # number_waves_joined: Number of joined waves to explore
-
-    # Get all wave combinations for sizes 1 - 4 without repeats
+  
+  # Get all wave combinations for sizes 1 - 4 without repeats
   wave_combos <- 2:4 %>% 
     map(gtools::combinations, n = 5, v = 1:5, repeats.allowed = FALSE) %>%
     map(t) %>% 
@@ -456,7 +456,7 @@ count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
   
   # Name the list appropriately
   names(wave_combos) <- c("two_waves", "three_waves", "four_waves")
-
+  
   if(number_waves_joined == 2){
     out <- explore_two_waves(wave_combos = wave_combos)
   }
@@ -469,19 +469,41 @@ count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
     out <- explore_four_waves(wave_combos = wave_combos)
   
   return(out)
-
+  
 }
 ```
 
 
-
-
 ```{r explore outcome}
-# This function takes a look at the outcome of interest and returns visualization that view the outcome
-explore_outcome <- function(df, column, binary = TRUE){
+
+# this function takes a look at the outcomes of interest and returns a table 
+unique_outcomes <- function(df, outcome, is_factor = F){
+  # df : working dataframe
+  # outcome : outcome to make predictions on - sent in as a string
+  df <- df %>% 
+    dplyr::select(outcome) %>% 
+    table(useNA="always") %>% 
+    data.frame() %>% 
+    rename("Outcome" = ".") %>% 
+    mutate(Type = if_else(is_factor == T, levels(Outcome) %>% typeof(), Outcome %>% typeof()))
+  
+  return(df)
+}
+
+# Example 
+# require(tidyverse)
+# x <- iris %>% unique_outcomes("Species", is_factor = T)
+# x
+
+
+
+# This function takes a look at the outcome of interest and returns visualization for the counts of different levels within the outcome
+explore_outcome <- function(df, column, binary = TRUE, legit_skip = FALSE, skip_var = 99){
   # df : working dataframe
   # column : output column name  in string format
   # binary : to indicate if the column is binary or not
+  # legit_skip : does the outcome have a level that represents a legit skip
+  # skip_var : name of the variable
   
   if (binary == TRUE){
     df %>% 
@@ -489,61 +511,80 @@ explore_outcome <- function(df, column, binary = TRUE){
       group_by_(column) %>% 
       summarize(count = n()) %>% 
       ungroup()  %>% 
-        ggplot(aes_string(x = column, y = "count"))+
-        geom_col() +
-        theme_minimal() +
-<<<<<<< HEAD
-        labs(title="Count of Outcome",
-=======
-        labs(title="Count of Outcome of Interest",
->>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
-        x = column, y = paste0("Count of ", column))
+      ggplot(aes_string(x = column, y = "count"))+
+      geom_col() +
+      theme_minimal() +
+      labs(title="Count of Outcome",
+           x = column, y = paste0("Count of ", column))
   }
   
   else {
-    require(gridExtra)
-    plot1 <- df %>% 
-      dplyr::select(column) %>% 
-      group_by_(column) %>% 
-      summarize(count = n()) %>% 
-      ungroup()  %>% 
+    if(legit_skip == FALSE){
+      require(gridExtra)
+      plot1 <- df %>% 
+        dplyr::select(column) %>% 
+        group_by_(column) %>% 
+        summarize(count = n()) %>% 
+        ungroup()  %>% 
         ggplot(aes_string(x = column, y = "count"))+
         geom_col() +
         theme_minimal() +
-<<<<<<< HEAD
         labs(title="Count of Outcome",
-=======
-        labs(title="Count of Outcome of Interest",
->>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
-        x = column, y = paste0("Count of ", column))
+             x = column, y = paste0("Count of ", column))
       
-    plot2 <- df %>% 
-      binarize_var(column) %>% 
-      dplyr::select(column) %>% 
-      group_by_(column) %>% 
-      summarize(count = n()) %>% 
-      ungroup()  %>% 
+      plot2 <- df %>% 
+        binarize_var(column) %>% 
+        dplyr::select(column) %>% 
+        group_by_(column) %>% 
+        summarize(count = n()) %>% 
+        ungroup()  %>% 
         ggplot(aes_string(x = column, y = "count"))+
         geom_col() +
         theme_minimal() +
-<<<<<<< HEAD
-        labs(title="Count of Outcome (Binarized)",
-=======
-        labs(title="Count of Outcome of Interest (Binarized)",
->>>>>>> c3c3bb7f550a114bbd4861b3099b80347bd0f62a
-        x = column, y = paste0("Count of ", column))
+        labs(title="Count of Outcome(Binarized)",
+             x = column, y = paste0("Count of ", column))
+      
+      
+      grid.arrange(plot1, plot2, ncol=2)
+    }
     
-    
-    grid.arrange(plot1, plot2, ncol=2)
-    
+    else{
+      require(gridExtra)
+      plot1 <- df %>% 
+        dplyr::select(column) %>% 
+        group_by_(column) %>% 
+        summarize(count = n()) %>% 
+        ungroup()  %>% 
+        ggplot(aes_string(x = column, y = "count"))+
+        geom_col() +
+        theme_minimal() +
+        labs(title="Count of Outcome",
+             x = column, y = paste0("Count of ", column))
+      
+      plot2 <- df %>% 
+        binarize_var(column, legit_skip = legit_skip, skip_var = skip_var) %>% 
+        dplyr::select(column) %>% 
+        group_by_(column) %>% 
+        summarize(count = n()) %>% 
+        ungroup()  %>% 
+        ggplot(aes_string(x = column, y = "count"))+
+        geom_col() +
+        theme_minimal() +
+        labs(title="Count of Outcome(Binarized)",
+             x = column, y = paste0("Count of ", column))
+      
+      
+      grid.arrange(plot1, plot2, ncol=2)
+    }
   }
 }
 
 
 # Example
-# x <- floor(runif(50, min=0, max=3)) %>% as.data.frame() 
-# colnames(x) <- "Species"
-# x %>% explore_outcome("Species", binary = F)
+x <- floor(runif(50, min=0, max=3)) %>% as.data.frame()
+colnames(x) <- "Species"
+x %>% explore_outcome("Species", binary = F, legit_skip = T, skip_var = 2)
 
 ```
+
 
