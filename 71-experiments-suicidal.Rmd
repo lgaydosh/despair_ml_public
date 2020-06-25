@@ -79,6 +79,7 @@ suicide_ds <- full_dataset %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
   mutate_at(vars(-starts_with("age_")), as_factor) %>%
+  mutate_at(vars(c(-starts_with("age_"),outcome)), fct_explicit_na) %>% 
   drop_na(outcome)
 
 # Report about the characteristics of the subjects left out of the join
