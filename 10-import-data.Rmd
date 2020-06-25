@@ -342,13 +342,13 @@ add_demographics <- function(df){
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
   # race info comes from wave 5
   df %>% 
-    dplyr::mutate(birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m)) %>% 
-    dplyr::mutate(age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12) ) %>% 
-    dplyr::mutate(age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12)) %>% 
-    dplyr::mutate(age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12)) %>% 
-    dplyr::mutate(age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
+    dplyr::mutate(
+      birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), 
+      age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12), 
+      age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12),
+      age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12),
+      age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
     dplyr::select(-one_of(c('birth_in_months'))) %>%
-    
     dplyr::mutate(one_race5 = case_when( #one race: first analyze those with multiple races
       (h5od8==1) ~ 1, #1 = white
       (h5od8==2) ~ 2, #2 = black
