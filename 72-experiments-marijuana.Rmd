@@ -36,7 +36,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_install(plotly)
+p_install(plotly, force = FALSE)
 pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
 
 ```
@@ -66,9 +66,21 @@ outcome = 'h5to21'
 wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
+```{r}
+full_dataset %>% 
+  unique_outcomes("h5to21", is_factor = F)
+```
+
+```{r}
+full_dataset %>% 
+  binarize_var("h5to21", legit_skip = T, skip_var = 97) %>% 
+  unique_outcomes("h5to21", is_factor = F)
+```
+
+
 ```{r warning=FALSE, message=FALSE}
 full_dataset %>% 
-  explore_outcome("h5to21", binary = F)
+  explore_outcome("h5to21", binary = F, legit_skip = T, skip_var = 97)
 ```
 
 
@@ -83,9 +95,24 @@ marijuana_ds <- full_dataset %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
   mutate_at(vars(-starts_with("age_")), as_factor) %>%
-  binarize_var(outcome) %>% 
-  drop_na(outcome)
+  mutate_at(vars(c(-starts_with("age_"),outcome)), fct_explicit_na) %>% 
+  binarize_var("h5to21", legit_skip = T, skip_var = 97)  # legitimate skipped variable = 97
+```
 
+```{r}
+marijuana_ds %>% 
+  unique_outcomes("h5to21", is_factor = F)
+```
+There are 11 NAs introduced into the outcome after filtering the aids to only subjects that were in all 5 waves. 
+
+```{r}
+marijuana_ds <- marijuana_ds %>% drop_na(outcome)
+
+marijuana_ds %>% 
+  unique_outcomes("h5to21", is_factor = F)
+```
+
+```{r}
 #Report about the characteristics of the subjects left out of the join
 marijuana_ds %>% explore_dropped()
 
@@ -116,8 +143,14 @@ marijuana_ds %>%
 
 ```{r}
 # Visualize missingness
-graph_missing(marijuana_ds, 
-              only_missing = TRUE,
+full_dataset %>%
+  add_demographics() %>%
+  dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
+  filter(aid %in% inner_aids) %>%
+  remove_subjects_not_in_wave1() %>%
+  mutate_at(vars(-starts_with("age_")), as_factor) %>%
+  binarize_var("h5to21", legit_skip = T, skip_var = 97) %>% 
+  graph_missing(only_missing = TRUE,
               title = "Percent Missing",
               box_line_size = .5,
               label_size = .5,
@@ -127,17 +160,6 @@ graph_missing(marijuana_ds,
 ```
 
 ```{r}
-# Visualize correlation among predictors
-# marijuana_ds %>% 
-#   graph_correlation(var_type = "all",
-#                     max_categories = 3,
-#                     plot_title = "Heatmap of all variables",
-#                     x_axis_size = 12,
-#                     x_angle = 90,
-#                     y_axis_size = 12,
-#                     title_size = 15)
-
-
 marijuana_ds %>%
   dplyr::select(1:20) %>%
   pairwise_cramers_v() %>%
