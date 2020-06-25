@@ -476,27 +476,6 @@ count_not_joined <- function(wave_data = wave_data, number_waves_joined = 4){
 
 ```{r explore outcome}
 
-# this function takes a look at the outcomes of interest and returns a table 
-unique_outcomes <- function(df, outcome, is_factor = F){
-  # df : working dataframe
-  # outcome : outcome to make predictions on - sent in as a string
-  df <- df %>% 
-    dplyr::select(outcome) %>% 
-    table(useNA="always") %>% 
-    data.frame() %>% 
-    rename("Outcome" = ".") %>% 
-    mutate(Type = if_else(is_factor == T, levels(Outcome) %>% typeof(), Outcome %>% typeof()))
-  
-  return(df)
-}
-
-# Example 
-# require(tidyverse)
-# x <- iris %>% unique_outcomes("Species", is_factor = T)
-# x
-
-
-
 # This function takes a look at the outcome of interest and returns visualization for the counts of different levels within the outcome
 explore_outcome <- function(df, column, binary = TRUE, legit_skip = FALSE, skip_var = 99){
   # df : working dataframe
@@ -581,9 +560,9 @@ explore_outcome <- function(df, column, binary = TRUE, legit_skip = FALSE, skip_
 
 
 # Example
-x <- floor(runif(50, min=0, max=3)) %>% as.data.frame()
-colnames(x) <- "Species"
-x %>% explore_outcome("Species", binary = F, legit_skip = T, skip_var = 2)
+# x <- floor(runif(50, min=0, max=3)) %>% as.data.frame()
+# colnames(x) <- "Species"
+# x %>% explore_outcome("Species", binary = F, legit_skip = T, skip_var = 2)
 
 ```
 
