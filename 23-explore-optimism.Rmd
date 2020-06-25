@@ -216,7 +216,7 @@ Additional questions possible to answer in iteration: \
 
 # replace all missing values with 99 for the sake of exploring correlation
 cor_dat <- final_data %>% 
-  select(missing_vars) %>% 
+  select(all_of(missing_vars)) %>% 
   mutate_all(~replace_na(., 99)) %>% 
   cor(method = "kendall")
 
