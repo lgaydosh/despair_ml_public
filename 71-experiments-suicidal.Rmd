@@ -78,7 +78,7 @@ suicide_ds <- full_dataset %>%
   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
-  mutate_at(vars(-starts_with("age_")), as_factor) %>%
+  mutate_at(vars(-starts_with("age_")), as.factor) %>%
   drop_na(outcome)
 
 # Report about the characteristics of the subjects left out of the join
