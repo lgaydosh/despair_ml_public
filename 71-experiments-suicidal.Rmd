@@ -68,6 +68,11 @@ wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
 
+```{r}
+full_dataset %>% explore_outcome("h5mn8")
+```
+
+
 ```{r, warning=FALSE,message=FALSE}
 ## get the aids that you want
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))

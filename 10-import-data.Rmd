@@ -342,26 +342,26 @@ add_demographics <- function(df){
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
   # race info comes from wave 5
   df %>% 
-    mutate(birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m)) %>% 
-    mutate(age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12) ) %>% 
-    mutate(age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12)) %>% 
-    mutate(age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12)) %>% 
-    mutate(age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
+    dplyr::mutate(
+      birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), 
+      age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12), 
+      age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12),
+      age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12),
+      age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
     dplyr::select(-one_of(c('birth_in_months'))) %>%
-    
-    mutate(one_race5 = case_when( #one race: first analyze those with multiple races
-                        (h5od8==1) ~ 1, #1 = white
-                        (h5od8==2) ~ 2, #2 = black
-                        (h5od8>=3)&&(h5od8<=7) ~ 3, #3= hispanic
-                        (h5od8>=9)&&(h5od8<=15) ~ 4, #4 = asian
-                        (h5od8>=16)&&(h5od8<=22) ~ 5, #5 = other
-                        #then analyze only 1 race response
-                        (h5od4a==1) ~ 1, #1 = white
-                        (h5od4b==1) ~ 2, #2 = black
-                        (h5od4c==1) ~ 3, #3= hispanic
-                        (h5od4d==1) ~ 4, #4 = asian
-                        ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5)) #other
-                        #otherwise NA default
+    dplyr::mutate(one_race5 = case_when( #one race: first analyze those with multiple races
+      (h5od8==1) ~ 1, #1 = white
+      (h5od8==2) ~ 2, #2 = black
+      (h5od8>=3)&&(h5od8<=7) ~ 3, #3= hispanic
+      (h5od8>=9)&&(h5od8<=15) ~ 4, #4 = asian
+      (h5od8>=16)&&(h5od8<=22) ~ 5, #5 = other
+      #then analyze only 1 race response
+      (h5od4a==1) ~ 1, #1 = white
+      (h5od4b==1) ~ 2, #2 = black
+      (h5od4c==1) ~ 3, #3= hispanic
+      (h5od4d==1) ~ 4, #4 = asian
+      ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5)) #other
+  #otherwise NA default
 }
 ```
 
@@ -378,13 +378,13 @@ remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server
   
   #Create filepath
   excl_fname = str_c(filebase, file_end)
-
+  
   #Get the total number of subjects for usage later
   n_subjs <- nrow(df)
   
   #Get bad aids fom file
   excl_aids <- read_csv(excl_fname, col_types=cols(col_character()))
-
+  
   #Remove bad aids from dataset
   filtered_ds <- df %>%
     filter( !(aid %in% pull(excl_aids)) )
@@ -404,9 +404,9 @@ add_pres_drug <- function(df){
   # return : new data frame with additional variable indicating prescription drug use
   df %>% 
     mutate(p_drug = case_when(
-                    ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
-                    #TRUE ~ 0)
-                    ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 0)) ~ 0)
+      ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
+      #TRUE ~ 0)
+      ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 0)) ~ 0)
     )
 }
 add_ill_drug <- function(df){
@@ -414,8 +414,8 @@ add_ill_drug <- function(df){
   # return : new data frame with additional variable indicating illegal drug use
   df %>% 
     mutate(i_drug = case_when(
-                    ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
-                    ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
+      ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
+      ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
     )
 }
 ```
@@ -429,21 +429,49 @@ binary_helper <- function(x){
   if_else(x >0, 1, 0)
 }
 
-binarize_var <- function(df, variable){
+# function to binarize the outcome 
+binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
+  # df : working dataset
+  # variable : outcome variable to be binarized
+  # legit_skip : boolean if there is a legitimate skip variable
+  # skip : variable or variables (sent in as a vector) to be skipped
   
-  df %>% 
-    mutate_at(vars(matches(variable)), as.character) %>% 
-    mutate_at(vars(matches(variable)), as.numeric) %>% 
-    mutate_at(vars(matches(variable)), binary_helper) %>% 
-    mutate_at(vars(matches(variable)), as.character) %>% 
-    mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
+  tmp <- c()
+  tmp
+  skip_var<- append(tmp, skip_var)
+  
+  if(legit_skip == F){
+    df %>% 
+      mutate_at(vars(matches(variable)), as.character) %>% 
+      mutate_at(vars(matches(variable)), as.numeric) %>% 
+      mutate_at(vars(matches(variable)), binary_helper) %>% 
+      mutate_at(vars(matches(variable)), as.character) %>% 
+      mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
+  }
+  
+  else{
+    df %>% 
+      mutate_at(vars(matches(variable)), as.character) %>% 
+      mutate_at(vars(matches(variable)), as.numeric) %>%
+      mutate_at(vars(matches(variable)), funs(case_when(. == 0 ~ 0,
+                                                        . %in% skip_var ~ 0,
+                                                        !(. %in% skip_var) & (. > 0) ~ 1))) %>% 
+      mutate_at(vars(matches(variable)), as.character) %>% 
+      mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
+  }
+  
 }
 
 
 # Example:
-# working_ds
-# working_ds <- working_ds %>% binarize_var('times_used_x')
-
+# iris %>%
+#   mutate(Petal.Width = floor(Petal.Width)) %>% 
+#   unique_outcomes("Petal.Width")
+# 
+# iris %>%
+#   mutate(Petal.Width = floor(Petal.Width)) %>%
+#   binarize_var(variable = 'Petal.Width', legit_skip = T, skip_var = 2) %>% 
+#   unique_outcomes("Petal.Width")
 ```
 
 
