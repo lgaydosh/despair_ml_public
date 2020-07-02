@@ -475,6 +475,91 @@ binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
 ```
 
 
+## Recode Miss Variables
+Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded 10. 
+```{r}
+recode_missing_factors<-function(df, na_levels){
+  # function to replace skip levels in factor variables with "10"
+  # df: dataframe of wave data
+  # na_levels: read data from na_levels.csv file
+  vars_with_miss <- intersect(na_levels
+                              %>% filter(type == "factor")
+                              %>% select(variable) 
+                              %>% unique() 
+                              %>% pull(variable), names(df))
+  
+  for (i in 1:length(vars_with_miss)){
+    
+    mlevels <- na_levels %>% 
+      filter(variable == vars_with_miss[i]) %>% 
+      pull(na_level) %>% 
+      as.character()
+    
+    df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
+    
+    df[[vars_with_miss[i]]]<-fct_collapse(df[[vars_with_miss[i]]],
+                                          "10" = mlevels)
+  }
+  return(df)
+}
+
+#Example
+# #csv containing NA descriptions
+# na_csv <- read_csv('na_levels.csv')
+# 
+# #Test tibble
+# test_df <- tibble(
+#   h1fs1 = c(1,1,2,2,3,4,5,6,7,8,9,9,1,1),
+#   h1fs3 = c(2,3,1,2,3,4,6,3,8,2,9,9,1,NA),
+#   h3wgt = c(2,888, 4, 6, 2, NA, 8, 9, 12, 24, 11, 12, 996, 33)
+# )
+# 
+# recode_missing_factors(test_df, na_csv)
+
+```
+
+
+```{r}
+recode_missing_numeric<-function(df, na_levels){
+  # function to replace skip levels in factor variables with NA
+  # df: dataframe of wave data
+  # na_levels: read data from na_levels.csv file
+  vars_with_miss <- intersect(na_levels
+                              %>% filter(type == "numeric")
+                              %>% select(variable) 
+                              %>% unique() 
+                              %>% pull(variable), names(df))
+  
+  for (i in 1:length(vars_with_miss)){
+    
+    mlevels <- na_levels %>% 
+      filter(variable == vars_with_miss[i]) %>% 
+      pull(na_level) 
+    
+    df[,vars_with_miss[i]] <- ifelse(as.vector(pull(df[,vars_with_miss[i]]) %in% mlevels), NA, pull(df[,vars_with_miss[i]]))
+  }
+  
+  return(df)
+}
+
+# Example
+# # read csv file of NA values
+# na_csv <- read_csv('na_levels.csv')
+# 
+# #Test tibble
+# test_df <- tibble(
+#   h1fs1 = c(1,1,2,2,3,4,5,6,7,8,9,9,1,1),
+#   h1fs3 = c(2,3,1,2,3,4,6,3,8,2,9,9,1,NA),
+#   h3wgt = c(2,888, 4, 6, 2, NA, 8, 9, 12, 24, 11, 12, 996, 33)
+# )
+# 
+# recode_missing_numeric(test_df, na_csv)
+
+```
+
+
+
+
 ## Lists of Selected Predictor Variables
 The following are some lists of predictor variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
 
