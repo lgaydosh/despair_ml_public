@@ -475,6 +475,59 @@ binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
 ```
 
 
+## Recode Miss Variables
+Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded 10. 
+```{r}
+# function to replace skip levels in factor variables with "10"
+recode_missing_factors<-function(df, na_levels){
+  vars_with_miss <- intersect(na_levels
+                              %>% filter(type == "factor")
+                              %>% select(variable) 
+                              %>% unique() 
+                              %>% pull(variable), names(df))
+  
+  for (i in 1:length(vars_with_miss)){
+    
+    mlevels <- na_levels %>% 
+      filter(variable == vars_with_miss[i]) %>% 
+      pull(na_level) %>% 
+      as.character()
+    
+    df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
+    
+    df[[vars_with_miss[i]]]<-fct_collapse(df[[vars_with_miss[i]]],
+                                          "10" = mlevels)
+  }
+  return(df)
+}
+
+```
+
+
+```{r}
+# function to replace skip levels in factor variables with NA
+recode_missing_numeric<-function(df, na_levels){
+  vars_with_miss <- intersect(na_levels
+                              %>% filter(type == "numeric")
+                              %>% select(variable) 
+                              %>% unique() 
+                              %>% pull(variable), names(df))
+  
+  for (i in 1:length(vars_with_miss)){
+    
+    mlevels <- na_levels %>% 
+      filter(variable == vars_with_miss[i]) %>% 
+      pull(na_level) 
+    
+    df[,vars_with_miss[i]] <- ifelse(as.vector(pull(df[,vars_with_miss[i]]) %in% mlevels), NA, pull(df[,vars_with_miss[i]]))
+  }
+  
+  return(df)
+}
+
+```
+
+
 ## Lists of Selected Predictor Variables
 The following are some lists of predictor variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
 
