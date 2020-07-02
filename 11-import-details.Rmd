@@ -180,49 +180,7 @@ joined_waves <- join_waves(wave1,wave2,wave3,wave4,wave5, inner = T) %>%
 
 
 # Lists of Relevant Predictor Variables
-These will be later used to create subsets of the data. 
-```{r vector lists of relevant predictor variables}
-# List of all emotional despair measures
-depression_list <- c(
-  "h1fs1","h1fs3","h1fs4","h1fs5","h1fs6","h1fs7","h1fs11","h1fs15","h1fs16","h1fs17",   # Wave 1 ~ 10 vars
-  "h3sp5","h3sp6","h3sp7","h3sp8","h3sp9","h3sp10","h3sp11","h3sp12","h3sp13",           # Wave 3 ~ 9 vars
-  "h4mh18","h4mh19",'h4mh20','h4mh21',"h4mh22","h4mh23","h4mh24","h4mh26","h4mh27",      # Wave 4 ~ 9 vars
-  "h5ss0a","h5ss0b","h5ss0c","h4mh25","h5ss0d", "h5ss0e")                                # Wave 5 ~ 6 vars
-
-diagnosed_depression_list <- c("h4id5h","h5id6g")
-
-# List of all Anxiety Variables - Note only wave 4 is being looked at for Anxiety measures
-anxiety_list <- c("h4pe6","h4pe14","h4pe22","h4pe30")
-diagnosed_anxiety_list <- c("h4id5j","h5id6i")
-
-
-# List of all cognitive despair measures
-optimism_list <- c("h4pe7","h4pe15","h5pe2","h4pe23","h4pe31","h5pe3","h5pe1")
-
-other_cog_despair_list <- c('h4mh3', 'h5mn1', 'h4mh4', 'h5mn2', 'h4mh5', 'h5mn3', 'h4mh6', 'h5mn4', 'h4mh2')
-
-#List of all biological despair measures
-bio_despair_core_list <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f', 'h3hgt_i', 'h4bmi',
-                           'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls', 'h5bmi', 'h5waist', 'h5sbp', 
-                           'h5dbp', 'h5bpcls4', 'h5bpjcls')
-
-bio_despair_other_list <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg')
-
-# List of all Demographic Variable
-demographic_list <- c("one_race5","bio_sex") #removed "race1","mulrace1","race1rul"
-
-demographic_age_list <- c("age_w1", "age_w3", "age_w4", "age_w5")
-
-# Total predictor variable list
-predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depression_list, diagnosed_depression_list, 
-                    other_cog_despair_list, bio_despair_core_list) #bio_despair_other_list #add after w4 biomarker variables avaiable
-
-# Note: Look into importing these later
-#c4var009,
-#c4var010,
-#c4var002
-
-```
+See 10 for the predictor variables.  It is dangerous to keep such lists updated in two places; invariably, someone will update the one, and use the other, unupdated one.
 
 ### Here, we ensure the functionality of the predictor lists; namely that they're all within the dataframe that is created.
 ```{r}
@@ -239,7 +197,7 @@ predictor_list[vars_in_df==FALSE]
 str_c("Number of variables which don't appear to be in dataframe: ", sum(!unlist(vars_in_df)))
 
 ```
-It looks like we have 11 variables which aren't in the Wave 1-5 data somehow.  I looked in the ACE codebook for some of the Wave 4 predictors, but it, too doesn't seem to think they're in our Wave data.
+It looks like we have 11 variables which aren't in the Wave 1-5 data somehow.  I looked in the ACE codebook for some of the Wave 4 predictors, but it, too, doesn't seem to think they're in our Wave data.
 
 
 # Different Tibbles of Interest
