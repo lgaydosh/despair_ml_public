@@ -335,19 +335,23 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
 
 TODO: We need to make some decisions about how demographic data will likely be included in the generated data.  Where are these variables included in the variable lists and how can we most intuitively integrate them into our data loading?
 ```{r}
+
+floor_dec <- function(x, level = 1) round(x - 5*10(-level-1), level)
+
 # This function will be used to add age and race demographic into the data
 add_demographics <- function(df){
   # df : joined waves input
   # return : new data frame with race and age information at each wave. 
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
   # race info comes from wave 5
+  # if h1giy == 96, then age is marked as NA ~ 17 people refused providing their ages
   df %>% 
     dplyr::mutate(
-      birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), 
-      age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12), 
-      age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12),
-      age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12),
-      age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
+      birth_in_months = ifelse(h1gi1y != 96, (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), NA), 
+      age_w1 = floor_dec((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12, 2), 
+      age_w3 = floor_dec((((iyear3*12)+imonth3)-birth_in_months)/12, 2),
+      age_w4 = floor_dec((((iyear4*12)+imonth4)-birth_in_months)/12, 2),
+      age_w5 = floor_dec((((iyear5*12)+imonth5)-birth_in_months)/12, 2)) %>% 
     dplyr::select(-one_of(c('birth_in_months'))) %>%
     dplyr::mutate(one_race5 = case_when( #one race: first analyze those with multiple races
       (h5od8==1) ~ 1, #1 = white
@@ -364,6 +368,7 @@ add_demographics <- function(df){
   #otherwise NA default
 }
 ```
+
 
 The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.  Details of this function in file `project-component-verification.Rmd`
 
