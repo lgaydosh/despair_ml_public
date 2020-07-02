@@ -160,14 +160,14 @@ add_ill_drug <- function(df){
                     ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
     )
 }
-```
+
 
 # Example of usage
 # Tibble for first outcome with all of its predictors
 # suicide_df <- joined_waves %>%
 #   get_outcomes_df(outcome = "h5mn8", 
 #                   predictors = setdiff(predictor_list, "aid"))
-
+```
 
 
 
@@ -223,6 +223,23 @@ predictor_list <- c(anxiety_list, diagnosed_anxiety_list, optimism_list, depress
 #c4var002
 
 ```
+
+### Here, we ensure the functionality of the predictor lists; namely that they're all within the dataframe that is created.
+```{r}
+wave_data <- load_waves(1:5, filebase = 'G:')
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+```
+
+```{r}
+vars_in_df <- predictor_list %>%
+  map(~var_in_df(df=full_dataset, varname=.))
+
+print("Variables which don't appear to tbe in the joined dataframe ")
+predictor_list[vars_in_df==FALSE]
+str_c("Number of variables which don't appear to be in dataframe: ", sum(!unlist(vars_in_df)))
+
+```
+It looks like we have 11 variables which aren't in the Wave 1-5 data somehow.  I looked in the ACE codebook for some of the Wave 4 predictors, but it, too doesn't seem to think they're in our Wave data.
 
 
 # Different Tibbles of Interest
