@@ -503,7 +503,7 @@ other_cog_despair_list <- c('h4mh3', 'h4mh4', 'h4mh5', 'h4mh6', 'h4mh2',
 cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list)
 
 #List of all biological despair measures
-bio_despair_predictors <- c('h3wgt', 'h3hgt_f', 'h3hgt_i',
+bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi
                             'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
                             'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
 
@@ -526,6 +526,14 @@ predictor_list <- c(emotional_despair_predictors, cognitive_despair_predictors, 
 #c4var010,
 #c4var002
 ```
+
+###Predictor list addendum
+Currently, we're not sure about what files some of the variables are located in.  For now, we're just going to remove those errant variables from the predictor list
+```{r unsure variables}
+unsure_variables <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+predictor_list <- setdiff(predictor_list, unsure_variables)
+```
+
 
 # Lists of Selected Outcome Variables
 The following are some lists of outcome variables, organized by area of interest.  Note that the AIDs have been removed from all of these.

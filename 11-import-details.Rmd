@@ -199,6 +199,8 @@ str_c("Number of variables which don't appear to be in dataframe: ", sum(!unlist
 ```
 It looks like we have 11 variables which aren't in the Wave 1-5 data somehow.  I looked in the ACE codebook for some of the Wave 4 predictors, but it, too, doesn't seem to think they're in our Wave data.
 
+When I run thsi same code on the predictor list with the unsure variables (`unsure_variables`)removed, all of the variables are in the dataframe successfully.
+
 
 # Different Tibbles of Interest
 Using the lists generated in the above chunk to create subsets of data to work with. 
