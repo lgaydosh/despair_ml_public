@@ -558,8 +558,6 @@ recode_missing_numeric<-function(df, na_levels){
 ```
 
 
-
-
 ## Lists of Selected Predictor Variables
 The following are some lists of predictor variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
 
@@ -634,4 +632,134 @@ marijuana_outcome_use30_list <- c("h1to32","h3to110","h4to71","h5to21")
 
 # Total outcome variable list
 outcome_vars_list <- c(suicidal_list, marijuana_outcome_use30_list)
+```
+
+## Biological Despair Variables 
+Some predictors of biological despair need to be loaded separately from different files. Following are the functions to load them
+
+### hba1c
+```{r}
+
+add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt"){
+  require(janitor)
+  glucose <- read_xpt(filepath)
+  glucose <- glucose %>% clean_names() %>% select(aid, hba1c)
+  df <- df %>% inner_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
+  
+  return(df)
+}
+
+# Example
+# df <- df %>% add_wave_4_glucose() 
+```
+
+### crp
+```{r}
+
+add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt" ){
+  require(janitor)
+  crp_df <- read_xpt(filepath)
+  crp_df <- crp_df %>% clean_names() %>% select(aid, crp)
+  df <- df %>% inner_join(crp_df, by = "aid") %>% select(aid, crp, everything())
+  
+  return(df)
+}
+
+# Example
+# df <- df %>% add_wave_4_crp()
+```
+
+### hdl, ldl, tg
+```{r}
+
+add_wave4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
+  require(janitor)
+  lipids <- read_xpt(filepath)
+  lipids <- lipids %>% clean_names() %>% select(aid, hdl, ldl, tg)
+  df <- df %>% inner_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
+  
+  return(df)
+}
+
+# Example
+# df <- df %>%  add_lipids()
+```
+
+### wave 4 biological despair
+```{r}
+
+add_wave_4_bio_despair <- function(df, 
+                                   filepath_glucose = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt",
+                                   filepath_crp = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt",
+                                   filepath_lipids = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt"
+                                   ){
+  df <- df %>% 
+    add_wave_4_glucose(filepath_glucose) %>% 
+    add_wave_4_crp(filepath_crp) %>% 
+    add_wave4_lipids(filepath_lipids)
+    
+    add_lipids()
+  
+  return(df)
+}
+
+# Example
+# df <- df %>% add_wave_4_despair()
+```
+
+
+### h5bmi, h5waist
+```{r}
+add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"){
+  require(janitor)
+  anthro <- read_xpt(filepath) %>% 
+    clean_names() %>% 
+    select(aid, h5bmi, h5waist)
+  
+  df <- df %>% inner_join(anthro, by = "aid") %>% select(aid, h5bmi, h5waist, everything())
+  
+}
+
+# Example
+# df <- df %>% add_wave_5_anthro()
+```
+
+### h5sbp, h5dbp, h5bpc1s4, h5bpjcls
+```{r}
+
+add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt" ){
+  require(janitor)
+  cardio <- read_xpt(filepath) %>% 
+    clean_names() %>% 
+    select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
+  
+  df <- df %>% 
+    inner_join(cardio, by = "aid") %>% 
+    select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls, everything())
+  
+  return(df)
+}
+
+# Example
+# df <- df %>% add_wave_5_cardio()
+```
+
+
+### wave 5 biological despair
+```{r}
+
+add_wave_5_bio_despair <- function(df, 
+                                   filepath_anthro = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt" ,
+                                   filepath_cardio = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt"
+                                   ){
+  df <- df %>% 
+    add_wave_5_anthro(filepath_anthro) %>% 
+    add_wave_5_cardio(filepath_cardio) 
+  
+  return(df)
+}
+
+# Example
+# df <- df %>% add_wave_5_bio_despair()
+
 ```
