@@ -1,0 +1,54 @@
+---
+title: "12-ind-vars"
+author: "Katrina Tsun"
+date: "7/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Lists of individual relevant variables
+```{r parent}
+
+add_parent_health <- function(df){
+  # df : joined waves input
+  # return : new data frame including additional variable about parental health insurance
+  # works assuming each person has only 1 type of health insurance
+  # drop unnecessary columns?
+  df %>% 
+    mutate(p_health = case_when(
+      (PC21_1 == 1) ~ 1,
+      (PC21_2 == 1) ~ 2,
+      (PC21_3 == 1) ~ 3,
+      (PC21_4 == 1) ~ 4,
+      (PC21_5 == 1) ~ 5,
+      (PC21_6 == 1) ~ 6,
+      (PC21_7 == 1) ~ 7,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0) ~ 0)
+    )
+}
+
+add_parent_public_assist <- function(df){
+  #how to combine variables?
+}
+
+parent_vars <- c("p_health", "PA10", "PA61", "PA62", "PA21", "PA55", "PA12", "PB8", "PA56", "PC31")
+
+
+```
+
+```{r wave 1}
+w1_health <- c("h1to3", "h1to7", "h1gh1")
+
+w1_social <- c("h1pf35", "h1pf36", "h1da7", "h1ed19", "h1ed20", "h1ed22", "h1fs13", "h1pr1", "h1pr2", "h1pr4", "h1nb3")
+
+w1_peer <- c("h1su4", "h1su6", "h1su5", "h1su7")
+
+w1_religion <- c("h1re3", "h1re4", "h1re7")
+
+w1_family <- c()
+```
+
+
