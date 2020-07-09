@@ -639,11 +639,11 @@ Some predictors of biological despair need to be loaded separately from differen
 
 ### hba1c
 ```{r}
-
+# This function takes in the full dataframe and path of the glucose biomarker file and adds the variables: hba1c
 add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt"){
   
   glucose <- read_xpt(filepath)
-  glucose <- glucose %>% janitor::clean_names()() %>% select(aid, hba1c)
+  glucose <- glucose %>% clean_names() %>% select(aid, hba1c)
   df <- df %>% inner_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
   
   return(df)
@@ -655,11 +655,11 @@ add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.i
 
 ### crp
 ```{r}
-
+# This function takes in the full dataframe and path of the crp_ebv biomarker file and adds the variable: crp
 add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt" ){
   
   crp_df <- read_xpt(filepath)
-  crp_df <- crp_df %>% janitor::clean_names()() %>% select(aid, crp)
+  crp_df <- crp_df %>% clean_names() %>% select(aid, crp)
   df <- df %>% inner_join(crp_df, by = "aid") %>% select(aid, crp, everything())
   
   return(df)
@@ -671,11 +671,11 @@ add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.va
 
 ### hdl, ldl, tg
 ```{r}
-
+# This function takes in the full dataframe and path of the lipid biomarker file and adds the variables: hdl, ldl, tg
 add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
   
   lipids <- read_xpt(filepath)
-  lipids <- lipids %>% janitor::clean_names()() %>% select(aid, hdl, ldl, tg)
+  lipids <- lipids %>% clean_names() %>% select(aid, hdl, ldl, tg)
   df <- df %>% inner_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
   
   return(df)
@@ -687,7 +687,9 @@ add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 
 ### wave 4 biological despair
 ```{r}
-
+# This function takes in file paths for glucose, crp and lipid biomarker file paths for wave 4 and calls functions that loads these variables. 
+# This abstracts the functionality of the individual functions that load the relevant variables
+## Variables loaded with this function: hdl, ldl, tg, crp, hba1c
 add_wave_4_bio_despair <- function(df, 
                                    filepath_glucose = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt",
                                    filepath_crp = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt",
@@ -708,13 +710,16 @@ add_wave_4_bio_despair <- function(df,
 
 ### h5bmi, h5waist
 ```{r}
+# This function takes in the full dataframe and path of the anthro biomarker file and adds the variables: h5bmi, h5waist
 add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"){
   
   anthro <- read_xpt(filepath) %>% 
-    janitor::clean_names()() %>% 
+    clean_names() %>% 
     select(aid, h5bmi, h5waist)
   
-  df <- df %>% inner_join(anthro, by = "aid") %>% select(aid, h5bmi, h5waist, everything())
+  df <- df %>% 
+    inner_join(anthro, by = "aid") %>% 
+    select(aid, h5bmi, h5waist, everything())
   
 }
 
@@ -724,11 +729,11 @@ add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 
 ### h5sbp, h5dbp, h5bpc1s4, h5bpjcls
 ```{r}
-
+# This function takes in the full dataframe and path of the cardiovascular biomarker file and adds the variables: h5sbp, h5dbp, h5bpc1s4, h5bpjcls
 add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt" ){
   
   cardio <- read_xpt(filepath) %>% 
-    janitor::clean_names()() %>% 
+    clean_names() %>% 
     select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
   
   df <- df %>% 
@@ -744,7 +749,9 @@ add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 
 ### Wave 5 biological despair
 ```{r}
-
+# This function takes in file paths for antro and cardio vascular biomarker file paths and calls functions that loads these variables. 
+# This abstracts the functionality of the individual functions that load the relevant variables
+## Variables loaded with this function: h5sbp, h5dbp, h5bpc1s4, h5bpjcls, h5bmi, h5waist
 add_wave_5_bio_despair <- function(df, 
                                    filepath_anthro = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt" ,
                                    filepath_cardio = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt"
@@ -765,18 +772,27 @@ add_wave_5_bio_despair <- function(df,
 Wave 3 BMI must be constructed from three other variables. 
 
 ```{r}
+# This function takes in weight(lbs) and height(feet, inches - example : 6ft 2in) and returns the BMI after converting the weight to kgs and height to ms 
 add_wave_3_bmi <- function(df, weight_lb, height_ft, height_in ){
+  # df - full dataframe with the weight and height variables present
+  # weight_lb - weight(in lbs) variable name passed as string. Converted to kgs by dividing by 2.2
+  # height_ft, height_in - height variable names passed as string. 
+  ### Converted to ms by:
+  ### 1. converting height_ft to inches by multiplying by 12
+  ### 2. Adding it to height_in to get total height in inches
+  ### 3. Dividing by 39.37 to get height in ms
+  # h3bmi is the new variable added to the dataframe. FORMULA weight(in kgs)/(height(in ms))^2
+  # return: df with h3bmi in it. 
   
-  df['weight_kg'] <- df[[weight_lb]]/2.2
-  df['height_m'] <- (df[[height_ft]]*12 + df[[height_in]])/39.37
-  df['h3bmi'] <- df[['weight_kg']]/(df[['height_m']] * df[['height_m']])
+  df['weight_kg'] <- df[[weight_lb]]/2.2 # lbs -> kgs
+  df['height_m'] <- (df[[height_ft]]*12 + df[[height_in]])/39.37 # inches -> meters
+  df['h3bmi'] <- df[['weight_kg']]/(df[['height_m']] * df[['height_m']])  # bmi calculation
   
   df <- df %>% select(aid, h3bmi, everything())
   return(df)
 }
-```
 
-```{r}
-full_dataset %>% 
-  add_wave_3_bmi("h3wgt", "h3hgt_f", "h3hgt_i")
+# Example
+# full_dataset %>% 
+#   add_wave_3_bmi("h3wgt", "h3hgt_f", "h3hgt_i")
 ```
