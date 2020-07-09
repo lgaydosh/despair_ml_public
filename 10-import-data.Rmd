@@ -335,19 +335,50 @@ get_working_dataset_full <- function(df_list, feature_list = NULL, join_type = '
 
 TODO: We need to make some decisions about how demographic data will likely be included in the generated data.  Where are these variables included in the variable lists and how can we most intuitively integrate them into our data loading?
 ```{r}
+
 # This function will be used to add age and race demographic into the data
 add_demographics <- function(df){
   # df : joined waves input
   # return : new data frame with race and age information at each wave. 
   #          age_w{x} - where x is the wave number (e.g. age_w5, age_w4..etc)
   # race info comes from wave 5
+  # if h1giy == 96, then age is marked as NA ~ 17 people refused providing their ages
+  ## Details:
+  ## h1gi1y is the birth year of the person 
+  ## iyear3,iyear4,iyear5 are the years when the inerviews are conducted in waves 3, 4 and 5
+  ## details on age calculation provided in comments below.
+  # return : df with age and race demographic added.
+  
   df %>% 
     dplyr::mutate(
-      birth_in_months = (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), 
-      age_w1 = floor((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12), 
-      age_w3 = floor((((iyear3*12)+imonth3)-birth_in_months)/12),
-      age_w4 = floor((((iyear4*12)+imonth4)-birth_in_months)/12),
-      age_w5 = floor((((iyear5*12)+imonth5)-birth_in_months)/12)) %>% 
+      
+      # We calculate the birth of the individual in months from year 0 as a reference. 
+      # h1gi1y is a two digit representation of the year of birth 
+      ## - if a person is born in 87 this gets concatenated with 19 to make 1987 and then converted to a double to calculate the birthdate in months. 
+      ## - if the value of h1gi1y is given as 96, then it is marked as NA and the age of that person will be carried over as NA across all the other waves.
+      
+      birth_in_months = ifelse(h1gi1y != 96, (as.double(str_c("19",h1gi1y))*12 )+ as.double(h1gi1m), NA), 
+      
+      # AGE CALCULATION DETAILS: This is the logic used to calculate age_w1, age_w2, age_w3, age_w4, age_w5
+      #
+        ## age_w1 is the age of the individual at wave 1.
+        ##
+        ## This is calculated by:
+        ### 1. finding the interview year (be careful with this as this could be a two digit representation of the year)
+        #### - if this is in string format, it will need to be concated named with 19 and then changed to double for calculation
+        ### 2. Multiplying that interview year by 12 to get the total number of months since year 0
+        ### 3. Adding the month of the interview to this to get the interview date IN MONTHS
+        ### 4. Subtract the birthdate in months and divide by 12 to get the age of individual at time of interview
+        ### 5. round to 1 decimal point so if the person is aged 37.89, their age is read in as 37.9. 
+      
+      age_w1 = round((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12, 1), # iyear was given as a two digit year here, hence it was concatenated with 19
+      
+      age_w3 = round((((iyear3*12)+imonth3)-birth_in_months)/12, 1),
+      
+      age_w4 = round((((iyear4*12)+imonth4)-birth_in_months)/12, 1),
+      
+      age_w5 = round((((iyear5*12)+imonth5)-birth_in_months)/12, 1)) %>% 
+    
     dplyr::select(-one_of(c('birth_in_months'))) %>%
     dplyr::mutate(one_race5 = case_when( #one race: first analyze those with multiple races
       (h5od8==1) ~ 1, #1 = white
@@ -363,7 +394,9 @@ add_demographics <- function(df){
       ((h5od4e==1)|(h5od4f==1)|(h5od4g==1)) ~ 5)) #other
   #otherwise NA default
 }
+
 ```
+
 
 The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.  Details of this function in file `project-component-verification.Rmd`
 
@@ -589,12 +622,12 @@ cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list)
 
 #List of all biological despair measures
 bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi
-                            'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
-                            'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
+'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
 
 bio_despair_core_list_exp <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f', 'h3hgt_i', 'h4bmi',
-                           'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls', 'h5bmi', 'h5waist', 'h5sbp', 
-                           'h5dbp', 'h5bpcls4', 'h5bpjcls')
+                               'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls', 'h5bmi', 'h5waist', 'h5sbp', 
+                               'h5dbp', 'h5bpcls4', 'h5bpjcls')
 
 bio_despair_other_list_exp <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg')
 
