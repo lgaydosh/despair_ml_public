@@ -643,7 +643,7 @@ Some predictors of biological despair need to be loaded separately from differen
 add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt"){
   
   glucose <- read_xpt(filepath)
-  glucose <- glucose %>% clean_names() %>% select(aid, hba1c)
+  glucose <- glucose %>% janitor::clean_names() %>% select(aid, hba1c)
   df <- df %>% inner_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
   
   return(df)
@@ -659,7 +659,7 @@ add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.i
 add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt" ){
   
   crp_df <- read_xpt(filepath)
-  crp_df <- crp_df %>% clean_names() %>% select(aid, crp)
+  crp_df <- crp_df %>% janitor::clean_names() %>% select(aid, crp)
   df <- df %>% inner_join(crp_df, by = "aid") %>% select(aid, crp, everything())
   
   return(df)
@@ -675,7 +675,7 @@ add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.va
 add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
   
   lipids <- read_xpt(filepath)
-  lipids <- lipids %>% clean_names() %>% select(aid, hdl, ldl, tg)
+  lipids <- lipids %>% janitor::clean_names() %>% select(aid, hdl, ldl, tg)
   df <- df %>% inner_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
   
   return(df)
@@ -714,7 +714,7 @@ add_wave_4_bio_despair <- function(df,
 add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"){
   
   anthro <- read_xpt(filepath) %>% 
-    clean_names() %>% 
+    janitor::clean_names() %>% 
     select(aid, h5bmi, h5waist)
   
   df <- df %>% 
@@ -733,7 +733,7 @@ add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt" ){
   
   cardio <- read_xpt(filepath) %>% 
-    clean_names() %>% 
+    janitor::clean_names() %>% 
     select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
   
   df <- df %>% 
