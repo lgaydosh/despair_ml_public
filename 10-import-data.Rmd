@@ -586,7 +586,8 @@ other_cog_despair_list <- c('h4mh3', 'h4mh4', 'h4mh5', 'h4mh6', 'h4mh2',
 cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list)
 
 #List of all biological despair measures
-bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi
+bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi 
+                            'h3bmi', # this will be the contructed variable (wave 3 bmi) from the above three variables
                             'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
                             'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
 
@@ -613,10 +614,9 @@ predictor_list <- c(emotional_despair_predictors, cognitive_despair_predictors, 
 ###Predictor list addendum
 Currently, we're not sure about what files some of the variables are located in.  For now, we're just going to remove those errant variables from the predictor list
 ```{r unsure variables}
-unsure_variables <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
-predictor_list <- setdiff(predictor_list, unsure_variables)
+# unsure_variables <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+# predictor_list <- setdiff(predictor_list, unsure_variables)
 ```
-
 
 # Lists of Selected Outcome Variables
 The following are some lists of outcome variables, organized by area of interest.  Note that the AIDs have been removed from all of these.
@@ -641,9 +641,9 @@ Some predictors of biological despair need to be loaded separately from differen
 ```{r}
 
 add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt"){
-  require(janitor)
+  
   glucose <- read_xpt(filepath)
-  glucose <- glucose %>% clean_names() %>% select(aid, hba1c)
+  glucose <- glucose %>% janitor::clean_names()() %>% select(aid, hba1c)
   df <- df %>% inner_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
   
   return(df)
@@ -657,9 +657,9 @@ add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.i
 ```{r}
 
 add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt" ){
-  require(janitor)
+  
   crp_df <- read_xpt(filepath)
-  crp_df <- crp_df %>% clean_names() %>% select(aid, crp)
+  crp_df <- crp_df %>% janitor::clean_names()() %>% select(aid, crp)
   df <- df %>% inner_join(crp_df, by = "aid") %>% select(aid, crp, everything())
   
   return(df)
@@ -672,10 +672,10 @@ add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.va
 ### hdl, ldl, tg
 ```{r}
 
-add_wave4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
-  require(janitor)
+add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
+  
   lipids <- read_xpt(filepath)
-  lipids <- lipids %>% clean_names() %>% select(aid, hdl, ldl, tg)
+  lipids <- lipids %>% janitor::clean_names()() %>% select(aid, hdl, ldl, tg)
   df <- df %>% inner_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
   
   return(df)
@@ -696,9 +696,7 @@ add_wave_4_bio_despair <- function(df,
   df <- df %>% 
     add_wave_4_glucose(filepath_glucose) %>% 
     add_wave_4_crp(filepath_crp) %>% 
-    add_wave4_lipids(filepath_lipids)
-    
-    add_lipids()
+    add_wave_4_lipids(filepath_lipids)
   
   return(df)
 }
@@ -711,9 +709,9 @@ add_wave_4_bio_despair <- function(df,
 ### h5bmi, h5waist
 ```{r}
 add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"){
-  require(janitor)
+  
   anthro <- read_xpt(filepath) %>% 
-    clean_names() %>% 
+    janitor::clean_names()() %>% 
     select(aid, h5bmi, h5waist)
   
   df <- df %>% inner_join(anthro, by = "aid") %>% select(aid, h5bmi, h5waist, everything())
@@ -728,9 +726,9 @@ add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 ```{r}
 
 add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt" ){
-  require(janitor)
+  
   cardio <- read_xpt(filepath) %>% 
-    clean_names() %>% 
+    janitor::clean_names()() %>% 
     select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
   
   df <- df %>% 
@@ -744,8 +742,7 @@ add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 # df <- df %>% add_wave_5_cardio()
 ```
 
-
-### wave 5 biological despair
+### Wave 5 biological despair
 ```{r}
 
 add_wave_5_bio_despair <- function(df, 
@@ -762,4 +759,24 @@ add_wave_5_bio_despair <- function(df,
 # Example
 # df <- df %>% add_wave_5_bio_despair()
 
+```
+
+### Add Wave 3 BMI
+Wave 3 BMI must be constructed from three other variables. 
+
+```{r}
+add_wave_3_bmi <- function(df, weight_lb, height_ft, height_in ){
+  
+  df['weight_kg'] <- df[[weight_lb]]/2.2
+  df['height_m'] <- (df[[height_ft]]*12 + df[[height_in]])/39.37
+  df['h3bmi'] <- df[['weight_kg']]/(df[['height_m']] * df[['height_m']])
+  
+  df <- df %>% select(aid, h3bmi, everything())
+  return(df)
+}
+```
+
+```{r}
+full_dataset %>% 
+  add_wave_3_bmi("h3wgt", "h3hgt_f", "h3hgt_i")
 ```
