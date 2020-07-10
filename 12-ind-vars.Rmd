@@ -30,10 +30,6 @@ add_parent_health <- function(df){
     )
 }
 
-add_parent_public_assist <- function(df){
-  #binary
-}
-
 parent_vars <- c("p_health", "PA10", "PA61", "PA62", "PA21", "PA55", "PA12", "PB8", "PA56", "PC31")
 
 
@@ -79,27 +75,23 @@ w3_religion <- c("h3re24", "h3re30", "h3re25", "h3re33", "h3re34")
 
 w3_family <- c("h3wp20", "h3wp32", "h3wp46", "h3wp64", "h3wp21", "h3wp22", "h3wp33", "h3wp34", "h3wp47", "h3wp48", "h3wp65", "h3wp25", "h3wp39", "h3wp53", "h3wp26", "h3wp27", "h3wp40", "h3wp41", "h3wp54", "h3wp55", "h3wp19", "h3wp31", "h3wp45", "h3wp63", "h3ma4", "h3ma3", "h3ma5", "h3ma6", "h3cj160")
 
-w3_partner <-
+w3_partner <- c("h3mr1", "h3mr3_a", "h3mr6_a", "h3mr3_b", "h3mr6_b", "h3bm2")
   
-w3_child <-
+w3_child <- c("h3mac10")
 
-w3_future <- c("h3ee14", "h3ee12", "s45f")
+w3_future <- ("h3ec56")
 
-w3_criminal <- c("h3ds14", "h3ed9", "h3ed7", "h3ds3", "h3ed2", "h3fv7", "h3fv1", "h3fv8", "h3jo9", "h3ds13", "h3ds12", "h3ds11")
+w3_criminal <- c("h3ds18H", "h3ds18A", "h3ds18I", "h3to49", "h3ds6", "h3ds5", "h3ds4")
 
-w3_stress
+w3_education <- c("h3ed1", "h3ed19", "h3ed20", "h3ed27", "h3ed29", "h3ed30", "h3ed16", "h3ed17")
 
-w3_parent_ses <- c("h3nf4", "h3nm4", "h3rf1", "h3rm1") 
+w3_poverty <- c("h3ed1c", "h3ed1d", "h3ec1e", "h3ec3", "h3ec4", "h3ec5", "h3ec6", "h3ec7", "h3ec9")
 
-w3_education <- c("h3gi20", "h3ee1", "h3ee2")
+w3_employ <- c("h3lm25", "h3lm27")
 
-w3_poverty
+w3_prospects <- c("h3ec59", "h3ec30")
 
-w3_employ
-
-w3_prospects
-
-w3_ses <- c(w3_parent_ses, w3_education, )
+w3_ses <- c(w3_education, w3_poverty, w3_employ, w3_prospects)
 ```
 
 
