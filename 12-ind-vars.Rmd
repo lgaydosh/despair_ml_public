@@ -30,7 +30,7 @@ add_parent_health <- function(df){
     )
 }
 
-parent_vars <- c("p_health", "PA10", "PA61", "PA62", "PA21", "PA55", "PA12", "PB8", "PA56", "PC31")
+parent_vars <- c("pc21_1", "pc21_2", "pc21_3", "pc21_4", "pc21_5", "pc21_6", "pc21_7", "PA10", "PA61", "PA62", "PA21", "PA55", "PA12", "PB8", "PA56", "PC31")
 
 
 ```
@@ -46,7 +46,7 @@ w1_religion <- c("h1re3", "h1re4", "h1re7")
 
 w1_family <- c("h1wp9", "h1wp10", "h1wp13", "h1wp14", "h1wp17f", "h1wp18f", "h1pf1", "h1pf4", "h1pf5", "h1pf23", "h1pf25", "h1pf24", "h1nm12f", "h1nm14", "h1nf12f", "h1nf14", "h1pr3", "h1pr5", "h1pr7", "h1pr8", "h1wp11", "h1wp12", "h1wp15", "h1wp16")
 
-w1_future <- c("h1ee14", "h1ee12", "s45f")
+w1_future <- c("h1ee14", "h1ee12")
 
 w1_criminal <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11")
 
@@ -54,14 +54,12 @@ w1_parent_ses <- c("h1nf4", "h1nm4", "h1rf1", "h1rm1")
 
 w1_education <- c("h1gi20", "h1ee1", "h1ee2")
 
-w1_ses <- c(w1_parent_ses, w1_education)
+w1_prospects <- ("s45f")
+
+w1_ses <- c(w1_parent_ses, w1_education, w1_prospects)
 ```
 
 ```{r wave 3}
-
-add_w3_closeness <- function(df) {
-  #help
-}
 
 w3_health <- c("h3to4", "h3to10", "h3gh18", "h3gh1", "h3hs1")
 
@@ -73,7 +71,21 @@ w3_peer <- c("h3to133", "h3to135", "h3to136", "h3to134")
 
 w3_religion <- c("h3re24", "h3re30", "h3re25", "h3re33", "h3re34")
 
-w3_family <- c("h3wp20", "h3wp32", "h3wp46", "h3wp64", "h3wp21", "h3wp22", "h3wp33", "h3wp34", "h3wp47", "h3wp48", "h3wp65", "h3wp25", "h3wp39", "h3wp53", "h3wp26", "h3wp27", "h3wp40", "h3wp41", "h3wp54", "h3wp55", "h3wp19", "h3wp31", "h3wp45", "h3wp63", "h3ma4", "h3ma3", "h3ma5", "h3ma6", "h3cj160")
+add_w3_family<- function(df) {
+  #need help setting up variables for:
+  #closeness to maternal figure "h3wp20", "h3wp32", "h3wp46", "h3wp64"
+  #closeness to paternal figure "h3wp25", "h3wp39", "h3wp53"
+  #mother monetary support "h3wp21", "h3wp22", "h3wp33" and "h3wp34", "h3wp47", "h3wp48"
+  #father monetary support "h3wp26", "h3wp27", "h3wp40" and "h3wp41", "h3wp54", "h3wp55"
+  #mother warm and loving "h3wp19", "h3wp31", "h3wp45", "h3wp63"
+  #father warm and loving "h3wp24", "h3wp38", "h3wp52"
+  #sibling closeness "h3ws5a", "h3ws5b", "h3ws5c", "h3ws5d"
+  #sibling problem solving support "h3ws6a", "h3ws6b", "h3ws6c", "h3ws6d"
+}
+
+w3_family <- c("h3wp20", "h3wp32", "h3wp46", "h3wp64", "h3wp21", "h3wp22", "h3wp33", "h3wp34", "h3wp47", "h3wp48", "h3wp65", "h3wp25", "h3wp39", "h3wp53", "h3wp26", "h3wp27", "h3wp40", "h3wp41", "h3wp54", "h3wp55", "h3wp19", "h3wp31", "h3wp45", "h3wp63", "h3wp24", "h3wp38", "h3wp52", "h3ws5a", "h3ws5b", "h3ws5c", "h3ws5d", "h3ws6a", "h3ws6b", "h3ws6c", "h3ws6d", "h3ma4", "h3ma3", "h3ma5", "h3ma6")
+
+w3_structure <- c("h3cj160")
 
 w3_partner <- c("h3mr1", "h3mr3_a", "h3mr6_a", "h3mr3_b", "h3mr6_b", "h3bm2")
   
@@ -93,6 +105,84 @@ w3_prospects <- c("h3ec59", "h3ec30")
 
 w3_ses <- c(w3_education, w3_poverty, w3_employ, w3_prospects)
 ```
+
+```{r wave 4}
+w4_health <- c("h4to3", "h4to6", "h4id7", "h4id9c", "h4gh8", "h4gh9", "h4gh1", "h4hs3")
+
+w4_social <- c("h4ws4")
+
+w4_prosocial <- c("h4da26", "h4da27")
+
+w4_peer <- c("h4se4", "h4se5")
+
+w4_religion <- c("h4re7", "h4re8", "h4re9", "h4re11")
+
+w4_family <- c("h4wp24", "h4wp25", "h4wp38", "h4wp39", "h4wp23", "h4wp37", "h4ma1", "h4ma3", "h4ma5")
+
+w4_structure <- c("h4wp3", "h4wp9", "h3wp16", "h3wp30")
+
+w4_partner <- c("h4rd7b", "h4rd7d", "h4rd7e", "h4rd9", "h4rd12", "h4rd14")
+  
+w4_child <- c("h4tr9", "h4tr10")
+
+w4_criminal <- c("h4ds7", "h4ds19", "h4ds14", "h4ds20", "h4ds6", "h4ds5", "h4ds4", "h4cj17")
+
+w4_stress <-("h4mh29")
+
+w4_education <- c("h4ed1", "h4ed2", "h4ed8", "h4ed9")
+
+w4_poverty <- c("h4ec1", "h4ec3", "h4ec2")
+
+w4_employ <- c("h4lm18", "h4lm23", "h4lm14", "h4lm20", "h4lm27")
+
+w4_prospects <- c("h4ec19")
+
+w4_ses <- c(w4_education, w4_poverty, w4_employ, w4_prospects)
+```
+
+```{r wave 5}
+w5_health <- c("h5to1", "h5to3", "h5id4", "h5da2", "h5id21", "h5id22", "h5id1", "h5lm13a", "h5id9")
+
+w5_social <- c("h5ss6", "h5ss1", "h5ss2", "h5ss3a", "h5ss3b", "h5ss3c", "h5ss3d", "h5ss4a", "h5ss4b", "h5ss4c", "h5ss4d", "h5ss5a", "h5ss5b", "h5ss5c", "h5ss5d")
+
+w5_prosocial <- c("h5ss8", "h5ss7")
+
+w5_peer <- c("h5mn11", "h5mn12")
+
+w5_religion <- c("h5re2", "h5re3")
+
+w5_family <- c("h5wp14", "h5wp13", "h5wp28", "h5wp29", "h5wp27")
+
+w5_structure <- c("h5wp15", "h5wp1", "h5wp4", "h5wp18")
+
+
+add_w5_time <- function(df){
+  #combine Y and M columns
+}
+
+
+w5_partner <- c("h5tr1", "h5tr6", "h5tr4", "h5hr1", "h5hr2", "h5tr3", "h5tr4m", "h5tr4y", "h5tr5", "h5tr5m", "h5tr5y", "h5tr6m", "h5tr6y", "h5tr7", "h5tr7m", "h5tr7y")
+  
+w5_child <- c("h5se21", "h5se22", "h5se23")
+
+w5_criminal <- c("h5cj1d", "h5cj1e", "h5cj2b", "h5cj1f", "h5cj1b", "h5cj1c", "h5cj1a")
+
+w5_stress <- c("h5mh5a", "h5mh5b", "h5mh5c", "h5mh5d", "h5mh5e", "h5mh6a", "h5mh6b", "h5mh6c", "h5mh6d", "h5mh6e", "h5mh6f","h5mh6g","h5mh6h","h5mh6i","h5mh6j","h5mh6k","h5mh6l","h5mh6m","h5mh6n")
+
+w5_education <- c("h5od10", "h5od11")
+
+w5_poverty <- c("h5ec1", "h5ec4", "h5ec2", "h5ec5a", "h5ec5b", "h5ec5c", "hcec6")
+
+w5_employ <- c("h5lm9", "h5lm10", "h5lm11", "h5lm12", "h5lm15", "h5lm5", "h5lm27")
+
+w5_prospects <- c("h5ec9")
+
+w5_ses <- c(w5_education, w5_poverty, w5_employ, w5_prospects)
+
+
+```
+
+
 
 
 
