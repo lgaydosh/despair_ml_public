@@ -6,3 +6,33 @@ output: html_notebook
 # Predictive Features
 
 Which feature/attribute we are more interested in: probably a one that shared by all of the independent units on which prediction is to be done. Choosing the right features is important. Better features can produce simpler and more flexible models, and they often yield better results.
+
+### Add Wave 3 BMI
+Wave 3 BMI must be constructed from three other variables. 
+
+```{r}
+# This function takes in weight(lbs) and height(feet, inches - example : 6ft 2in) and returns the BMI after converting the weight to kgs and height to ms 
+add_wave_3_bmi <- function(df){
+  
+  # df - full dataframe with the weight and height variables present
+  # "h3wgt" - weight(in lbs) variable name passed as string. Converted to kgs by dividing by 2.2
+  # "h3hgt_f", "h3hgt_i" - height variable names passed as string. 
+  ### Converted to ms by:
+  ### 1. converting height_ft to inches by multiplying by 12
+  ### 2. Adding it to height_in to get total height in inches
+  ### 3. Dividing by 39.37 to get height in ms
+  # h3bmi is the new variable added to the dataframe. FORMULA weight(in kgs)/(height(in ms))^2
+  # return: df with h3bmi in it. 
+  
+  df['weight_kg'] <- df[["h3wgt"]]/2.2 # lbs -> kgs
+  df['height_m'] <- (df[["h3hgt_f"]]*12 + df[["h3hgt_i"]])/39.37 # inches -> meters
+  df['h3bmi'] <- df[['weight_kg']]/(df[['height_m']] * df[['height_m']])  # bmi calculation
+  
+  df <- df %>% select(aid, h3bmi, everything())
+  return(df)
+}
+
+# Example
+# full_dataset %>% 
+#   add_wave_3_bmi()
+```
