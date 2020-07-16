@@ -361,15 +361,15 @@ add_demographics <- function(df){
       
       # AGE CALCULATION DETAILS: This is the logic used to calculate age_w1, age_w2, age_w3, age_w4, age_w5
       #
-        ## age_w1 is the age of the individual at wave 1.
-        ##
-        ## This is calculated by:
-        ### 1. finding the interview year (be careful with this as this could be a two digit representation of the year)
-        #### - if this is in string format, it will need to be concated named with 19 and then changed to double for calculation
-        ### 2. Multiplying that interview year by 12 to get the total number of months since year 0
-        ### 3. Adding the month of the interview to this to get the interview date IN MONTHS
-        ### 4. Subtract the birthdate in months and divide by 12 to get the age of individual at time of interview
-        ### 5. round to 1 decimal point so if the person is aged 37.89, their age is read in as 37.9. 
+      ## age_w1 is the age of the individual at wave 1.
+      ##
+      ## This is calculated by:
+      ### 1. finding the interview year (be careful with this as this could be a two digit representation of the year)
+      #### - if this is in string format, it will need to be concated named with 19 and then changed to double for calculation
+      ### 2. Multiplying that interview year by 12 to get the total number of months since year 0
+      ### 3. Adding the month of the interview to this to get the interview date IN MONTHS
+      ### 4. Subtract the birthdate in months and divide by 12 to get the age of individual at time of interview
+      ### 5. round to 1 decimal point so if the person is aged 37.89, their age is read in as 37.9. 
       
       age_w1 = round((((as.double(str_c("19",iyear))*12 )+imonth) - birth_in_months)/12, 1), # iyear was given as a two digit year here, hence it was concatenated with 19
       
@@ -512,6 +512,8 @@ binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
 Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded 10. 
 ```{r}
 recode_missing_factors<-function(df, na_levels){
+  
+  print("Recoding Missing Factor Variables")
   # function to replace skip levels in factor variables with "10"
   # df: dataframe of wave data
   # na_levels: read data from na_levels.csv file
@@ -521,17 +523,30 @@ recode_missing_factors<-function(df, na_levels){
                               %>% unique() 
                               %>% pull(variable), names(df))
   
+  print(paste("Factor variables being recoded : ", length(vars_with_miss) ))
+  
   for (i in 1:length(vars_with_miss)){
     
-    mlevels <- na_levels %>% 
+    mlevels <- na_levels %>%  # generate vectors of levels that are skip
       filter(variable == vars_with_miss[i]) %>% 
       pull(na_level) %>% 
       as.character()
     
-    df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
+    if(!is.na(mlevels[1])){ 
+      # verify that the variable in question actually has missing levels
+      
+      df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
+      
+      df[[vars_with_miss[i]]]<-fct_collapse(df[[vars_with_miss[i]]],
+                                            "10" = mlevels)
+    }
     
-    df[[vars_with_miss[i]]]<-fct_collapse(df[[vars_with_miss[i]]],
-                                          "10" = mlevels)
+    else{
+      # if it does not have any missing levels, then just convert it to a factor
+      
+      df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
+    }
+    
   }
   return(df)
 }
@@ -551,17 +566,21 @@ recode_missing_factors<-function(df, na_levels){
 
 ```
 
-
 ```{r}
 recode_missing_numeric<-function(df, na_levels){
   # function to replace skip levels in factor variables with NA
   # df: dataframe of wave data
   # na_levels: read data from na_levels.csv file
+  
+  print("Recoding Missing Numeric Variables")
   vars_with_miss <- intersect(na_levels
                               %>% filter(type == "numeric")
                               %>% select(variable) 
                               %>% unique() 
                               %>% pull(variable), names(df))
+  
+  print(paste("Numeric variables being recoded : ", length(vars_with_miss) ))
+  
   
   for (i in 1:length(vars_with_miss)){
     
@@ -569,7 +588,20 @@ recode_missing_numeric<-function(df, na_levels){
       filter(variable == vars_with_miss[i]) %>% 
       pull(na_level) 
     
-    df[,vars_with_miss[i]] <- ifelse(as.vector(pull(df[,vars_with_miss[i]]) %in% mlevels), NA, pull(df[,vars_with_miss[i]]))
+    if(!is.na(mlevels[1])){ # verify that the variable in question actually has missing levels
+      
+      df[,vars_with_miss[i]] <- ifelse(as.vector(pull(df[,vars_with_miss[i]]) %in% mlevels),
+                                       NA, 
+                                       pull(df[,vars_with_miss[i]]))
+      # if the column of the numeric variable has values that are supposed to be skipped
+      # replace them with NA
+      # else keep the original value
+      
+    }
+    
+    else{
+      # do nothing and let it stay the same
+    }
   }
   
   return(df)
@@ -587,6 +619,20 @@ recode_missing_numeric<-function(df, na_levels){
 # )
 # 
 # recode_missing_numeric(test_df, na_csv)
+
+```
+
+```{r}
+# Function to replace the missing levels in the variables. 
+# Calls other functions that replace missing levels in factors and numeric variables.  
+recode_missing_levels <- function(df, reference_df){
+  
+  df <- df %>% 
+    recode_missing_factors(reference_df) %>% # recodes factor variables based on the reference dataframe
+    recode_missing_numeric(reference_df)  # recodes numeric variables based on the reference dataframe
+  
+  return(df)
+}
 
 ```
 
@@ -621,9 +667,9 @@ cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list)
 #List of all biological despair measures
 
 bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi 
-                            'h3bmi', # this will be the contructed variable (wave 3 bmi) from the above three variables
-                            'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
-                            'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+'h3bmi', # this will be the contructed variable (wave 3 bmi) from the above three variables
+'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
+'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
 
 
 bio_despair_core_list_exp <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f', 'h3hgt_i', 'h4bmi',
@@ -729,7 +775,7 @@ add_wave_4_bio_despair <- function(df,
                                    filepath_glucose = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt",
                                    filepath_crp = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt",
                                    filepath_lipids = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt"
-                                   ){
+){
   df <- df %>% 
     add_wave_4_glucose(filepath_glucose) %>% 
     add_wave_4_crp(filepath_crp) %>% 
@@ -790,7 +836,7 @@ add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 add_wave_5_bio_despair <- function(df, 
                                    filepath_anthro = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt" ,
                                    filepath_cardio = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt"
-                                   ){
+){
   df <- df %>% 
     add_wave_5_anthro(filepath_anthro) %>% 
     add_wave_5_cardio(filepath_cardio) 
@@ -803,31 +849,59 @@ add_wave_5_bio_despair <- function(df,
 
 ```
 
-### Add Wave 3 BMI
-Wave 3 BMI must be constructed from three other variables. 
-
+### Add Biological Despair
 ```{r}
-# This function takes in weight(lbs) and height(feet, inches - example : 6ft 2in) and returns the BMI after converting the weight to kgs and height to ms 
-add_wave_3_bmi <- function(df, weight_lb, height_ft, height_in ){
-  # df - full dataframe with the weight and height variables present
-  # weight_lb - weight(in lbs) variable name passed as string. Converted to kgs by dividing by 2.2
-  # height_ft, height_in - height variable names passed as string. 
-  ### Converted to ms by:
-  ### 1. converting height_ft to inches by multiplying by 12
-  ### 2. Adding it to height_in to get total height in inches
-  ### 3. Dividing by 39.37 to get height in ms
-  # h3bmi is the new variable added to the dataframe. FORMULA weight(in kgs)/(height(in ms))^2
-  # return: df with h3bmi in it. 
+# Unified function to add all biological despair predictors to the dataset
+add_bio_despair <- function(df){
   
-  df['weight_kg'] <- df[[weight_lb]]/2.2 # lbs -> kgs
-  df['height_m'] <- (df[[height_ft]]*12 + df[[height_in]])/39.37 # inches -> meters
-  df['h3bmi'] <- df[['weight_kg']]/(df[['height_m']] * df[['height_m']])  # bmi calculation
+  df <- df %>% 
+    add_wave_3_bmi() %>%  # Function to create bmi in Wave 3 - this is present in 30-feature-engineering.Rmd file
+    add_wave_4_bio_despair() %>%  # Add Wave 4 biological despair variables
+    add_wave_5_bio_despair() # Add Wave 5 biological despair variables
   
-  df <- df %>% select(aid, h3bmi, everything())
   return(df)
 }
 
-# Example
-# full_dataset %>% 
-#   add_wave_3_bmi("h3wgt", "h3hgt_f", "h3hgt_i")
 ```
+
+
+### Output Variable
+```{r}
+# This function preprocesses the outcome variable so that
+## 1. It is binarized
+## 2. Does not have any NAs (drops the NAs)
+## 3. Converts it into a factor variable
+# If the outcome is already binary, then it skips step 1 and just performs steps 2 and 3.
+
+fix_outcome_variable <- function(df, outcome_var, is_binary = TRUE, is_skip = FALSE, miss_var = 99){
+  # df : dataframe to be preprocessed
+  # outcome_var : outcome variable name passed as a string
+  
+  # is_binary : boolean indicator if the outcome is already binary or needs to be binarized
+  ## default of is_binary set to TRUE. Be explicit in call if otherwise
+  
+  # is_skip : boolean indicator if the outcome variable has a skip variable or not
+  ## default of is_skip set to FALSE. Be explicit in call if otherwise
+  
+  # miss_var : vector of variables that are going to be missed
+  ## default of miss_var is set to 99. Be explicit in call if otherwise
+  
+  if(is_binary == TRUE){
+    df <- df %>% 
+      drop_na(outcome_var) %>% 
+      mutate_at(vars(matches(outcome_var)), as.factor())
+  }
+  
+  else{
+    df <- df %>% 
+      binarize_var(outcome_var, legit_skip = is_skip, skip_var = miss_var ) %>% 
+      drop_na(outcome_var) %>% 
+      mutate_at(vars(matches(outcome_var)), as.factor)
+  }
+  
+  return(df)
+}
+
+
+```
+
