@@ -725,7 +725,7 @@ add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.i
   
   glucose <- read_xpt(filepath)
   glucose <- glucose %>% janitor::clean_names() %>% select(aid, hba1c)
-  df <- df %>% inner_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
+  df <- df %>% left_join(glucose, by = "aid") %>% select(aid, hba1c, everything())
   
   return(df)
 }
@@ -741,7 +741,7 @@ add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.va
   
   crp_df <- read_xpt(filepath)
   crp_df <- crp_df %>% janitor::clean_names() %>% select(aid, crp)
-  df <- df %>% inner_join(crp_df, by = "aid") %>% select(aid, crp, everything())
+  df <- df %>% left_join(crp_df, by = "aid") %>% select(aid, crp, everything())
   
   return(df)
 }
@@ -757,7 +757,7 @@ add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
   
   lipids <- read_xpt(filepath)
   lipids <- lipids %>% janitor::clean_names() %>% select(aid, hdl, ldl, tg)
-  df <- df %>% inner_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
+  df <- df %>% left_join(lipids, by = "aid") %>% select(aid, hdl,ldl,tg, everything())
   
   return(df)
 }
@@ -799,7 +799,7 @@ add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
     select(aid, h5bmi, h5waist)
   
   df <- df %>% 
-    inner_join(anthro, by = "aid") %>% 
+    left_join(anthro, by = "aid") %>% 
     select(aid, h5bmi, h5waist, everything())
   
 }
@@ -818,7 +818,7 @@ add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
     select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
   
   df <- df %>% 
-    inner_join(cardio, by = "aid") %>% 
+    left_join(cardio, by = "aid") %>% 
     select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls, everything())
   
   return(df)
