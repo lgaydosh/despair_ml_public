@@ -59,22 +59,31 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 2. depression 
 3. optimism 
 
+
 ```{r}
 ## set outcome variable of interest
 outcome = 'h5to21'
 
 wave_data <- load_waves(1:5)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
 ```
-```{r}
-full_dataset %>% 
-  unique_outcomes("h5to21", is_factor = F)
-```
+
+This is the table with all the counts for different levels of the variables. We can see 97 is a legitimate skip variable. We can send this into the binarize_var function and it will be coded as 0 (did not use marijuana). 
 
 ```{r}
 full_dataset %>% 
+  group_by(h5to21) %>% 
+  summarise(total = n(), type = class(h5to21))
+```
+
+
+This is what the dataset looks like if the variables were binarized. We see 8488 `NA`values but these will be dropped after only the subjects that were present in all waves are kept.
+```{r}
+full_dataset %>% 
   binarize_var("h5to21", legit_skip = T, skip_var = 97) %>% 
-  unique_outcomes("h5to21", is_factor = F)
+  group_by(h5to21) %>% 
+  summarise(total = n(), type = class(h5to21))
 ```
 
 
@@ -82,35 +91,34 @@ full_dataset %>%
 full_dataset %>% 
   explore_outcome("h5to21", binary = F, legit_skip = T, skip_var = 97)
 ```
-
-
 ```{r}
 ## get the aids that you want
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
 
+## get na_levels : dataset to recode all skip levels in variables
+na_levels <- read_csv("na_levels.csv")
+
+
 ## use the features and ids that you want to select out what you want
 marijuana_ds <- full_dataset %>%
   add_demographics() %>%
+  add_bio_despair() %>% 
   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
+  recode_missing_levels(na_levels) %>% 
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
-  mutate_at(vars(-starts_with("age_")), as_factor) %>%
-  mutate_at(vars(c(-starts_with("age_"),outcome)), fct_explicit_na) %>% 
-  binarize_var("h5to21", legit_skip = T, skip_var = 97)  # legitimate skipped variable = 97
+  fix_outcome_variable("h5to21", is_binary = FALSE, is_skip = TRUE, miss_var = 97)
+
 ```
+
+
 
 ```{r}
 marijuana_ds %>% 
-  unique_outcomes("h5to21", is_factor = F)
+  group_by(h5to21) %>% 
+  summarise(total = n(), type = class(h5to21))
 ```
-There are 11 NAs introduced into the outcome after filtering the aids to only subjects that were in all 5 waves. 
 
-```{r}
-marijuana_ds <- marijuana_ds %>% drop_na(outcome)
-
-marijuana_ds %>% 
-  unique_outcomes("h5to21", is_factor = F)
-```
 
 ```{r}
 #Report about the characteristics of the subjects left out of the join
@@ -132,31 +140,53 @@ Here, we comment about the general characteristics of the data based on the prov
 marijuana_ds %>% 
   dplyr::select(-aid) %>%
   graph_bar_discrete(df = .,
-                   plot_title = "Distributions of Discrete Variables",
-                   max_categories = 50,
-                   num_rows = 3,
-                   num_cols = 3,
-                   x_axis_size = 12,
-                   y_axis_size = 12,
-                   title_size = 15)
+                     plot_title = "Distributions of Discrete Variables",
+                     max_categories = 50,
+                     num_rows = 3,
+                     num_cols = 3,
+                     x_axis_size = 12,
+                     y_axis_size = 12,
+                     title_size = 15)
 ```
 
 ```{r}
-# Visualize missingness
+# # Visualize missingness
+# full_dataset %>%
+#   add_demographics() %>%
+#   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
+#   filter(aid %in% inner_aids) %>%
+#   remove_subjects_not_in_wave1() %>%
+#   mutate_at(vars(-starts_with("age_")), as_factor) %>%
+#   binarize_var("h5to21", legit_skip = T, skip_var = 97) 
+
 full_dataset %>%
   add_demographics() %>%
   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
-  mutate_at(vars(-starts_with("age_")), as_factor) %>%
-  binarize_var("h5to21", legit_skip = T, skip_var = 97) %>% 
+  recode_missing_factors(na_levels) %>% 
+  recode_missing_numeric(na_levels) %>% 
+  binarize_var("h5to21", legit_skip = T, skip_var = 97)  
+
+
+
+full_dataset %>%
+  add_demographics() %>%
+  add_bio_despair() %>% 
+  dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
+  recode_missing_levels(na_levels) %>% 
+  filter(aid %in% inner_aids) %>%
+  remove_subjects_not_in_wave1() %>%
+  #fix_outcome_variable("h5to21", is_binary = FALSE, is_skip = TRUE, miss_var = 97)%>% 
+  binarize_var("h5to21", legit_skip = TRUE, skip_var = 97) %>% 
   graph_missing(only_missing = TRUE,
-              title = "Percent Missing",
-              box_line_size = .5,
-              label_size = .5,
-              x_axis_size = 12,
-              y_axis_size = 12,
-              title_size = 15)
+                title = "Percent Missing",
+                box_line_size = .5,
+                label_size = .5,
+                x_axis_size = 12,
+                y_axis_size = 12,
+                title_size = 15)
+
 ```
 
 ```{r}
@@ -192,13 +222,13 @@ n performance metrics; we assert that because of good model performance, we can 
 ## RF model
 The RF models are chosen based on a grid search using the following the parameters: 
 
-  - max depth: maximum depth allowed for a single tree in the RF  
-  - number of trees: maximum number of trees allowed in the RF  
-  - mtries: the number of columns sampled for each tree split  
-  - min_rows: the minimum number of rows required to split the internal node
-  - balance classes: whether to balance the classes or not
-  - stopping_metric: metric which results in early stopping of training of the model
-  - categorical encoding: use one hot encoding to create straightforward comparison with LASSO
+- max depth: maximum depth allowed for a single tree in the RF  
+- number of trees: maximum number of trees allowed in the RF  
+- mtries: the number of columns sampled for each tree split  
+- min_rows: the minimum number of rows required to split the internal node
+- balance classes: whether to balance the classes or not
+- stopping_metric: metric which results in early stopping of training of the model
+- categorical encoding: use one hot encoding to create straightforward comparison with LASSO
 
 ```{r}
 rf_params <- list(max_depth = 50,
@@ -214,9 +244,9 @@ rf_params <- list(max_depth = 50,
 n_boot = 50
 
 marijuana_rf <- model_feature_selection("RF",training_frame = training_df,
-                      validation_frame = validation_df,
-                      hyper_params = rf_params,
-                      outcome = outcome, n = n_boot, seed=seed)
+                                        validation_frame = validation_df,
+                                        hyper_params = rf_params,
+                                        outcome = outcome, n = n_boot, seed=seed)
 
 ```
 
@@ -227,7 +257,7 @@ The following table displays the mean performance metrics for the bootstrapped m
 ```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
 mean_bs_rf_perf <- get_metric_set_from_perfs(marijuana_rf$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
-         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>%
   mutate(model = 'bs_rf') %>%
   dplyr::select(model, everything())
@@ -271,6 +301,7 @@ Now, let's look at these models together:
 ```{r fig.width = 16, fig.height = 14}
 cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -met))
 ```
+
 ```{r fig.width = 10, fig.height = 12}
 plot_permute_var_imp(boot_rf_perm, metric = pr_auc)
 ```
@@ -284,18 +315,18 @@ lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
 
 marijuana_lasso <- model_feature_selection( "Lasso",
-                                               training_frame = training_df,
-                                               validation_frame = validation_df,
-                                               hyper_params = lasso_params,
-                                               outcome = outcome, 
-                                               n = n_boot)
+                                            training_frame = training_df,
+                                            validation_frame = validation_df,
+                                            hyper_params = lasso_params,
+                                            outcome = outcome, 
+                                            n = n_boot)
 ```
 
 
 ```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
 mean_bs_lasso_perf <- get_metric_set_from_perfs(marijuana_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
-         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>% 
   mutate(model='bs_lasso') %>%
   dplyr::select(model, everything())
@@ -352,6 +383,8 @@ The following table compares the mean performance of bootstrapped random forests
 bs_comp_perfs <- rbind(mean_bs_rf_perf, mean_bs_lasso_perf) 
 bs_comp_perfs
 ```
+
+
 
 ## Comparison: Model Type Feature Importance
 Here, we look at the aggregated results of the bootstrapped predictors and compare the models generated to each other.
@@ -446,10 +479,10 @@ The following plot provides visualizations for the difference in the final model
 # Comparison of top_n features
 rf_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
-    interactive = TRUE,
-    top_n = 100,
-    opacity = 0.50,
-    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+                         interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
 ```
 
 
@@ -512,10 +545,10 @@ The following plot provides visualizations for the difference in the final model
 # Comparison of top_n features
 lasso_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
-    interactive = TRUE,
-    top_n = 100,
-    opacity = 0.50,
-    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+                         interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
 ```
 
 
@@ -539,10 +572,10 @@ The following visualization provides the intuition about the differences in the 
 # Comparison of top_n features
 rf_lasso_final_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
-    interactive = TRUE,
-    top_n = 100,
-    opacity = 0.50,
-    plot_title = "Permutation Importance of Predictors: Random Forest vs Lasso")
+                         interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors: Random Forest vs Lasso")
 ```
 
 ## Comparison: Final model performance
