@@ -41,6 +41,7 @@ rf_model <- function(outcome,
                      validation_frame,
                      nfolds,
                      hyper_params,
+                     perf_metric = 'pr_auc',
                      model_seed = 42){  
   # train: bootstrapped training frame sent in to be created a model with
   # outcome: predicted variable 
@@ -48,6 +49,8 @@ rf_model <- function(outcome,
   # validation_frame: 90-10 split from the training_df
   # nfolds: number of fold
   # hyper_params: list of named hyper parameters for random forest
+  # perf_metric : H2o metric used to select the best model from the grid search
+  # model_seed : Integer value for reproducibility
   
    # Ensure 'aid' is not in the dataframe
   if(var_in_df(training_frame, 'aid')){
@@ -94,13 +97,12 @@ rf_model <- function(outcome,
   
   # Get the grid results, sorted by validation AUC
   rf_gridperf <- h2o.getGrid(grid_id = grid_name,
-                             sort_by = "pr_auc",
+                             sort_by = perf_metric,
                              decreasing = TRUE)
   
   # Grab the top rf model, chosen by validation AUC
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
-  
-  
+
   # return model and its performance on validation_frame
   return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
 }
@@ -114,11 +116,15 @@ lasso_model <- function(outcome,
                         validation_frame, 
                         nfolds,
                         hyper_params,
+                        perf_metric = 'pr_auc',
                         model_seed = 42){  
   # outcome: variable to be predicted
   # training_frame: data to be trained on
   # validation_frame: hold-out data for performance evaluation
   # nfolds: number of folds for k-fold cross validation
+  # hyper_params: list of named hyper parameters for random forest
+  # perf_metric : H2o metric used to select the best model from the grid search
+  # model_seed : Integer value for reproducibility
   
   # Ensure 'aid' is not in the dataframe
   if(var_in_df(training_frame, 'aid')){
@@ -164,7 +170,7 @@ lasso_model <- function(outcome,
   
   # Get the grid results, sorted by validation AUC
   lasso_gridperf <- h2o.getGrid(grid_id = grid_name,
-                                sort_by = "pr_auc",
+                                sort_by = perf_metric,
                                 decreasing = TRUE)
   
   # Grab the top rf model, chosen by validation AUC
@@ -247,6 +253,7 @@ model_feature_selection <- function(model_type,
                                     k = 5,
                                     hyper_params,
                                     outcome,
+                                    selection_metric = 'pr_auc',
                                     top_n = 20,
                                     seed = 42){
   # training_df : training data frame sent in after initial 70-30 split
@@ -255,6 +262,7 @@ model_feature_selection <- function(model_type,
   # lambda_tune : tuning parameters to test for lambda
   # hyper_params : hyperparams for random forest 
   # outcome : name of the outcome variable
+  # selection_metric : H2o metric used to select the best model from the grid search
   # top_n : top n important variables to be extracted from the models generated
   
   # set seed for bootstraps synchronization
@@ -279,6 +287,7 @@ model_feature_selection <- function(model_type,
                            validation_frame = validation_frame,
                            hyper_params = hyper_params,
                            nfolds = k,
+                           perf_metric = selection_metric,
                            model_seed = seed)
     }
     
@@ -288,6 +297,7 @@ model_feature_selection <- function(model_type,
                              validation_frame = validation_frame,
                              hyper_params = hyper_params,
                              nfolds = k,
+                             perf_metric = selection_metric,
                              model_seed = seed)      
     }
     else{
