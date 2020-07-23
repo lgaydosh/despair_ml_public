@@ -19,14 +19,14 @@ add_parent_health <- function(df){
   # drop unnecessary columns?
   df %>% 
     mutate(p_health = case_when(
-      (PC21_1 == 1) ~ 1,
-      (PC21_2 == 1) ~ 2,
-      (PC21_3 == 1) ~ 3,
-      (PC21_4 == 1) ~ 4,
-      (PC21_5 == 1) ~ 5,
-      (PC21_6 == 1) ~ 6,
-      (PC21_7 == 1) ~ 7,
-      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0) ~ 0)
+      (PC21_1 == 1)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 0) ~ 1,
+      (PC21_1 == 0)&(PC21_2 == 1)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 0) ~ 2,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 1)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 0) ~ 3,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 1)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 0) ~ 4,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 1)&(PC21_6 == 0)&(PC21_7 == 0) ~ 5,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 1)&(PC21_7 == 0) ~ 6,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 1) ~ 7,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_3 == 0)&(PC21_4 == 0)&(PC21_5 == 0)&(PC21_6 == 0)&(PC21_7 == 0) ~ 0)
     )
 }
 
@@ -57,13 +57,15 @@ w1_education <- c("h1gi20", "h1ee1", "h1ee2")
 w1_prospects <- ("s45f")
 
 w1_ses <- c(w1_parent_ses, w1_education, w1_prospects)
+
+w1_ind_vars <- c(w1_health, w1_social, w1_peer, w1_religion, w1_family, w1_future, w1_criminal, w1_ses)
 ```
 
 ```{r wave 3}
 
 w3_health <- c("h3to4", "h3to10", "h3gh18", "h3gh1", "h3hs1")
 
-w3_social <- c("h3da15")
+w3_social <- ("h3da15")
 
 w3_prosocial <- c("h3cc6", "h3cc7", "h3cc8", "h3cc3")
 
@@ -81,6 +83,9 @@ add_w3_family<- function(df) {
   #father warm and loving "h3wp24", "h3wp38", "h3wp52"
   #sibling closeness "h3ws5a", "h3ws5b", "h3ws5c", "h3ws5d"
   #sibling problem solving support "h3ws6a", "h3ws6b", "h3ws6c", "h3ws6d"
+  
+  df<- df %>% 
+    mutate(close_monther = case_when())
 }
 
 w3_family <- c("h3wp20", "h3wp32", "h3wp46", "h3wp64", "h3wp21", "h3wp22", "h3wp33", "h3wp34", "h3wp47", "h3wp48", "h3wp65", "h3wp25", "h3wp39", "h3wp53", "h3wp26", "h3wp27", "h3wp40", "h3wp41", "h3wp54", "h3wp55", "h3wp19", "h3wp31", "h3wp45", "h3wp63", "h3wp24", "h3wp38", "h3wp52", "h3ws5a", "h3ws5b", "h3ws5c", "h3ws5d", "h3ws6a", "h3ws6b", "h3ws6c", "h3ws6d", "h3ma4", "h3ma3", "h3ma5", "h3ma6")
@@ -99,11 +104,18 @@ w3_education <- c("h3ed1", "h3ed19", "h3ed20", "h3ed27", "h3ed29", "h3ed30", "h3
 
 w3_poverty <- c("h3ed1c", "h3ed1d", "h3ec1e", "h3ec3", "h3ec4", "h3ec5", "h3ec6", "h3ec7", "h3ec9")
 
+add_w3_employ<- function(df){
+  #Need to truncate values in h3lm25
+  #Keep first 2 digits and drop anything behind the -
+}
+
 w3_employ <- c("h3lm25", "h3lm27")
 
 w3_prospects <- c("h3ec59", "h3ec30")
 
 w3_ses <- c(w3_education, w3_poverty, w3_employ, w3_prospects)
+
+w3_ind_vars <- c(w3_health, w3_social, w3_prosocial, w3_peer, w3_religion, w3_family, w3_structure, w3_partner, w3_child, w3_future, w3_criminal, w3_ses)
 ```
 
 ```{r wave 4}
@@ -133,11 +145,18 @@ w4_education <- c("h4ed1", "h4ed2", "h4ed8", "h4ed9")
 
 w4_poverty <- c("h4ec1", "h4ec3", "h4ec2")
 
+add_w4_employ<- function(df){
+  #Need to truncate values for h4lm18
+  #Keep first 2 digits and drop anything behind the -
+}
+
 w4_employ <- c("h4lm18", "h4lm23", "h4lm14", "h4lm20", "h4lm27")
 
 w4_prospects <- c("h4ec19")
 
 w4_ses <- c(w4_education, w4_poverty, w4_employ, w4_prospects)
+
+w4_ind_vars <- c(w4_health, w4_social, w4_prosocial, w4_peer, w4_religion, w4_family, w4_structure, w4_partner, w4_child, w4_criminal, w4_stress, w4_ses)
 ```
 
 ```{r wave 5}
@@ -157,7 +176,16 @@ w5_structure <- c("h5wp15", "h5wp1", "h5wp4", "h5wp18")
 
 
 add_w5_time <- function(df){
-  #combine Y and M columns
+  #combine Y and M columns for h5tr4, h5tr5, h5tr6, h5tr7
+  # adds h5tr4_t, h5tr5_t, h5tr6_t, h5tr7_t which combine the number of years and months into total number of months
+  df<-df %>% 
+    mutate(h5tr4_t = h5tr4y * 12 + h5tr4m, 
+           h5tr5_t = h5tr5y * 12 + h5tr5m, 
+           h5tr6_t = h5tr6y * 12 + h5tr6m, 
+           h5tr7_t = h5tr7y * 12 + h5tr7m) %>%
+    select(df, -c(h5tr4m, h5tr4y, h5tr5m, h5tr5y, h5tr6m, h5tr6y, h5tr7m, h5tr7y))
+    
+  return(df)
 }
 
 
@@ -179,7 +207,7 @@ w5_prospects <- c("h5ec9")
 
 w5_ses <- c(w5_education, w5_poverty, w5_employ, w5_prospects)
 
-
+w5_ind_vars <- c(w5_health, w5_social, w5_prosocial, w5_peer, w5_religion, w5_family, w5_structure, w5_partner, w5_child, w5_criminal, w5_stress, w5_ses)
 ```
 
 
