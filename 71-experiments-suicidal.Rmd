@@ -20,7 +20,7 @@ source("function_import.R")
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 **Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
@@ -34,8 +34,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_install(plotly)
-pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
 
 ```
 
@@ -55,78 +55,107 @@ knitr::include_graphics('./img/pipeline_overview.jpg')
 ```
 # Dataset generation
 
-The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe:
-1. anxiety
-2. depression 
-3. optimism 
+The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
 
-```{r, include=FALSE}
+```{r load raw data}
 ## set outcome variable of interest
-outcome = 'h5mn8' # This is the binary variable representing suicidal ideation at wave 5
+outcome = 'h5mn8'
 
 wave_data <- load_waves(1:5)
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+
 ```
 
-```{r}
-full_dataset %>% explore_outcome("h5mn8")
-```
 
-
-```{r, warning=FALSE,message=FALSE}
-## get the aids that you want
+```{r compose working dataset, warning=False, message=False}
+## Only study the subjects that we're interested in.
 inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+## get na_levels : dataset to recode all skip levels in variables
+na_levels <- read_csv("na_levels.csv")
 
 ## use the features and ids that you want to select out what you want
 suicide_ds <- full_dataset %>%
-  add_demographics() %>%
-  dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
   remove_subjects_not_in_wave1() %>%
-  mutate_at(vars(-starts_with("age_")), as_factor) %>%
-  mutate_at(vars(c(-starts_with("age_"),outcome)), fct_explicit_na) %>% 
-  drop_na(outcome)
-
-# Report about the characteristics of the subjects left out of the join
-count_not_joined(wave_data = wave_data, number_waves_joined = 5)
-
-# Validate the generated dataset using asserts
+  add_demographics() %>%
+  add_bio_despair() %>% 
+  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
+  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
+  recode_missing_levels(na_levels)
 
 ```
 
+## Outcome variable: Binarizing and recoding details
+
+The following table details the values present in the outcome variable.  As we can see, we need to convert the variable into a factor, and drop the NAs.
+
+```{r warning=FALSE, message=FALSE}
+suicide_ds %>% 
+  group_by(get(outcome)) %>% 
+  summarise(total = n(), type = class(get(outcome)))
+```
+
+The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.
+
+```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
+suicide_ds <- suicide_ds %>%
+  mutate_at(vars(outcome), as.factor) %>%
+  drop_na(outcome)
+```
+
+After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
+
+```{r warning=FALSE, message=FALSE}
+suicide_ds %>% explore_outcome(outcome)
+```
+The distribution of the data is a slight imbalance, but not by much.  I think this warrants using AUC as the optimization and selection metric.
+
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
-```{r eda}
+
+```{r warning=FALSE, message=FALSE}
+#Report about the characteristics of the subjects left out of the join
+suicide_ds %>% explore_dropped()
+
+```
+
+```{r eda distributions, fig.width = 15, fig.height=15}
 # Visualize distributions of variables of interest
 suicide_ds %>% 
   dplyr::select(-aid) %>%
   graph_bar_discrete(df = .,
-                   plot_title = "Distributions of Discrete Variables",
-                   max_categories = 50,
-                   num_rows = 3,
-                   num_cols = 3,
-                   x_axis_size = 12,
-                   y_axis_size = 12,
-                   title_size = 15)
+                     plot_title = "Distributions of Discrete Variables",
+                     max_categories = 50,
+                     num_rows = 3,
+                     num_cols = 3,
+                     x_axis_size = 12,
+                     y_axis_size = 12,
+                     title_size = 15)
+```
 
-# Visualize missingness
-graph_missing(suicide_ds, 
-              only_missing = TRUE,
-              title = "Percent Missing",
-              box_line_size = .5,
-              label_size = .5,
-              x_axis_size = 12,
-              y_axis_size = 12,
-              title_size = 15)
-
-# Visualize correlation among first 20 predictors
+```{r eda missing}
 suicide_ds %>%
-  dplyr::select(1:20) %>%
+  graph_missing(only_missing = TRUE,
+                title = "Percent Missing",
+                box_line_size = .5,
+                label_size = .5,
+                x_axis_size = 12,
+                y_axis_size = 12,
+                title_size = 15)
+
+```
+
+```{r eda correlations}
+suicide_ds %>%
+  #dplyr::select(1:20) %>%
   pairwise_cramers_v() %>%
   plot_cramer_v(x_axis_angle = 90,
                 plot_title = "Association among Categorical Variables",
                 interactive = TRUE)
 ```
+The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
 
 # Machine learning split of the data
 
@@ -143,9 +172,6 @@ testing_df <- data_splits$test
 ```
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
-- Here, we will justify the feature selection based on performance metrics; we assert that because of good model performance, we can expect that the features selected are reasonable because the models fit the data well (without being overtrained)
-- Here, the subject matter experts will comment on the selected features and their general applicability to the outcomes of interest.
-- Lastly, we will comment on differences in results between RF and LASSO
 
 ## RF model
 The RF models are chosen based on a grid search using the following the parameters: 
@@ -164,7 +190,7 @@ The RF models are chosen based on a grid search using the following the paramete
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
                   mtries = seq(-1, 20, by=10),
-                  min_rows = seq(20, 60, by=20),
+                  min_rows = seq(10, 50, by=20),
                   balance_classes = c(TRUE, FALSE),
                   stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
@@ -174,7 +200,7 @@ rf_params <- list(max_depth = 50,
 #                   categorical_encoding= 'one_hot_explicit')
 
 # define number of bootstraps
-n_boot = 2
+n_boot = 100
 
 suicide_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
