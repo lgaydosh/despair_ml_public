@@ -110,7 +110,7 @@ After dropping the NAs, we see that we now have 9168 rows, which is consistent w
 ```{r warning=FALSE, message=FALSE}
 suicide_ds %>% explore_outcome(outcome)
 ```
-The distribution of the data is a slight imbalance, but not by much.  I think this warrants using AUC as the optimization and selection metric.
+The distribution of the data is a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
