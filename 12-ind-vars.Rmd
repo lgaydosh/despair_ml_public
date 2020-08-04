@@ -1,0 +1,98 @@
+---
+title: "12-ind-vars"
+author: "Katrina Tsun"
+date: "7/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Lists of individual relevant variables
+```{r parent}
+
+add_parent_health <- function(df){
+  # df : joined waves input
+  # return : new data frame including additional variable about parental health insurance
+  # works assuming each person has only 1 type of health insurance
+  # drop unnecessary columns?
+  df %>% 
+    mutate(p_health = case_when(
+      (PC21_1 == 1) ~ 1,
+      (PC21_2 == 1) ~ 2,
+      (PC21_3 == 1) ~ 3,
+      (PC21_4 == 1) ~ 4,
+      (PC21_5 == 1) ~ 5,
+      (PC21_6 == 1) ~ 6,
+      (PC21_7 == 1) ~ 7,
+      (PC21_1 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0)&(PC21_2 == 0) ~ 0)
+    )
+}
+
+parent_vars <- c("p_health", "PA10", "PA61", "PA62", "PA21", "PA55", "PA12", "PB8", "PA56", "PC31")
+
+
+```
+
+```{r wave 1}
+w1_health <- c("h1to3", "h1to7", "h1gh1")
+
+w1_social <- c("h1pf35", "h1pf36", "h1da7", "h1ed19", "h1ed20", "h1ed22", "h1fs13", "h1pr1", "h1pr2", "h1pr4", "h1nb3")
+
+w1_peer <- c("h1su4", "h1su6", "h1su5", "h1su7")
+
+w1_religion <- c("h1re3", "h1re4", "h1re7")
+
+w1_family <- c("h1wp9", "h1wp10", "h1wp13", "h1wp14", "h1wp17f", "h1wp18f", "h1pf1", "h1pf4", "h1pf5", "h1pf23", "h1pf25", "h1pf24", "h1nm12f", "h1nm14", "h1nf12f", "h1nf14", "h1pr3", "h1pr5", "h1pr7", "h1pr8", "h1wp11", "h1wp12", "h1wp15", "h1wp16")
+
+w1_future <- c("h1ee14", "h1ee12", "s45f")
+
+w1_criminal <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11")
+
+w1_parent_ses <- c("h1nf4", "h1nm4", "h1rf1", "h1rm1") 
+
+w1_education <- c("h1gi20", "h1ee1", "h1ee2")
+
+w1_ses <- c(w1_parent_ses, w1_education)
+```
+
+```{r wave 3}
+
+add_w3_closeness <- function(df) {
+  #help
+}
+
+w3_health <- c("h3to4", "h3to10", "h3gh18", "h3gh1", "h3hs1")
+
+w3_social <- c("h3da15")
+
+w3_prosocial <- c("h3cc6", "h3cc7", "h3cc8", "h3cc3")
+
+w3_peer <- c("h3to133", "h3to135", "h3to136", "h3to134")
+
+w3_religion <- c("h3re24", "h3re30", "h3re25", "h3re33", "h3re34")
+
+w3_family <- c("h3wp20", "h3wp32", "h3wp46", "h3wp64", "h3wp21", "h3wp22", "h3wp33", "h3wp34", "h3wp47", "h3wp48", "h3wp65", "h3wp25", "h3wp39", "h3wp53", "h3wp26", "h3wp27", "h3wp40", "h3wp41", "h3wp54", "h3wp55", "h3wp19", "h3wp31", "h3wp45", "h3wp63", "h3ma4", "h3ma3", "h3ma5", "h3ma6", "h3cj160")
+
+w3_partner <- c("h3mr1", "h3mr3_a", "h3mr6_a", "h3mr3_b", "h3mr6_b", "h3bm2")
+  
+w3_child <- c("h3mac10")
+
+w3_future <- ("h3ec56")
+
+w3_criminal <- c("h3ds18H", "h3ds18A", "h3ds18I", "h3to49", "h3ds6", "h3ds5", "h3ds4")
+
+w3_education <- c("h3ed1", "h3ed19", "h3ed20", "h3ed27", "h3ed29", "h3ed30", "h3ed16", "h3ed17")
+
+w3_poverty <- c("h3ed1c", "h3ed1d", "h3ec1e", "h3ec3", "h3ec4", "h3ec5", "h3ec6", "h3ec7", "h3ec9")
+
+w3_employ <- c("h3lm25", "h3lm27")
+
+w3_prospects <- c("h3ec59", "h3ec30")
+
+w3_ses <- c(w3_education, w3_poverty, w3_employ, w3_prospects)
+```
+
+
+
