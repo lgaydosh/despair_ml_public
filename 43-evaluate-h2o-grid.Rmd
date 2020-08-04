@@ -5,7 +5,7 @@ output: html_notebook
 
 # 43-evaluate-h2o-grid
 
-The purpose of this notebook is to investigate the strange behavior of `h2o.grid`.  The strange behavior is that h2o.grid, when called on multiple different datasets, appears to return the same results every single time, even though the dataset is different.  This notebook will use some of the existing functions in 40 and ensure that their behavior is as expected.
+The purpose of this notebook is to investigate the behavior of `h2o.grid`.  A current strange behavior is that h2o.grid, when called on multiple different datasets, appears to return the same results every single time, even though the dataset is different.  This notebook will use some of the existing functions in 40 and ensure that their behavior is as expected.
 
 ```{r}
 library(pacman)
@@ -46,6 +46,7 @@ testing_df <- data_splits$test
 h2o.init()
 ```
 
+## Grid names
 ```{r}
 rf_params <- list(max_depth = 50, 
                   ntrees = 150,
@@ -72,4 +73,45 @@ This seems to work satisfactorally.  It looks like the issue was that whenever y
 We can get around this by just providing a random hash long enough that we can expect that it will not be repeated.  We appended another part, e.g. `rf` or `lasso` just to help out with the randomness.  This approach seems to fix the issue without removing information from the h2o process space.
 
 Note that one-hot encoding (explicit) proceeds as described [here](https://groups.google.com/forum/#!topic/h2ostream/bSic0Rm8-98).
+
+## Variable grid performance measures
+
+The commit following 53f4cb0 (I haven't committed yet) implements new functionality to close #173, which implements a variable grid search selection metric.  Here, I test the functionality I'm about to commit.  I ran the first few code chunks of 71-suicidal to produce the dataframe I'm working with, so the chunks above may not be relevant.
+
+Since I'm running this over and over, I keep getting h2o errors about "Cannot append new models to a grid with different training input."  To remedy this, enter `h2o.removeAll()` at the console and keep it moving.
+
+```{r rf bootstrap test}
+outcome = 'h5mn8'
+
+rf_params <- list(max_depth = 50, 
+                  ntrees = 150,
+                  mtries = c(-1,20))
+
+suicide_rf <- model_feature_selection("RF", training_frame = training_df,
+                      validation_frame = validation_df,
+                      hyper_params = rf_params,
+                      selection_metric = 'auc',
+                      outcome = outcome, n = 2)
+```
+Verified by debugger that:
+- `perf_metric` is correctly set as a string when called from `model_feature_selection` for random forest.  The grid search only produces 1 result for lasso since our lasso is implemented with grid search for a unified framework with random forest.
+- `selection_metric`/`perf_metric` is correctly used by h2o when is `pr_auc` and `auc`.  Other metrics that can be used are found in the model evaluation metrics list.
+
+The following evaluation is shown for completeness for the individual model:
+
+```{r}
+rf_test_ind <- rf_model(outcome, 
+                     training_frame = training_df,
+                     validation_frame = validation_df,
+                     nfolds = 5,
+                     hyper_params = rf_params,
+                     perf_metric = 'mean_per_class_error',
+                     model_seed = 42)
+```
+Verified by debugger that:
+- `perf_metric` correctly used at the model level
+- `perf_metric` correctly used to choose best grid search model
+- best grid search model correctly chosen.
+
+
 
