@@ -16,7 +16,7 @@ Note: See bottom of file for description of data
 # Libraries
 ```{r load libraries }
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample, h2o)
+pacman::p_load(tidyverse, haven, janitor, ggplot2, purrr, likert, forcats, rsample, tictoc)
 ```
 
 ```{r initializing h2o }
@@ -260,6 +260,34 @@ suicidal_id_outcome <- outcome_vars[suicidal_list]
 marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
 ```
 
+# Ensuring the behavior of loading the data
+```{r test flexible filebase}
+filebase = '/scratch/p_gaydosh_lab'
+
+## load waves and join them
+tic()
+wave_data <- load_waves(1:5, filebase=filebase)
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+toc()
+
+## set outcome variable of interest
+outcome = 'h5mn8'
+
+## get the aids that you want
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+## use the features and ids that you want to select out what you want
+working_ds <- full_dataset %>%
+  remove_subjects_not_in_wave1(filebase=filebase) %>%
+  add_demographics() %>%
+  add_bio_despair(filebase=filebase) %>% 
+  filter(aid %in% inner_aids) %>%
+  dplyr::select(all_of(c('aid', predictor_list, demographic_age_list, demographic_list, outcome)))
+
+working_ds %>% glimpse()
+
+```
+The above code chunk reveals that all variables are loaded correctly.
 
 # Data
 
