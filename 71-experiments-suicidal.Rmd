@@ -524,7 +524,7 @@ joined_results %>%
 
 ## RF model
 In this step, we build the final model for the random forest.  We use slightly more values in order to come up with the best model, keeping in mind the number of combinations that are required to run to evaluate the grid.
-```{r final model evaluation rf}
+```{r final model evaluation rf, eval=from_script}
 
 # # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
@@ -548,20 +548,75 @@ final_model_rf <- rf_model(outcome,
 
 ```
 
+```{r save/load final rf model}
+
+final_rf_perf = NULL
+
+if (from_script) {
+  
+  #get performance
+  final_rf_perf <-final_model_rf[[2]]
+  
+  #save model to file
+  final_rf_model_file <- str_c(results_directory, str_c('/final_rf_model_', task_ID))
+  temp_out <- h2o.saveModel(object = final_model_rf[[1]], path = final_rf_model_file, force = TRUE)
+  
+  #save performance to file
+  final_rf_file <- str_c(results_directory, str_c('/final_rf_perfs_', task_ID), '.csv')
+  write_csv(final_rf_perf, final_rf_file)
+  
+} else {
+  
+  # get array of files to read
+  final_rf_files <- str_c(results_directory, str_c('/final_rf_perfs_', seq(1,no_tasks)), '.csv')
+  
+  # map read them into a df
+  final_rf_perfs <- map_dfr(final_rf_files, read_csv)
+  
+  # get the index of the best performance
+  final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met))
+  
+  final_rfmodel_path <- str_c(results_directory, str_c('/final_rf_model_', final_rfmodel_ind))
+  final_rfmodel <- h2o.loadModel(final_rfmodel_path)
+  final_rf_perf <- final_rf_perfs %>% slice(final_rfmodel_ind)
+}
+
+```
+
 ### Performance
 The final random forest performance metrics are shown below:
-```{r}
+```{r rf final model performance, eval=!from_script}
 # show model final performance
-print(final_model_rf[[2]])
+print(final_rf_perf)
 ```
 
 ### Features: permutation importance
-```{r get plottable permutation importance, message=FALSE, warning=FALSE}
-final_rf_perm_plt <- c(final_model_rf[[1]]) %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+
+```{r compute/save or load final rf model permutation}
+
+final_rf_perm_plt = NULL
+
+if (from_script) {
+  final_rf_perm_plt <- final_model_rf[[1]] %>%
+    get_aggregated_permute_imp(training_df, outcome=outcome)
+  
+  final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', task_ID), '.csv')
+  
+  write_csv(final_rf_perm_plt, final_rf_perm_file)
+  
+} else {
+  
+  # get permutation importance of best file
+  final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', final_rfmodel_ind), '.csv')
+  
+  # map read them into a df
+  final_rf_perm_plt <- read_csv(final_rf_perm_file)
+}
+
 ```
 
-```{r get metrics for final rf}
+
+```{r get metrics for final rf, eval=!from_script}
 final_rf_perm <- final_rf_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
@@ -570,13 +625,13 @@ final_rf_perm <- final_rf_perm_plt %>%
 head(final_rf_perm, 20)
 ```
 
-```{r plot rf final permutation, fig.width = 10, fig.height = 12}
+```{r plot rf final permutation, fig.width = 10, fig.height = 12, eval=!from_script}
 plot_permute_var_imp(final_rf_perm, metric = pr_auc)
 ```
 ### Comparison with bootstrap results
 This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
 
-```{r}
+```{r compare rf final with bootstrap, eval=!from_script}
 rf_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
@@ -588,7 +643,7 @@ head(rf_joined_results, 20)
 
 The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
 
-```{r fig.height=14, fig.width=16}
+```{r plot final rf features plotly, fig.height=14, fig.width=16, eval=!from_script}
 # Comparison of top_n features
 rf_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
@@ -600,7 +655,7 @@ rf_joined_results %>%
 
 ## LASSO model
 Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.
-```{r final model evaluation lasso, message=FALSE, warning=FALSE}
+```{r final model evaluation lasso, message=FALSE, warning=FALSE, eval=from_script}
 # Function parameters
 lasso_params <- list(alpha = c(1))
 
@@ -611,19 +666,73 @@ final_model_lasso <- lasso_model(training_frame = training_df,
                                  hyper_params = lasso_params)
 ```
 
+```{r save/load final lasso model}
+
+final_lasso_perf = NULL
+
+if (from_script) {
+  
+  #get performance
+  final_lasso_perf <-final_model_lasso[[2]]
+  
+  #save model to file
+  final_lasso_model_file <- str_c(results_directory, str_c('/final_lasso_model_', task_ID))
+  temp_out <- h2o.saveModel(object = final_model_lasso[[1]], path = final_lasso_model_file, force = TRUE)
+  
+  #save performance to file
+  final_lasso_file <- str_c(results_directory, str_c('/final_lasso_perfs_', task_ID), '.csv')
+  write_csv(final_lasso_perf, final_lasso_file)
+  
+} else {
+  
+  # get array of files to read
+  final_lasso_files <- str_c(results_directory, str_c('/final_lasso_perfs_', seq(1,no_tasks)), '.csv')
+  
+  # map read them into a df
+  final_lasso_perfs <- map_dfr(final_lasso_files, read_csv)
+  
+  # get the index of the best performance
+  final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met))
+  
+  final_lassomodel_path <- str_c(results_directory, str_c('/final_lasso_model_', final_lassomodel_ind))
+  final_lassomodel <- h2o.loadModel(final_lassomodel_path)
+  final_lasso_perf <- final_lasso_perfs %>% slice(final_lassomodel_ind)
+}
+
+```
+
 The final LASSO performance metrics are shown below:
-```{r}
+```{r lasso final model performance, eval=!from_script}
 # show model final performance
-print(final_model_lasso[[2]])
+print(final_lasso_perf)
 ```
 
 ### Features: permutation importance
-```{r get plottable permutation importance lasso, message=FALSE, warning=FALSE}
-final_lasso_perm_plt <- c(final_model_lasso[[1]]) %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+
+```{r compute/save or load final lasso model permutation}
+
+final_lasso_perm_plt = NULL
+
+if (from_script) {
+  final_lasso_perm_plt <- final_model_lasso[[1]] %>%
+    get_aggregated_permute_imp(training_df, outcome=outcome)
+  
+  final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', task_ID), '.csv')
+  
+  write_csv(final_lasso_perm_plt, final_lasso_perm_file)
+  
+} else {
+  
+  # get permutation importance of best file
+  final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', final_lassomodel_ind), '.csv')
+  
+  # map read them into a df
+  final_lasso_perm_plt <- read_csv(final_lasso_perm_file)
+}
+
 ```
 
-```{r get permute features for final lasso}
+```{r get permute features for final lasso, eval=!from_script}
 final_lasso_perm <- final_lasso_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
@@ -632,13 +741,13 @@ final_lasso_perm <- final_lasso_perm_plt %>%
 head(final_lasso_perm, 20)
 ```
 
-```{r plot lasso final permutation, fig.width = 10, fig.height = 12}
+```{r plot lasso final permutation, fig.width = 10, fig.height = 12, eval=!from_script}
 plot_permute_var_imp(final_lasso_perm, metric = pr_auc)
 ```
 ### Comparison with bootstrap results
 This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
 
-```{r}
+```{r compare lasso final with bootstrap, eval=!from_script}
 lasso_joined_results <- final_lasso_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
@@ -650,7 +759,7 @@ head(lasso_joined_results, 20)
 
 The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
 
-```{r fig.width = 16, fig.height = 14}
+```{r plot lasso feature comparison, fig.width = 16, fig.height = 14, eval=!from_script}
 # Comparison of top_n features
 lasso_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
@@ -663,7 +772,7 @@ lasso_joined_results %>%
 ## Comparison: Final model features
 Here, we compare the features generated by the permutation importance between the two final models.
 
-```{r}
+```{r compare lasso vs random forest features final, eval=!from_script}
 rf_lasso_final_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
   full_join(dplyr::select(final_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
@@ -675,7 +784,7 @@ head(rf_lasso_final_joined_results, 20)
 
 The following visualization provides the intuition about the differences in the rankings between the final model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
 
-```{r fig.width = 16, fig.height = 14}
+```{r plotly lasso v random forest features, eval=!from_script}
 # Comparison of top_n features
 rf_lasso_final_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
