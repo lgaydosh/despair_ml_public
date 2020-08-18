@@ -231,12 +231,12 @@ permute_columns <- function(df, outcome){
 # plot the variable importance
 plot_permute_var_imp <- function(df_permute_var_imp, metric){
   # df_permute_var_imp: data frame of permutation metrics from permute_var_imp()
-  # metric: metric to plot, NOT passed as a string
+  # metric: metric to plot, passed as a string
   # return: ggplot bar graph of permutation importance
   
   # create dataframe we can use for ggplot (mostly to grab the names below)
   plot_df <- df_permute_var_imp %>% 
-    dplyr::select(predictor, {{metric}}, att_name)
+    dplyr::select(predictor, metric, att_name)
   
   # Plot the metric
   plot_df %>% 
@@ -244,8 +244,8 @@ plot_permute_var_imp <- function(df_permute_var_imp, metric){
     ylab(str_c(names(plot_df)[2], " ", "(True - Permuted)")) +
     xlab("Predictor") +
     ggtitle("Permutation Importance") +
-    geom_bar(aes(x = reorder(att_name, {{metric}}), 
-                 y = {{metric}}), 
+    geom_bar(aes(x = reorder(att_name, !!sym(metric)), 
+                 y = !!sym(metric)), 
              stat = "identity",
              fill = "light blue") +
     coord_flip() +

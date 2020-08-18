@@ -5,6 +5,8 @@ output: html_notebook
 
 # 54-permutation-speedup
 
+# Speedup Investigation
+
 The purpose of this notebook is to explore ways to speed up the calculation of the permutation importance.  Here, we just generate the dataset and some models, as we would do similarly in the 70 series.
 
 **Run 10, 30, 40, and 50 prior to running this notebook.**
@@ -99,12 +101,19 @@ Lastly, I tried removing the `future_map_dfr` from `get_aggregated_permute_imp` 
 All implementations appeared to return the correct size dataframe, correctly populated with differences.
 ```{r}
 met <- 'pr_auc'
-boot_rf_perm <- boot_lasso_perm_plt %>%
+boot_lasso_perm <- boot_lasso_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
-head(boot_rf_perm, 20)
+head(boot_lasso_perm, 20)
 ```
 Amazing.
 
+# Verification of string use
+As of commit e9021ab, `plot_permute_var_imp` doesn't receive a string and uses tidy evaluation to find the parameter in the associated dataframe.  However, this means that we need to set it manually since the others receive a string.  I'll convert that functionality and verify its behavior here.
+
+```{r plot lasso permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(boot_lasso_perm, metric = met)
+```
+This function has been verified to work correctly using the code above, as we would expect to use it in the 70 series.
