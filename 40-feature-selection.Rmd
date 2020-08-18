@@ -70,18 +70,19 @@ rf_model <- function(outcome,
 
   # create random grid name
   grid_name <- str_c('rf_', stringi::stri_rand_strings(1, 30))
-  #print(grid_name)
+  
+  training_frame_h2o = as.h2o(training_frame)
   
   rf_grid <- h2o.grid("randomForest", x = inputs, y = outputs,
                       grid_id = grid_name,
-                      training_frame = as.h2o(training_frame),
+                      training_frame = training_frame_h2o,
                       #model_id = "rf_covType_v1",
                       stopping_rounds = 2,
                       nfolds = nfolds,
                       fold_assignment = "Stratified",
                       score_each_iteration = T,
                       seed = model_seed,
-                      
+                      parallelism = 1,
                       hyper_params = hyper_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
@@ -92,8 +93,6 @@ rf_model <- function(outcome,
   # training_frame: Id of the training data frame.
   # ...: arguments describing parameters to use with algorithm (i.e., x, y, training_frame). Look at the specific algorithm - h2o.gbm, h2o.glm, h2o.kmeans, h2o.deepLearning - for available parameters.
   # hyper_params: List of lists of hyper parameters (i.e., list(ntrees=c(1,2), max_depth=c(5,7))).
-  
-  
   
   # Get the grid results, sorted by validation AUC
   rf_gridperf <- h2o.getGrid(grid_id = grid_name,
@@ -155,7 +154,7 @@ lasso_model <- function(outcome,
                          nfolds = nfolds,
                          fold_assignment = "Stratified",
                          seed = model_seed,
-                         
+                         parallelism = 1,
                          hyper_params = hyper_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
