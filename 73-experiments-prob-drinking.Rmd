@@ -59,6 +59,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ```{r load raw data}
 ## set outcome variable of interest
 outcome = 'h5to15'
+filebase = '/scratch/p_gaydosh_lab'
 
 wave_data <- load_waves(1:5)
 
@@ -77,9 +78,9 @@ na_levels <- read_csv("na_levels.csv")
 ## use the features and ids that you want to select out what you want
 ds <- full_dataset %>%
   filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1() %>%
+  remove_subjects_not_in_wave1(filebase=filebase) %>%
   add_demographics() %>%
-  add_bio_despair() %>% 
+  add_bio_despair(filebase=filebase) %>% 
   dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
   dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
   recode_missing_levels(na_levels)
