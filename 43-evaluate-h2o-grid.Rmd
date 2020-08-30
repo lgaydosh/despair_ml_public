@@ -226,5 +226,27 @@ The seed is saved in `demo_model@parameters$seed`.  The first time I ran this, t
 
 It looks like if you pass in a `-1`, the seed is randomly generated.  This is good news if we want randomly generated model parameters.  This will also cause randomness in the k-folds generated.
 
+#Aggregating model seeds
+
+Now, I'll look into how we can aggregate all of the model seeds
+
+```{r}
+#Generate a list of models using the code above
+t_mdl_list = list(demo_model, demo_model)
+
+#use map to get the results
+res <- t_mdl_list %>%
+  map(function(x) x@parameters$seed)
+
+res
+
+```
+This works.  Here, I'll test the function I've written `get_model_seeds` in 40 so that we can write them out to a csv file and save it if necessary.
+
+```{r}
+get_model_seeds(t_mdl_list)
+```
+This works correctly.
+
 
 
