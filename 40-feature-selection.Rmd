@@ -248,13 +248,14 @@ get_top_n_names <- function(model_h2o, top_n){
 model_feature_selection <- function(model_type,
                                     training_frame,
                                     validation_frame,
-                                    n = 2,
-                                    k = 5,
                                     hyper_params,
                                     outcome,
+                                    n = 2,
+                                    k = 5,
                                     selection_metric = 'pr_auc',
                                     top_n = 20,
-                                    seed = 42){
+                                    seed = 1234,
+                                    h2o_seed = 42){
   # training_df : training data frame sent in after initial 70-30 split
   # n : n number of bootstrapped
   # k : k folds in cross-validation
@@ -263,6 +264,8 @@ model_feature_selection <- function(model_type,
   # outcome : name of the outcome variable
   # selection_metric : H2o metric used to select the best model from the grid search
   # top_n : top n important variables to be extracted from the models generated
+  # seed: seed used for reproducibility for rsample (generation of bootstraps)
+  # h2o_seed: seed used for h2o models
   
   # set seed for bootstraps synchronization
   set.seed(seed)
@@ -287,7 +290,7 @@ model_feature_selection <- function(model_type,
                            hyper_params = hyper_params,
                            nfolds = k,
                            perf_metric = selection_metric,
-                           model_seed = seed)
+                           model_seed = h2o_seed)
     }
     
     else if (model_type == "Lasso"){
@@ -297,7 +300,7 @@ model_feature_selection <- function(model_type,
                              hyper_params = hyper_params,
                              nfolds = k,
                              perf_metric = selection_metric,
-                             model_seed = seed)      
+                             model_seed = h2o_seed)      
     }
     else{
       stop(str_c("The model: ", model_type, " you've requested is not available.  Available models are RF and Lasso."))
