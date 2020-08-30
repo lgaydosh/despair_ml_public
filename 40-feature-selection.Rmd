@@ -397,16 +397,18 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
 ```
 
 
-```{r return a list of seeds from the list of models}
+```{r return a tibble of seeds from the list of models}
 get_model_seeds <- function(mdl_list){
   #This function returns the seed of a model for each model in a list of models
   #Inputs: mdl_list: list of h2o models
-  #Output: list of seeds corresponding to passed in h2o models
+  #Output: 1 column tibble of seeds corresponding to passed in h2o models
   
   seed_list <- mdl_list %>%
-    map(function(x) x@parameters$seed)
+    map(function(x) toString(x@parameters$seed))
   
-  return(seed_list)
+  sd_tbl <- tibble(seeds = unlist(seed_list))
+  
+  return(sd_tbl)
 }
 ```
 

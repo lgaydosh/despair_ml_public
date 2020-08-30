@@ -40,6 +40,7 @@ future::plan(multiprocess)
 ```{r seeds for reproducibility}
 # define seed (defined in slurm_experiments.R)
 #seed = 3895
+h2o_seed = -1
 set.seed(seed)
 ```
 
@@ -123,9 +124,18 @@ rf_params <- list(max_depth = 50,
 suicide_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
-                      outcome = outcome, n = n_boot, seed=seed)
+                      outcome = outcome, n = n_boot, seed=seed, h2o_seed = h2o_seed)
 
 ```
+
+```{r get rf bootstrap model seeds and save}
+bs_rf_seeds <- get_model_seeds(suicide_rf$models)
+
+bs_rf_seeds_file <- str_c(results_directory, str_c('/bs_rf_seeds_', task_ID), '.csv')
+
+write_csv(bs_rf_seeds, bs_rf_seeds_file)
+```
+
 
 ```{r save/load rf bootstrap model performance, include=FALSE}
 
@@ -181,9 +191,18 @@ suicide_lasso <- model_feature_selection( "Lasso",
                                           validation_frame = validation_df,
                                           hyper_params = lasso_params,
                                           outcome = outcome, 
-                                          n = n_boot)
+                                          n = n_boot,
+                                          seed=seed,
+                                          h2o_seed=h2o_seed)
 ```
 
+```{r get lasso bootstrap model seeds and save}
+bs_lasso_seeds <- get_model_seeds(suicide_lasso$models)
+
+bs_lasso_seeds_file <- str_c(results_directory, str_c('/bs_lasso_seeds_', task_ID), '.csv')
+
+write_csv(bs_lasso_seeds, bs_lasso_seeds_file)
+```
 
 ```{r save/load lasso bootstrap model performance, include=FALSE}
 
@@ -244,8 +263,16 @@ final_model_rf <- rf_model(outcome,
                            training_frame = training_df,
                            validation_frame = validation_df,
                            nfolds = 5,
-                           hyper_params = rf_params, model_seed=seed)
+                           hyper_params = rf_params, model_seed=h2o_seed)
 
+```
+
+```{r get lasso final model seeds and save}
+final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
+
+final_rf_seeds_file <- str_c(results_directory, str_c('/final_rf_seeds_', task_ID), '.csv')
+
+write_csv(final_rf_seeds, final_lasso_rf_file)
 ```
 
 ```{r save/load final rf model}
@@ -289,21 +316,30 @@ final_model_lasso <- lasso_model(training_frame = training_df,
                                  validation_frame = validation_df,
                                  outcome = outcome,
                                  nfolds = 5,
-                                 hyper_params = lasso_params)
+                                 hyper_params = lasso_params,
+                                 model_seed = h2o_seed)
+```
+
+```{r get lasso final model seeds and save}
+final_lasso_seeds <- get_model_seeds(list(final_model_lasso[[1]]))
+
+final_lasso_seeds_file <- str_c(results_directory, str_c('/final_lasso_seeds_', task_ID), '.csv')
+
+write_csv(final_lasso_seeds, final_lasso_seeds_file)
 ```
 
 ```{r save/load final lasso model}
   
-  #get performance
-  final_lasso_perf <-final_model_lasso[[2]]
-  
-  #save model to file
-  final_lasso_model_file <- str_c(results_directory, str_c('/final_lasso_model_', task_ID))
-  temp_out <- h2o.saveModel(object = final_model_lasso[[1]], path = final_lasso_model_file, force = TRUE)
-  
-  #save performance to file
-  final_lasso_file <- str_c(results_directory, str_c('/final_lasso_perfs_', task_ID), '.csv')
-  write_csv(final_lasso_perf, final_lasso_file)
+#get performance
+final_lasso_perf <-final_model_lasso[[2]]
+
+#save model to file
+final_lasso_model_file <- str_c(results_directory, str_c('/final_lasso_model_', task_ID))
+temp_out <- h2o.saveModel(object = final_model_lasso[[1]], path = final_lasso_model_file, force = TRUE)
+
+#save performance to file
+final_lasso_file <- str_c(results_directory, str_c('/final_lasso_perfs_', task_ID), '.csv')
+write_csv(final_lasso_perf, final_lasso_file)
 
 ```
 
@@ -311,12 +347,12 @@ final_model_lasso <- lasso_model(training_frame = training_df,
 
 ```{r compute/save or load final lasso model permutation}
 
-  final_lasso_perm_plt <- final_model_lasso[[1]] %>%
-    get_aggregated_permute_imp(training_df, outcome=outcome)
-  
-  final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', task_ID), '.csv')
-  
-  write_csv(final_lasso_perm_plt, final_lasso_perm_file)
+final_lasso_perm_plt <- final_model_lasso[[1]] %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome)
+
+final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', task_ID), '.csv')
+
+write_csv(final_lasso_perm_plt, final_lasso_perm_file)
 
 ```
 
