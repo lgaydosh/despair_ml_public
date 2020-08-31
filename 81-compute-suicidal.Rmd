@@ -39,7 +39,7 @@ future::plan(multiprocess)
 
 ```{r seeds for reproducibility}
 # define seed (defined in slurm_experiments.R)
-#seed = 3895
+seed = 9384
 h2o_seed = -1
 set.seed(seed)
 ```
@@ -91,7 +91,7 @@ suicide_ds <- suicide_ds %>%
 # Machine learning split of the data
 
 In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r, message=FALSE, warning=FALSE}
+```{r ml splits, message=FALSE, warning=FALSE}
 ## split the data into relevant proportions desired
 data_splits <- suicide_ds %>%
   split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
@@ -101,6 +101,24 @@ training_df <- data_splits$train
 validation_df <- data_splits$valid
 testing_df <- data_splits$test
 ```
+
+```{r join with kfold assignments}
+if(!is.null(kfold_file)){
+  
+  #read kfold assignments
+  kfold_assigns = read_csv(kfold_file)
+  
+  #join with training_df
+  start_len = nrow(training_df)
+  training_df <- full_join(training_df, kfold_assigns, by='aid')
+  
+  #make sure that all of these things have the same length
+  if((nrow(training_df)!= start_len) | nrow(training_df) != nrow(kfold_assigns)){
+    stop('training df, kfold_assigns, and the joined df do not appear to have the same number of rows!')
+  }
+}
+```
+
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 
@@ -170,7 +188,8 @@ Calculate and save permutation importance
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
 boot_rf_perm_plt <- suicide_rf$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
 
 boot_rf_perm_file <- str_c(results_directory, str_c('/boot_rf_perm_plt_', task_ID), '.csv')
 
@@ -235,7 +254,8 @@ write_csv(bs_rf_mdi, bs_rf_mdi_file)
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
 boot_lasso_perm_plt <- suicide_lasso$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
 
 boot_lasso_perm_file <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', task_ID), '.csv')
 
@@ -267,7 +287,7 @@ final_model_rf <- rf_model(outcome,
 
 ```
 
-```{r get lasso final model seeds and save}
+```{r get rf final model seeds and save}
 final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
 
 final_rf_seeds_file <- str_c(results_directory, str_c('/final_rf_seeds_', task_ID), '.csv')
@@ -277,27 +297,26 @@ write_csv(final_rf_seeds, final_lasso_rf_file)
 
 ```{r save/load final rf model}
 
-  #get performance
-  final_rf_perf <-final_model_rf[[2]]
-  
-  #save model to file
-  final_rf_model_file <- str_c(results_directory, str_c('/final_rf_model_', task_ID))
-  temp_out <- h2o.saveModel(object = final_model_rf[[1]], path = final_rf_model_file, force = TRUE)
-  
-  #save performance to file
-  final_rf_file <- str_c(results_directory, str_c('/final_rf_perfs_', task_ID), '.csv')
-  write_csv(final_rf_perf, final_rf_file)
+#get performance
+final_rf_perf <-final_model_rf[[2]]
+
+#save model to file
+final_rf_model_file <- str_c(results_directory, str_c('/final_rf_model_', task_ID))
+temp_out <- h2o.saveModel(object = final_model_rf[[1]], path = final_rf_model_file, force = TRUE)
+
+#save performance to file
+final_rf_file <- str_c(results_directory, str_c('/final_rf_perfs_', task_ID), '.csv')
+write_csv(final_rf_perf, final_rf_file)
 
 ```
-
-### Performance
 
 ### Features: permutation importance
 
 ```{r compute/save or load final rf model permutation}
 
 final_rf_perm_plt <- final_model_rf[[1]] %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
 
 final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', task_ID), '.csv')
 
@@ -348,7 +367,8 @@ write_csv(final_lasso_perf, final_lasso_file)
 ```{r compute/save or load final lasso model permutation}
 
 final_lasso_perm_plt <- final_model_lasso[[1]] %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
 
 final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', task_ID), '.csv')
 

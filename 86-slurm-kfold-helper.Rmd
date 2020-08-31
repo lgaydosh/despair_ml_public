@@ -1,5 +1,5 @@
 ---
-title: "81-slurm-helper"
+title: "86-slurm-kfold-helper"
 output: html_notebook
 ---
 
