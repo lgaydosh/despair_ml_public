@@ -297,7 +297,7 @@ demo_model <- h2o.glm(x = preds,
                       y= outcome,
                       training_frame = as.h2o(mtcars), 
                       nfolds = 5,
-                      fold_column = fold_column,
+                      fold_column = NULL,
                       keep_cross_validation_fold_assignment = TRUE,
                       alpha=1,
                       lambda_search=TRUE,
@@ -335,3 +335,50 @@ head(h2o.cross_validation_fold_assignment(demo_model))
 
 ```
 This correctly throws an error!  Yay!
+
+# Working with h2o.grid
+An error was thrown because h2o.grid will not receive `NULL` as an argument for `fold_column`, and rejects the _inclusion_ of keywords being present.  For example, even though nfolds is 0 (FALSE), if you also pass in `fold_column`, h2o will throw an error.  So, we'll use `do.call` and parameter lists to get around this.
+
+```{r}
+h2o.removeAll()
+
+#mtcars has 32 rows.  Let's create a 2-fold split of equal size
+fold_assigns = c(rep(1, 16), rep(2,16))
+
+#let's go ahead and concatenate that onto mtcars
+mtcars_fa <- cbind(mtcars, fold_assigns)
+
+outcome <- 'cyl'
+preds <- setdiff(names(mtcars_fa), c(outcome, 'fold_assigns'))
+
+nfolds=5
+fold_column = NULL #'fold_assigns'
+param_list <- list(algorithm = 'glm', x= preds, y=outcome, grid_id = 'test_grid',
+                   training_frame = as.h2o(mtcars_fa), lambda_search = TRUE, seed = 10, parallelism=1,
+                   hyper_params=list(alpha=c(1)),
+                   fold_column = fold_column, 
+                   nfolds=nfolds,
+                   keep_cross_validation_fold_assignment = TRUE,
+                   fold_assignment="Stratified")
+
+if(is.null(fold_column)){
+  param_list <- param_list[names(param_list) != 'fold_column']
+}
+
+if(!nfolds){
+  param_list <- param_list[names(param_list) %in% c('nfolds','fold_assignment')==FALSE]
+}
+
+# Launch grid search with given algorithm and parameters
+demo_grid <- do.call(h2o.grid, param_list)
+
+# Investigate the created model
+demo_model <- h2o.getModel('test_grid_model_1')
+h2o.cross_validation_fold_assignment(demo_model)
+```
+This works!  Let's try this one last time with the existing code
+
+```{r}
+res <- lasso_model(outcome = outcome, training_frame = mtcars_fa, validation_frame = mtcars_fa, fold_column = 'fold_assigns', hyper_params=list(alpha=c(1)))
+```
+This appears to work suitably.

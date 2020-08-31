@@ -13,8 +13,9 @@ task_ID = 1
 
 #other parameters
 notebook_file = '81-compute-suicidal'
-results_directory = '.'
-kfold_file = './h5mn8/kfold_assign_3895_tts_9384.csv'
+outcome = 'h5mn8'
+results_directory = str_c(outcome, '/results_run_1')
+kfold_file = str_c(outcome, '/kfold_assign_3895_tts_9384.csv')
 
 # Get required packages
 if (!require("pacman")) install.packages("pacman")

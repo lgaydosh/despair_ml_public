@@ -82,7 +82,7 @@ suicide_ds <- full_dataset %>%
 
 Here, we binarize and drop NAs from the outcome.
 
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE, eval=!from_script}
+```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
 suicide_ds <- suicide_ds %>%
   mutate_at(vars(outcome), as.factor) %>%
   drop_na(outcome)
@@ -227,7 +227,7 @@ bs_lasso_mdi <- suicide_lasso$mdi %>%
 
 bs_lasso_mdi_file <- str_c(results_directory, str_c('/bs_lasso_mdi_', task_ID), '.csv')
 
-write_csv(bs_rf_mdi, bs_rf_mdi_file)
+write_csv(bs_lasso_mdi, bs_lasso_mdi_file)
 
 ```
 
@@ -240,18 +240,18 @@ boot_lasso_perm_plt <- suicide_lasso$models %>%
 
 boot_lasso_perm_file <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', task_ID), '.csv')
 
-write_csv(bs_lasso_perm_plt, bs_lasso_perm_file)
+write_csv(boot_lasso_perm_plt, boot_lasso_perm_file)
   
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
 
-## Fix training set
+## Add folds to training set
 ```{r join with kfold assignments}
 if(!is.null(kfold_file)){
   
   #read kfold assignments
-  kfold_assigns = read_csv(kfold_file)
+  kfold_assigns = read_csv(kfold_file, col_types = cols(aid=col_character(), fold_assign=col_factor()))
   
   #join with training_df
   start_len = nrow(training_df)
@@ -271,9 +271,9 @@ In this step, we build the final model for the random forest.  We use slightly m
 # # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  mtries = seq(-1, 30, by=5),
-                  min_rows = seq(5, 60, by=5),
-                  balance_classes = c(TRUE, FALSE),
+                  #mtries = seq(-1, 30, by=5),
+                  #min_rows = seq(5, 60, by=5),
+                  #balance_classes = c(TRUE, FALSE),
                   stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
 
@@ -292,7 +292,7 @@ final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
 
 final_rf_seeds_file <- str_c(results_directory, str_c('/final_rf_seeds_', task_ID), '.csv')
 
-write_csv(final_rf_seeds, final_lasso_rf_file)
+write_csv(final_rf_seeds, final_rf_seeds_file)
 ```
 
 ```{r save/load final rf model}
@@ -314,7 +314,7 @@ write_csv(final_rf_perf, final_rf_file)
 
 ```{r compute/save or load final rf model permutation}
 
-final_rf_perm_plt <- final_model_rf[[1]] %>%
+final_rf_perm_plt <- list(final_model_rf[[1]]) %>%
   get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
                              outcome=outcome)
 
@@ -367,7 +367,7 @@ write_csv(final_lasso_perf, final_lasso_file)
 
 ```{r compute/save or load final lasso model permutation}
 
-final_lasso_perm_plt <- final_model_lasso[[1]] %>%
+final_lasso_perm_plt <- list(final_model_lasso[[1]]) %>%
   get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
                              outcome=outcome)
 
