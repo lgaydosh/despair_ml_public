@@ -1,0 +1,188 @@
+---
+title: "81-slurm-helper"
+output: html_notebook
+---
+
+#Introduction
+In this notebook, I generate and investigate compatibility of our workflow with SLURM.  There are a few things we need to ensure with SLURM:
+
+1.  We need each of the CPUs to operate on identical train/valid/test splits.
+2.  We need each of the CPUs to operate on identical bootstrap resamples.
+3.  For statistical evaluation, we need each of the models trained to have the same kfold cross validation fold assignments.
+
+All of these parameters are allocated randomly based on the seed that is assigned.  This notebook will enforce and/or demonstrate that all of these things occur.
+
+#Seed-based parameters
+There are "two" types of seeds that we're using.  One is through R's `base` package, which is reproducible across R instances (so long as they all have the same version or at least all above 3.6 or below 3.5).  The second are the sets of seeds that we use with h2o.
+
+## Addressing reproducibility issues #1 and #2
+Since `set.seed` produces identical results across R instances for a given seed, we don't need to worry about (1) the train/valid/test splits (built using `rsample`, which uses `base`R RNG), nor (2) the bootstrap samples, which are also generated using `rsample.`  Note that in (2), we will also have the exact same bootstrap samples for both the random forest and lasso because (we call them separately), because we again reset the seed there.
+
+## Addressing issue #3
+Where we could potentially run into problems is with h2o - on two fronts.  First, for a single processor, if we use the same seed each time we call `rf_model`, we will _desirably_ get the same exact k-fold splits every time.  The documentation [here](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/algo-params/fold_assignment.html) appears to indicate this (see `Modulo` where it describes setting the seed to enforce identical behavior).  _However_, this also means that we will get the same exact model every single time.  This is undesirable.  A third consideration is that we want our models to be reproducible, so we need to either set or know the seed used each time.
+
+To get around this, what we can do is save a few stratified k-fold assignments using a few seeds, just in case 1 of the k-fold seems to be particularly bad.  I will generate these here for future usage.  _Note that this must be performed **individually for each variable.**_
+
+Secondly, we will just let h2o use whatever seeds it wants for the models, _but we will record them._
+
+## Bootstrap models vs final models
+We cannot assign k-fold assignments whenever we're doing the bootstrap resampling.  This is because about 1/3 of the training set won't even be in the bootstrap resample.  This means the fold assignment allocation should change.  We'll let h2o handle this during training, and let randomness guide the work.
+
+Kfold assignments can be given to the final model, but there is some question about how this will work if we decide to use balanced classes as a hyperparameter.  This will influence the fold assignments as now, the folds won't be the same size.  It may be instructive to simply remove this as a hyperparameter, as it was not overly influential when looking at 53-modeling-imbalances.Rmd.
+
+# Generate k-fold folds
+To generate the splits for your k-folds, you need to do two things:
+
+1. Run 10, 40, and 50 notebooks
+1. Set the two variables below to generate your folds.
+
+```{r}
+## set outcome variable of interest
+outcome = 'h5mn8'
+no_folds=5
+```
+
+The following seeds wil generate our kfold lists.  Note that the parameter `seed` must also be set identically when you run the models; otherwise, you'll generate different train/test/valid sets that won't match the kfold splits below.
+```{r}
+seed = 9384
+seeds = c(2435, 9834, 7903, 3895, 1236)
+```
+
+```{r library imports}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, furrr, h2o, tictoc, rsample)
+future::plan(multiprocess)
+```
+
+# Basic code development and unit tests
+
+Get the cross validation splits
+```{r}
+split_extract <- function(d_split, fold_no){
+  fold_assigns <- d_split %>%
+    assessment() %>%
+    mutate(fold_assign = rep(fold_no, nrow(.))) %>%
+    select(fold_assign, everything())
+  
+  return(fold_assigns)
+}
+```
+
+```{r}
+xval_save_helper <- function(in_data, seed, strat_var, no_folds){
+  
+  set.seed(seed)
+  xfolds <- in_data %>%
+    vfold_cv(v = no_folds, repeats=1, strata = strat_var) %>%
+    pull(splits) %>%
+    map2_df(seq(1, no_folds), split_extract) #%>%
+    #select(aid, fold_assign)
+  
+  #create save variable
+  save_csv <- str_c('kfold_assign_', seed, '.csv')
+  write_csv(xfolds, save_csv)
+  
+  return(xfolds)
+  
+}
+```
+
+Make sure it works on demo mtcars data.  We'll start by making sure that mtcars is large enough to have a good ratio.
+```{r, eval=FALSE}
+mtcars_2 <- rbind(mtcars, mtcars, mtcars) %>%
+  mutate_at(vars(am), as.factor)
+
+test_splits <- xval_save_helper(mtcars_2, seed=2424, strat_var=NULL, no_folds=5)
+
+# Get outcome distribution of mtcars
+mtcars %>%
+  group_by(am) %>%
+  summarize(n())
+
+test_splits %>%
+  group_by(fold_assign, am) %>%
+  summarize(n())
+```
+
+This looks about right for stratified splits.  Let's quicky make sure this works with the map we intend to use on the seeds:
+
+```{r, eval=FALSE}
+test_splits <- map(seeds, ~xval_save_helper(in_data = mtcars_2, seed=.x, strat_var=NULL, no_folds=no_folds))
+test_splits
+```
+It does! Let's apply this to our data.
+
+# Application to our data
+I'm just going to quickly modify a previous function to accommodate our needs:
+
+```{r}
+xval_save_helper <- function(in_data, xseed, tts_seed, strat_var, no_folds, out_var){
+  
+  set.seed(xseed)
+  xfolds <- in_data %>%
+    vfold_cv(v = no_folds, repeats=1, strata = strat_var) %>%
+    pull(splits) %>%
+    map2_df(seq(1, no_folds), split_extract) %>%
+    select(aid, fold_assign)
+  
+  #create save variable
+  save_csv <- str_c(prefix, out_var, '/kfold_assign_', xseed, '_tts_', tts_seed, '.csv')
+  write_csv(xfolds, save_csv)
+  
+  return(xfolds)
+}
+```
+
+Load up the data using abridged feature set and simple datatype settings:
+```{r generate data}
+filebase = '/scratch/p_gaydosh_lab'
+prefix = ''
+
+## load waves and join them
+wave_data <- load_waves(1:5, filebase=filebase)
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+
+## get the aids that you want
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+## use the features and ids that you want to select out what you want
+working_ds <- full_dataset %>%
+  remove_subjects_not_in_wave1(filebase=filebase) %>%
+  filter(aid %in% inner_aids) %>%
+  dplyr::select(aid, all_of(outcome)) %>%
+  mutate_all(as.factor) %>%
+  drop_na(outcome)
+
+#working_ds %>% glimpse()
+```
+
+Split the data according to some seed; note: you'll have to use the same seed
+```{r}
+set.seed(seed)
+data_splits <- working_ds %>%
+  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
+
+# assemble list
+training_df <- data_splits$train
+validation_df <- data_splits$valid
+testing_df <- data_splits$test
+```
+
+Generate the csvs of the kfolds
+```{r}
+test_splits <- map(seeds, ~xval_save_helper(in_data = training_df, xseed=.x, strat_var=outcome, no_folds=no_folds,
+                                            tts_seed = seed, out_var=outcome))
+test_splits
+```
+Let's quickly check to make sure these splits aren't all the same!
+```{r}
+ins <- (filter(test_splits[[1]], fold_assign==1) %>% pull(aid)) %in% (filter(test_splits[[2]], fold_assign==1) %>% pull(aid))
+sum(as.numeric(ins))
+nrow(training_df)/no_folds
+
+```
+They all aren't the same.  In looking at just this fold assignment, we can see that there are only 244 out of a size of 1283 aids which are shared between the first folds of differently folded seeds.  Great!
+
+
+
+
