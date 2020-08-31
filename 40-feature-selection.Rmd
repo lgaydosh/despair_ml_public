@@ -39,7 +39,8 @@ get_outcomes_df <- function(df, outcome, predictors){
 rf_model <- function(outcome, 
                      training_frame, 
                      validation_frame,
-                     nfolds,
+                     nfolds=FALSE,
+                     fold_column = NULL,
                      hyper_params,
                      perf_metric = 'pr_auc',
                      model_seed = 42){  
@@ -66,7 +67,7 @@ rf_model <- function(outcome,
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(training_frame), outcome)
+  inputs <- setdiff(names(training_frame), c(outcome, fold_column))
 
   # create random grid name
   grid_name <- str_c('rf_', stringi::stri_rand_strings(1, 30))
@@ -78,6 +79,7 @@ rf_model <- function(outcome,
                       training_frame = training_frame_h2o,
                       #model_id = "rf_covType_v1",
                       #stopping_rounds = 2,
+                      fold_column = fold_column,
                       nfolds = nfolds,
                       fold_assignment = "Stratified",
                       score_each_iteration = T,
@@ -113,7 +115,8 @@ rf_model <- function(outcome,
 lasso_model <- function(outcome, 
                         training_frame, 
                         validation_frame, 
-                        nfolds,
+                        nfolds = FALSE,
+                        fold_column = NULL,
                         hyper_params,
                         perf_metric = 'pr_auc',
                         model_seed = 42){  
@@ -139,7 +142,7 @@ lasso_model <- function(outcome,
   
   #initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(training_frame), outcome)
+  inputs <- setdiff(names(training_frame), c(outcome, fold_column))
   
   # create random grid name
   grid_name <- str_c('lasso_',stringi::stri_rand_strings(1, 30))
@@ -152,6 +155,7 @@ lasso_model <- function(outcome,
                          lambda_search = TRUE,
                          family = "binomial",
                          nfolds = nfolds,
+                         fold_column = fold_column,
                          fold_assignment = "Stratified",
                          seed = model_seed,
                          parallelism = 1,

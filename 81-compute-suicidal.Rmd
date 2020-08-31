@@ -102,23 +102,6 @@ validation_df <- data_splits$valid
 testing_df <- data_splits$test
 ```
 
-```{r join with kfold assignments}
-if(!is.null(kfold_file)){
-  
-  #read kfold assignments
-  kfold_assigns = read_csv(kfold_file)
-  
-  #join with training_df
-  start_len = nrow(training_df)
-  training_df <- full_join(training_df, kfold_assigns, by='aid')
-  
-  #make sure that all of these things have the same length
-  if((nrow(training_df)!= start_len) | nrow(training_df) != nrow(kfold_assigns)){
-    stop('training df, kfold_assigns, and the joined df do not appear to have the same number of rows!')
-  }
-}
-```
-
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 
@@ -188,8 +171,7 @@ Calculate and save permutation importance
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
 boot_rf_perm_plt <- suicide_rf$models %>%
-  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
-                             outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 
 boot_rf_perm_file <- str_c(results_directory, str_c('/boot_rf_perm_plt_', task_ID), '.csv')
 
@@ -254,8 +236,7 @@ write_csv(bs_rf_mdi, bs_rf_mdi_file)
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
 boot_lasso_perm_plt <- suicide_lasso$models %>%
-  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
-                             outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome)
 
 boot_lasso_perm_file <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', task_ID), '.csv')
 
@@ -264,6 +245,24 @@ write_csv(bs_lasso_perm_plt, bs_lasso_perm_file)
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
+
+## Fix training set
+```{r join with kfold assignments}
+if(!is.null(kfold_file)){
+  
+  #read kfold assignments
+  kfold_assigns = read_csv(kfold_file)
+  
+  #join with training_df
+  start_len = nrow(training_df)
+  training_df <- full_join(training_df, kfold_assigns, by='aid')
+  
+  #make sure that all of these things have the same length
+  if((nrow(training_df)!= start_len) | nrow(training_df) != nrow(kfold_assigns)){
+    stop('training df, kfold_assigns, and the joined df do not appear to have the same number of rows!')
+  }
+}
+```
 
 ## RF model
 In this step, we build the final model for the random forest.  We use slightly more values in order to come up with the best model, keeping in mind the number of combinations that are required to run to evaluate the grid.
@@ -282,7 +281,8 @@ rf_params <- list(max_depth = 50,
 final_model_rf <- rf_model(outcome,
                            training_frame = training_df,
                            validation_frame = validation_df,
-                           nfolds = 5,
+                           #nfolds = 5,
+                           fold_column = 'fold_assign',
                            hyper_params = rf_params, model_seed=h2o_seed)
 
 ```
@@ -334,7 +334,8 @@ lasso_params <- list(alpha = c(1))
 final_model_lasso <- lasso_model(training_frame = training_df,
                                  validation_frame = validation_df,
                                  outcome = outcome,
-                                 nfolds = 5,
+                                 #nfolds = 5,
+                                 fold_column = 'fold_assign',
                                  hyper_params = lasso_params,
                                  model_seed = h2o_seed)
 ```

@@ -248,5 +248,90 @@ get_model_seeds(t_mdl_list)
 ```
 This works correctly.
 
+# Investigate kfold behavior
+Now, we'll quickly see the behavior of k-fold cross validation based on setting the n-folds parameter vs setting the fold_column parameter and what happens when they're both present.
+
+Note several considerations here:
+- `nfolds` is either a boolean or a number.  It is not `NULL` to work.
+- The fold assignment must be in the training frame, but it shouldn't be in the x or y arguments to the model joining.
+
+```{r}
+
+#mtcars has 32 rows.  Let's create a 2-fold split of equal size
+fold_assigns = c(rep(1, 16), rep(2,16))
+
+#let's go ahead and concatenate that onto mtcars
+mtcars_fa <- cbind(mtcars, fold_assigns)
+
+outcome <- 'cyl'
+preds <- setdiff(names(mtcars_fa), c(outcome, 'fold_assigns'))
+
+demo_model <- h2o.glm(x = preds,
+                      y= outcome,
+                      training_frame = as.h2o(mtcars_fa), 
+                      nfolds = FALSE,
+                      fold_column = 'fold_assigns',
+                      keep_cross_validation_fold_assignment = TRUE,
+                      alpha=1,
+                      lambda_search=TRUE,
+                      seed = -1)
+
+head(h2o.cross_validation_fold_assignment(demo_model))
+
+```
+
+The above functionality results in the desired behavior of setting the folds, although it shows incorrectly, the fold assignments are correct.
+
+Let's see what happens if we go ahead and set kfolds with a `NULL` setting for fold_column:
+
+```{r}
 
 
+#set null for fold column name to mimic what will happen for us
+fold_column = NULL
+
+outcome <- 'cyl'
+preds <- setdiff(names(mtcars), c(outcome, fold_column))
+
+demo_model <- h2o.glm(x = preds,
+                      y= outcome,
+                      training_frame = as.h2o(mtcars), 
+                      nfolds = 5,
+                      fold_column = fold_column,
+                      keep_cross_validation_fold_assignment = TRUE,
+                      alpha=1,
+                      lambda_search=TRUE,
+                      seed = -1)
+
+head(h2o.cross_validation_fold_assignment(demo_model))
+
+```
+This also appears to work correctly.
+
+Let's lastly just see what happens when they're both set:
+
+```{r}
+
+#mtcars has 32 rows.  Let's create a 2-fold split of equal size
+fold_assigns = c(rep(1, 16), rep(2,16))
+
+#let's go ahead and concatenate that onto mtcars
+mtcars_fa <- cbind(mtcars, fold_assigns)
+
+outcome <- 'cyl'
+preds <- setdiff(names(mtcars_fa), c(outcome, 'fold_assigns'))
+
+demo_model <- h2o.glm(x = preds,
+                      y= outcome,
+                      training_frame = as.h2o(mtcars_fa), 
+                      nfolds = 5,
+                      fold_column = 'fold_assigns',
+                      keep_cross_validation_fold_assignment = TRUE,
+                      alpha=1,
+                      lambda_search=TRUE,
+                      seed = -1)
+
+head(h2o.cross_validation_fold_assignment(demo_model))
+
+```
+This correctly throws an error!  Yay!
