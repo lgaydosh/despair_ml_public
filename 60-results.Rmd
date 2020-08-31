@@ -7,7 +7,7 @@ The purpose of this document is to explore the results of the models built in th
 
 ```{r load libraries}
 library(pacman)
-pacman::p_install(plotly)
+pacman::p_install(plotly, force=FALSE)
 pacman::p_load(tidyverse)
 ```
 

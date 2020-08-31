@@ -18,7 +18,16 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
-```{r source files}
+## Project run parameters
+```{r seeds for reproducibility}
+no_tasks=3
+seed = 9384
+outcome = 'h5mn8'
+results_directory = str_c(outcome, '/results_run_2')
+set.seed(seed)
+```
+
+```{r source files, include=FALSE}
 source("function_import.R")
 ```
 
@@ -44,16 +53,8 @@ h2o.no_progress()
 future::plan(multiprocess)
 ```
 
-```{r seeds for reproducibility}
-no_tasks=1
-seed = 9384
-outcome = 'h5mn8'
-results_directory = c(outcome, '/results')
-set.seed(seed)
-```
-
 # Pipeline overview
-```{r echo=FALSE, out.width='50%', eval=!from_script}
+```{r echo=FALSE, out.width='50%'}
 knitr::include_graphics('./img/pipeline_overview.jpg')
 ```
 
@@ -407,7 +408,7 @@ final_rf_files <- str_c(results_directory, str_c('/final_rf_perfs_', seq(1,no_ta
 final_rf_perfs <- map_dfr(final_rf_files, read_csv)
 
 # get the index of the best performance
-final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met))
+final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met) %>% pull(met))
 
 final_rfmodel_dir <- str_c(results_directory, str_c('/final_rf_model_', final_rfmodel_ind, '/'))
 final_rfmodel_path <- list.files(final_rfmodel_dir)[[1]]
@@ -490,7 +491,7 @@ final_lasso_files <- str_c(results_directory, str_c('/final_lasso_perfs_', seq(1
 final_lasso_perfs <- map_dfr(final_lasso_files, read_csv)
 
 # get the index of the best performance
-final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met))
+final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met) %>% pull(met))
 
 final_lassomodel_dir <- str_c(results_directory, str_c('/final_lasso_model_', final_lassomodel_ind, '/'))
 final_lassomodel_path <- list.files(final_lassomodel_dir)[[1]]

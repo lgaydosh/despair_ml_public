@@ -21,14 +21,16 @@ This notebook is used with SLURM for the purpose of computing all data regarding
 ## Usage
 To use this file, you'll need to actually run it from slurm_experiments.R.  This will drop in some of the variables which are not present here, including `n_boot`, `seed`, `task_ID`, and `results_directory`.
 
-```{r source files}
-source("function_import.R")
-```
-
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, h2o, furrr)
+```
+
+```{r source files}
+rsource_dir = 'r_project_source'
+source_files_list <- list.files(rsource_dir)
+map(str_c(rsource_dir, '/', source_files_list), source)
 ```
 
 ```{r initializations, include=FALSE}
@@ -112,11 +114,11 @@ testing_df <- data_splits$test
 # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  mtries = c(-1, 20),
-                  min_rows = c(5, 10),
-                  #stopping_rounds = 4,
-                  balance_classes = c(TRUE, FALSE),
-                  #stopping_metric = 'AUCPR',
+                  mtries = c(-1, 20, by=3),
+                  min_rows = c(2, 15, by=3),
+                  stopping_rounds = 3,
+                  #balance_classes = c(TRUE, FALSE),
+                  stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
 
 # define number of bootstraps (defined in slurm_experiments.R)
@@ -271,8 +273,9 @@ In this step, we build the final model for the random forest.  We use slightly m
 # # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  #mtries = seq(-1, 30, by=5),
-                  #min_rows = seq(5, 60, by=5),
+                  mtries = seq(-1, 20, by=5),
+                  min_rows = seq(2, 20, by=2),
+                  stopping_rounds = 3,
                   #balance_classes = c(TRUE, FALSE),
                   stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
