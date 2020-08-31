@@ -189,10 +189,13 @@ The RF models are chosen based on a grid search using the following the paramete
 - max depth: maximum depth allowed for a single tree in the RF  
 - number of trees: maximum number of trees allowed in the RF  
 - mtries: the number of columns sampled for each tree split  
+- stopping_rounds: number of rounds to continue when stopping_metric doesn't improve, based on a simple moving average
 - min_rows: the minimum number of rows required to split the internal node
 - balance classes: whether to balance the classes or not
 - stopping_metric: metric which results in early stopping of training of the model
 - categorical encoding: use one hot encoding to create straightforward comparison with LASSO
+
+Note that here, if you don't set stopping rounds, early stopping will not be enabled.
 
 ```{r bootstrap rf training, warning=FALSE, message=FALSE}
 rf_params <- list(max_depth = 50,
