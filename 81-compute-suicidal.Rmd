@@ -52,7 +52,7 @@ The predictors we will be using will be several variable lists loaded from `10-i
 
 ```{r load raw data}
 ## set outcome variable of interest
-outcome = 'h5mn8'
+#outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
 wave_data <- load_waves(1:5, filebase=filebase)
