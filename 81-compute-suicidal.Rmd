@@ -1,0 +1,382 @@
+---
+title: "81-compute-suicidal"
+output:
+  html_notebook:
+    code_folding: hide
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+#81-compute-suicidal
+
+This notebook is used with SLURM for the purpose of computing all data regarding suicidal ideation; this includes bootstrap model performance on validation sets, permutation importance tables, and MDI tables among others.  See `81-interpret-suicidal` for more information on data selection, predictors, and outcome variables.
+
+## Usage
+To use this file, you'll need to actually run it from slurm_experiments.R.  This will drop in some of the variables which are not present here, including `n_boot`, `seed`, `task_ID`, and `results_directory`.
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, h2o, furrr)
+```
+
+```{r source files}
+rsource_dir = 'r_project_source'
+source_files_list <- list.files(rsource_dir)
+map(str_c(rsource_dir, '/', source_files_list), source)
+```
+
+```{r initializations, include=FALSE}
+h2o.init() 
+h2o.no_progress()
+future::plan(multiprocess)
+```
+
+```{r seeds for reproducibility}
+# define seed (defined in slurm_experiments.R)
+seed = 9384
+h2o_seed = -1
+set.seed(seed)
+```
+
+# Dataset generation
+
+The predictors we will be using will be several variable lists loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, optimism, some demographics, and biological despair.
+
+```{r load raw data}
+## set outcome variable of interest
+#outcome = 'h5mn8'
+filebase = '/scratch/p_gaydosh_lab'
+
+wave_data <- load_waves(1:5, filebase=filebase)
+
+full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+
+```
+
+```{r compose working dataset, warning=False, message=False}
+## Only study the subjects that we're interested in.
+inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+
+## get na_levels : dataset to recode all skip levels in variables
+na_levels <- read_csv("na_levels.csv")
+
+## use the features and ids that you want to select out what you want
+suicide_ds <- full_dataset %>%
+  filter(aid %in% inner_aids) %>%
+  remove_subjects_not_in_wave1(filebase=filebase) %>%
+  add_demographics() %>%
+  add_bio_despair(filebase=filebase) %>% 
+  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
+  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
+  recode_missing_levels(na_levels)
+
+```
+
+## Outcome variable: Binarizing and recoding details
+
+Here, we binarize and drop NAs from the outcome.
+
+```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
+suicide_ds <- suicide_ds %>%
+  mutate_at(vars(outcome), as.factor) %>%
+  drop_na(outcome)
+```
+
+# Machine learning split of the data
+
+In this section, we split the data to ensure that our model is able to generalize to other datasets.
+```{r ml splits, message=FALSE, warning=FALSE}
+## split the data into relevant proportions desired
+data_splits <- suicide_ds %>%
+  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
+
+# assemble list
+training_df <- data_splits$train
+validation_df <- data_splits$valid
+testing_df <- data_splits$test
+```
+
+
+# Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
+
+## RF model
+
+```{r feature selection rf, include=FALSE}
+
+# Spans of hyper parameters for random forest
+rf_params <- list(max_depth = 50,
+                  ntrees = 150,
+                  mtries = c(-1, 20, by=3),
+                  min_rows = c(2, 15, by=3),
+                  stopping_rounds = 3,
+                  #balance_classes = c(TRUE, FALSE),
+                  stopping_metric = 'AUCPR',
+                  categorical_encoding = 'one_hot_explicit')
+
+# define number of bootstraps (defined in slurm_experiments.R)
+#n_boot = 2
+
+suicide_rf <- model_feature_selection("RF",training_frame = training_df,
+                      validation_frame = validation_df,
+                      hyper_params = rf_params,
+                      outcome = outcome, n = n_boot, seed=seed, h2o_seed = h2o_seed)
+
+```
+
+```{r get rf bootstrap model seeds and save}
+bs_rf_seeds <- get_model_seeds(suicide_rf$models)
+
+bs_rf_seeds_file <- str_c(results_directory, str_c('/bs_rf_seeds_', task_ID), '.csv')
+
+write_csv(bs_rf_seeds, bs_rf_seeds_file)
+```
+
+
+```{r save/load rf bootstrap model performance, include=FALSE}
+
+bs_rf_perf <- get_metric_set_from_perfs(suicide_rf$perfs) %>%
+  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
+
+bs_rf_file <- str_c(results_directory, str_c('/bs_rf_perfs_', task_ID), '.csv')
+
+write_csv(bs_rf_perf, bs_rf_file)
+
+```
+
+### Feature importances: Random Forest
+#### Mean decrease in impurity (MDI)
+
+```{r save/load rf bootstrap model mdi, include=FALSE}
+
+bs_rf_mdi <- suicide_rf$mdi %>% 
+  purrr::reduce(rbind)
+
+bs_rf_mdi_file <- str_c(results_directory, str_c('/bs_rf_mdi_', task_ID), '.csv')
+
+write_csv(bs_rf_mdi, bs_rf_mdi_file)
+
+```
+
+
+#### Permutation importance
+Calculate and save permutation importance
+
+```{r compute/save or load bs rf model permutation, include=FALSE}
+
+boot_rf_perm_plt <- suicide_rf$models %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome)
+
+boot_rf_perm_file <- str_c(results_directory, str_c('/boot_rf_perm_plt_', task_ID), '.csv')
+
+write_csv(boot_rf_perm_plt, boot_rf_perm_file)
+
+```
+
+
+## LASSO model
+In this step, we model the relation between the outcomes and the predictors using a linear regression with L2 regularization.  This drives the importance of unimportant and redudant features towards zero.
+
+```{r feature selection lasso, message=FALSE, warning=FALSE}
+# Function parameters
+lasso_params <- list(alpha = c(1))
+
+suicide_lasso <- model_feature_selection( "Lasso",
+                                          training_frame = training_df,
+                                          validation_frame = validation_df,
+                                          hyper_params = lasso_params,
+                                          outcome = outcome, 
+                                          n = n_boot,
+                                          seed=seed,
+                                          h2o_seed=h2o_seed)
+```
+
+```{r get lasso bootstrap model seeds and save}
+bs_lasso_seeds <- get_model_seeds(suicide_lasso$models)
+
+bs_lasso_seeds_file <- str_c(results_directory, str_c('/bs_lasso_seeds_', task_ID), '.csv')
+
+write_csv(bs_lasso_seeds, bs_lasso_seeds_file)
+```
+
+```{r save/load lasso bootstrap model performance, include=FALSE}
+
+bs_lasso_perf <- get_metric_set_from_perfs(suicide_lasso$perfs) %>%
+  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
+
+bs_lasso_file <- str_c(results_directory, str_c('/bs_lasso_perfs_', task_ID), '.csv')
+
+write_csv(bs_lasso_perf, bs_lasso_file)
+
+```
+
+### Feature importances: LASSO
+#### Coefficient-based variable importance
+
+```{r save/load lasso bootstrap model mdi, include=FALSE}
+
+bs_lasso_mdi <- suicide_lasso$mdi %>% 
+  purrr::reduce(rbind)
+
+bs_lasso_mdi_file <- str_c(results_directory, str_c('/bs_lasso_mdi_', task_ID), '.csv')
+
+write_csv(bs_lasso_mdi, bs_lasso_mdi_file)
+
+```
+
+#### Permutation importance
+
+```{r compute/save or load bs lasso model permutation, include=FALSE}
+
+boot_lasso_perm_plt <- suicide_lasso$models %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome)
+
+boot_lasso_perm_file <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', task_ID), '.csv')
+
+write_csv(boot_lasso_perm_plt, boot_lasso_perm_file)
+  
+```
+
+# Generation of final model {.tabset .tabset-fade .tabset-pills}
+
+## Add folds to training set
+```{r join with kfold assignments}
+if(!is.null(kfold_file)){
+  
+  #read kfold assignments
+  kfold_assigns = read_csv(kfold_file, col_types = cols(aid=col_character(), fold_assign=col_factor()))
+  
+  #join with training_df
+  start_len = nrow(training_df)
+  training_df <- full_join(training_df, kfold_assigns, by='aid')
+  
+  #make sure that all of these things have the same length
+  if((nrow(training_df)!= start_len) | nrow(training_df) != nrow(kfold_assigns)){
+    stop('training df, kfold_assigns, and the joined df do not appear to have the same number of rows!')
+  }
+}
+```
+
+## RF model
+In this step, we build the final model for the random forest.  We use slightly more values in order to come up with the best model, keeping in mind the number of combinations that are required to run to evaluate the grid.
+```{r final model evaluation rf}
+
+# # Spans of hyper parameters for random forest
+rf_params <- list(max_depth = 50,
+                  ntrees = 150,
+                  mtries = seq(-1, 20, by=5),
+                  min_rows = seq(2, 20, by=2),
+                  stopping_rounds = 3,
+                  #balance_classes = c(TRUE, FALSE),
+                  stopping_metric = 'AUCPR',
+                  categorical_encoding = 'one_hot_explicit')
+
+# Function parameters
+final_model_rf <- rf_model(outcome,
+                           training_frame = training_df,
+                           validation_frame = validation_df,
+                           #nfolds = 5,
+                           fold_column = 'fold_assign',
+                           hyper_params = rf_params, model_seed=h2o_seed)
+
+```
+
+```{r get rf final model seeds and save}
+final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
+
+final_rf_seeds_file <- str_c(results_directory, str_c('/final_rf_seeds_', task_ID), '.csv')
+
+write_csv(final_rf_seeds, final_rf_seeds_file)
+```
+
+```{r save/load final rf model}
+
+#get performance
+final_rf_perf <-final_model_rf[[2]]
+
+#save model to file
+final_rf_model_file <- str_c(results_directory, str_c('/final_rf_model_', task_ID))
+temp_out <- h2o.saveModel(object = final_model_rf[[1]], path = final_rf_model_file, force = TRUE)
+
+#save performance to file
+final_rf_file <- str_c(results_directory, str_c('/final_rf_perfs_', task_ID), '.csv')
+write_csv(final_rf_perf, final_rf_file)
+
+```
+
+### Features: permutation importance
+
+```{r compute/save or load final rf model permutation}
+
+final_rf_perm_plt <- list(final_model_rf[[1]]) %>%
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
+
+final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', task_ID), '.csv')
+
+write_csv(final_rf_perm_plt, final_rf_perm_file)
+
+```
+
+
+## LASSO model
+Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.
+```{r final model evaluation lasso, message=FALSE, warning=FALSE}
+# Function parameters
+lasso_params <- list(alpha = c(1))
+
+final_model_lasso <- lasso_model(training_frame = training_df,
+                                 validation_frame = validation_df,
+                                 outcome = outcome,
+                                 #nfolds = 5,
+                                 fold_column = 'fold_assign',
+                                 hyper_params = lasso_params,
+                                 model_seed = h2o_seed)
+```
+
+```{r get lasso final model seeds and save}
+final_lasso_seeds <- get_model_seeds(list(final_model_lasso[[1]]))
+
+final_lasso_seeds_file <- str_c(results_directory, str_c('/final_lasso_seeds_', task_ID), '.csv')
+
+write_csv(final_lasso_seeds, final_lasso_seeds_file)
+```
+
+```{r save/load final lasso model}
+  
+#get performance
+final_lasso_perf <-final_model_lasso[[2]]
+
+#save model to file
+final_lasso_model_file <- str_c(results_directory, str_c('/final_lasso_model_', task_ID))
+temp_out <- h2o.saveModel(object = final_model_lasso[[1]], path = final_lasso_model_file, force = TRUE)
+
+#save performance to file
+final_lasso_file <- str_c(results_directory, str_c('/final_lasso_perfs_', task_ID), '.csv')
+write_csv(final_lasso_perf, final_lasso_file)
+
+```
+
+### Features: permutation importance
+
+```{r compute/save or load final lasso model permutation}
+
+final_lasso_perm_plt <- list(final_model_lasso[[1]]) %>%
+  get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
+                             outcome=outcome)
+
+final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', task_ID), '.csv')
+
+write_csv(final_lasso_perm_plt, final_lasso_perm_file)
+
+```
+

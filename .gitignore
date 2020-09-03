@@ -7,3 +7,6 @@
 *.html
 *.utf8.md
 *.knit.md
+
+#SLURM files
+*.out

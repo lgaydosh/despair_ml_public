@@ -722,7 +722,13 @@ Some predictors of biological despair need to be loaded separately from differen
 ### hba1c
 ```{r}
 # This function takes in the full dataframe and path of the glucose biomarker file and adds the variables: hba1c
-add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt"){
+add_wave_4_glucose <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth"){
+  
+  # Default file ending
+  file_end = '/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt'
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
   
   glucose <- read_xpt(filepath)
   glucose <- glucose %>% janitor::clean_names() %>% select(aid, hba1c)
@@ -738,7 +744,13 @@ add_wave_4_glucose <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.i
 ### crp
 ```{r}
 # This function takes in the full dataframe and path of the crp_ebv biomarker file and adds the variable: crp
-add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt" ){
+add_wave_4_crp <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth" ){
+  
+  # Default file ending
+  file_end = '/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt'
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
   
   crp_df <- read_xpt(filepath)
   crp_df <- crp_df %>% janitor::clean_names() %>% select(aid, crp)
@@ -754,7 +766,13 @@ add_wave_4_crp <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.va
 ### hdl, ldl, tg
 ```{r}
 # This function takes in the full dataframe and path of the lipid biomarker file and adds the variables: hdl, ldl, tg
-add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt" ){
+add_wave_4_lipids <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth"){
+  
+  # Default file ending
+  file_end = "/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt"
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
   
   lipids <- read_xpt(filepath)
   lipids <- lipids %>% janitor::clean_names() %>% select(aid, hdl, ldl, tg)
@@ -772,15 +790,11 @@ add_wave_4_lipids <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 # This function takes in file paths for glucose, crp and lipid biomarker file paths for wave 4 and calls functions that loads these variables. 
 # This abstracts the functionality of the individual functions that load the relevant variables
 ## Variables loaded with this function: hdl, ldl, tg, crp, hba1c
-add_wave_4_bio_despair <- function(df, 
-                                   filepath_glucose = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Glucose/glu_a1c.xpt",
-                                   filepath_crp = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV CRP-EBV/crp_ebv.xpt",
-                                   filepath_lipids = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave IV Biomarker Files/Wave IV Lipids/lipids.xpt"
-){
+add_wave_4_bio_despair <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth"){
   df <- df %>% 
-    add_wave_4_glucose(filepath_glucose) %>% 
-    add_wave_4_crp(filepath_crp) %>% 
-    add_wave_4_lipids(filepath_lipids)
+    add_wave_4_glucose(filebase) %>% 
+    add_wave_4_crp(filebase) %>% 
+    add_wave_4_lipids(filebase)
   
   return(df)
 }
@@ -793,7 +807,13 @@ add_wave_4_bio_despair <- function(df,
 ### h5bmi, h5waist
 ```{r}
 # This function takes in the full dataframe and path of the anthro biomarker file and adds the variables: h5bmi, h5waist
-add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"){
+add_wave_5_anthro <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth"){
+  
+  # Default file ending
+  file_end = "/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt"
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
   
   anthro <- read_xpt(filepath) %>% 
     janitor::clean_names() %>% 
@@ -812,7 +832,13 @@ add_wave_5_anthro <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 ### h5sbp, h5dbp, h5bpc1s4, h5bpjcls
 ```{r}
 # This function takes in the full dataframe and path of the cardiovascular biomarker file and adds the variables: h5sbp, h5dbp, h5bpc1s4, h5bpjcls
-add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt" ){
+add_wave_5_cardio <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth" ){
+  
+  # Default file ending
+  file_end = "/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt"
+  
+  #Create filepath
+  filepath = str_c(filebase, file_end)
   
   cardio <- read_xpt(filepath) %>% 
     janitor::clean_names() %>% 
@@ -834,13 +860,11 @@ add_wave_5_cardio <- function(df, filepath = "~/gvfs/smb-share:server=vu1file.it
 # This function takes in file paths for antro and cardio vascular biomarker file paths and calls functions that loads these variables. 
 # This abstracts the functionality of the individual functions that load the relevant variables
 ## Variables loaded with this function: h5sbp, h5dbp, h5bpc1s4, h5bpjcls, h5bmi, h5waist
-add_wave_5_bio_despair <- function(df, 
-                                   filepath_anthro = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Anthropometrics/banthro5.xpt" ,
-                                   filepath_cardio = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth/Gaydosh/Wave V Biomarker Files/Wave V Cardiovascular Measures/bcardio5.xpt"
-){
+add_wave_5_bio_despair <- function(df, filebase= "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth") {
+  
   df <- df %>% 
-    add_wave_5_anthro(filepath_anthro) %>% 
-    add_wave_5_cardio(filepath_cardio) 
+    add_wave_5_anthro(filebase) %>% 
+    add_wave_5_cardio(filebase) 
   
   return(df)
 }
@@ -853,12 +877,12 @@ add_wave_5_bio_despair <- function(df,
 ### Add Biological Despair
 ```{r}
 # Unified function to add all biological despair predictors to the dataset
-add_bio_despair <- function(df){
+add_bio_despair <- function(df, filebase= "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth"){
   
   df <- df %>% 
     add_wave_3_bmi() %>%  # Function to create bmi in Wave 3 - this is present in 30-feature-engineering.Rmd file
-    add_wave_4_bio_despair() %>%  # Add Wave 4 biological despair variables
-    add_wave_5_bio_despair() # Add Wave 5 biological despair variables
+    add_wave_4_bio_despair(filebase) %>%  # Add Wave 4 biological despair variables
+    add_wave_5_bio_despair(filebase) # Add Wave 5 biological despair variables
   
   return(df)
 }

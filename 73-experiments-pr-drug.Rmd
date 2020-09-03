@@ -63,8 +63,10 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ```{r, include=FALSE}
 ## set outcome variable of interest
 outcome = 'p_drug' # This is the binary variable representing prescription drug use at wave 5
+#filebase = '/scratch/p_gaydosh_lab'
+filebase = 'Z:'
 
-wave_data <- load_waves(1:5, filebase='Z:')
+wave_data <- load_waves(1:5, filebase=filebase)
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
 ```
 
@@ -81,9 +83,10 @@ inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wav
 pr_drug_ds <- full_dataset %>%
   add_pres_drug %>%
   add_demographics() %>%
+  add_bio_despair(filebase=filebase)
   dplyr::select(aid, predictor_list, demographic_age_list, demographic_list, outcome) %>%
   filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase='Z:') %>%
+  remove_subjects_not_in_wave1(filebase=filebase) %>%
   mutate_at(vars(-starts_with("age_")), as.factor) %>%
   mutate_at(vars(c(-starts_with("age_"),outcome)), fct_explicit_na) %>% 
   drop_na(outcome)

@@ -39,7 +39,8 @@ get_outcomes_df <- function(df, outcome, predictors){
 rf_model <- function(outcome, 
                      training_frame, 
                      validation_frame,
-                     nfolds,
+                     nfolds=0,
+                     fold_column = NULL,
                      hyper_params,
                      perf_metric = 'pr_auc',
                      model_seed = 42){  
@@ -66,23 +67,37 @@ rf_model <- function(outcome,
   
   # initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(training_frame), outcome)
+  inputs <- setdiff(names(training_frame), c(outcome, fold_column))
 
   # create random grid name
   grid_name <- str_c('rf_', stringi::stri_rand_strings(1, 30))
-  #print(grid_name)
   
-  rf_grid <- h2o.grid("randomForest", x = inputs, y = outputs,
-                      grid_id = grid_name,
-                      training_frame = as.h2o(training_frame),
-                      #model_id = "rf_covType_v1",
-                      #stopping_rounds = 2,
-                      nfolds = nfolds,
-                      fold_assignment = "Stratified",
-                      score_each_iteration = T,
-                      seed = model_seed,
-                      
-                      hyper_params = hyper_params)
+  training_frame_h2o <- as.h2o(training_frame)
+  
+  #Create parameter lists for inputs into h2o.grid
+  rf_grid_params <- list(algorithm = "randomForest",
+                         x = inputs, y = outputs,
+                         grid_id = grid_name,
+                         training_frame = training_frame_h2o,
+                         #model_id = "rf_covType_v1",
+                         #stopping_rounds = 2,
+                         fold_column = fold_column,
+                         nfolds = nfolds,
+                         fold_assignment = "Stratified",
+                         score_each_iteration = T,
+                         seed = model_seed,
+                         parallelism = 1,
+                         hyper_params = hyper_params)
+  
+  #Remove fold column if it is null.  Otherwise, use fold_column and remove nfolds and fold_assignment
+  if(is.null(fold_column)){
+    rf_grid_params <- rf_grid_params[names(rf_grid_params) != 'fold_column']
+  } else{
+    rf_grid_params <- rf_grid_params[names(rf_grid_params) %in% c('nfolds','fold_assignment')==FALSE]
+  }
+  
+  #Run h2o.grid
+  rf_grid <- do.call(h2o.grid, rf_grid_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
   # algorithm: Name of algorithm to use in grid search (gbm, randomForest, kmeans, glm, deeplearning, naivebayes, pca).
@@ -92,8 +107,6 @@ rf_model <- function(outcome,
   # training_frame: Id of the training data frame.
   # ...: arguments describing parameters to use with algorithm (i.e., x, y, training_frame). Look at the specific algorithm - h2o.gbm, h2o.glm, h2o.kmeans, h2o.deepLearning - for available parameters.
   # hyper_params: List of lists of hyper parameters (i.e., list(ntrees=c(1,2), max_depth=c(5,7))).
-  
-  
   
   # Get the grid results, sorted by validation AUC
   rf_gridperf <- h2o.getGrid(grid_id = grid_name,
@@ -114,7 +127,8 @@ rf_model <- function(outcome,
 lasso_model <- function(outcome, 
                         training_frame, 
                         validation_frame, 
-                        nfolds,
+                        nfolds = 0,
+                        fold_column = NULL,
                         hyper_params,
                         perf_metric = 'pr_auc',
                         model_seed = 42){  
@@ -137,26 +151,35 @@ lasso_model <- function(outcome,
     warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
   }
   
-  
   #initialize function parameters for h2o.randomForest
   outputs <- outcome
-  inputs <- setdiff(names(training_frame), outcome)
+  inputs <- setdiff(names(training_frame), c(outcome, fold_column))
   
   # create random grid name
   grid_name <- str_c('lasso_',stringi::stri_rand_strings(1, 30))
   #print(grid_name)
   
+  lasso_grid_params <- list(algorithm = "glm", x = inputs, y = outputs,
+                            grid_id = grid_name,
+                            training_frame = as.h2o(training_frame),
+                            lambda_search = TRUE,
+                            family = "binomial",
+                            nfolds = nfolds,
+                            fold_column = fold_column,
+                            fold_assignment = "Stratified",
+                            seed = model_seed,
+                            parallelism = 1,
+                            hyper_params = hyper_params)
+  
+  #Remove fold column if it is null.  Otherwise, use fold_column and remove nfolds and fold_assignment
+  if(is.null(fold_column)){
+    lasso_grid_params <- lasso_grid_params[names(lasso_grid_params) != 'fold_column']
+  } else{
+    lasso_grid_params <- lasso_grid_params[names(lasso_grid_params) %in% c('nfolds','fold_assignment')==FALSE]
+  }
+  
   # Launch grid search with given algorithm and parameters
-  lasso_grid <- h2o.grid("glm", x = inputs, y = outputs,
-                         grid_id = grid_name,
-                         training_frame = as.h2o(training_frame),
-                         lambda_search = TRUE,
-                         family = "binomial",
-                         nfolds = nfolds,
-                         fold_assignment = "Stratified",
-                         seed = model_seed,
-                         
-                         hyper_params = hyper_params)
+  lasso_grid <- do.call(h2o.grid, lasso_grid_params)
   
   # h2o.grid(): Starts a new grid search parameterized by
   # algorithm: Name of algorithm to use in grid search (gbm, randomForest, kmeans, glm, deeplearning, naivebayes, pca).
@@ -166,7 +189,6 @@ lasso_model <- function(outcome,
   # training_frame: Id of the training data frame.
   # ...: arguments describing parameters to use with algorithm (i.e., x, y, training_frame). Look at the specific algorithm - h2o.gbm, h2o.glm, h2o.kmeans, h2o.deepLearning - for available parameters.
   # hyper_params: List of lists of hyper parameters (i.e., list(ntrees=c(1,2), max_depth=c(5,7))).
-  
   
   # Get the grid results, sorted by validation AUC
   lasso_gridperf <- h2o.getGrid(grid_id = grid_name,
@@ -249,13 +271,14 @@ get_top_n_names <- function(model_h2o, top_n){
 model_feature_selection <- function(model_type,
                                     training_frame,
                                     validation_frame,
-                                    n = 2,
-                                    k = 5,
                                     hyper_params,
                                     outcome,
+                                    n = 2,
+                                    k = 5,
                                     selection_metric = 'pr_auc',
                                     top_n = 20,
-                                    seed = 42){
+                                    seed = 1234,
+                                    h2o_seed = 42){
   # training_df : training data frame sent in after initial 70-30 split
   # n : n number of bootstrapped
   # k : k folds in cross-validation
@@ -264,6 +287,8 @@ model_feature_selection <- function(model_type,
   # outcome : name of the outcome variable
   # selection_metric : H2o metric used to select the best model from the grid search
   # top_n : top n important variables to be extracted from the models generated
+  # seed: seed used for reproducibility for rsample (generation of bootstraps)
+  # h2o_seed: seed used for h2o models
   
   # set seed for bootstraps synchronization
   set.seed(seed)
@@ -288,7 +313,7 @@ model_feature_selection <- function(model_type,
                            hyper_params = hyper_params,
                            nfolds = k,
                            perf_metric = selection_metric,
-                           model_seed = seed)
+                           model_seed = h2o_seed)
     }
     
     else if (model_type == "Lasso"){
@@ -298,7 +323,7 @@ model_feature_selection <- function(model_type,
                              hyper_params = hyper_params,
                              nfolds = k,
                              perf_metric = selection_metric,
-                             model_seed = seed)      
+                             model_seed = h2o_seed)      
     }
     else{
       stop(str_c("The model: ", model_type, " you've requested is not available.  Available models are RF and Lasso."))
@@ -392,6 +417,22 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
   return(calc_metrics)
 }
 
+```
+
+
+```{r return a tibble of seeds from the list of models}
+get_model_seeds <- function(mdl_list){
+  #This function returns the seed of a model for each model in a list of models
+  #Inputs: mdl_list: list of h2o models
+  #Output: 1 column tibble of seeds corresponding to passed in h2o models
+  
+  seed_list <- mdl_list %>%
+    map(function(x) toString(x@parameters$seed))
+  
+  sd_tbl <- tibble(seeds = unlist(seed_list))
+  
+  return(sd_tbl)
+}
 ```
 
 
