@@ -12,6 +12,7 @@ args <- commandArgs(trailingOnly = TRUE)
 #expected command line parameters
 n_boot = as.numeric(args[[1]])
 task_ID = as.numeric(args[[2]])
+print(c("Bootstraps: ",n_boot))
 
 #compatibility with SLURM
 .libPaths("~/R/x86_64-pc-linux-gnu-library/3.6")
@@ -27,6 +28,8 @@ outcome = 'h5mn8'
 results_directory = str_c(outcome, '/results_run_2')
 kfold_file = str_c(outcome, '/kfold_assign_3895_tts_9384.csv')
 
+print(c("Notebook: ", notebook_file))
+print(c("Outcome: ", outcome))
 # Convert the 70 series notebook to a script
 purl(paste0(notebook_file, '.Rmd'))
 
