@@ -66,6 +66,7 @@ filebase = '/scratch/p_gaydosh_lab'
 dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
 
 #parse out dataset components
+wave_data <- dataset_list$wave_data
 full_dataset <- dataset_list$full_dataset
 ds_raw <- dataset_list$ds_raw_outcome
 ds <- dataset_list$ds_final
@@ -93,7 +94,7 @@ The table also demonstrates that the classes are very imbalanced, with about 14x
 
 ```{r warning=FALSE, message=FALSE}
 ds_raw %>% 
-  binarize_var(.data[[outcome]], legit_skip = FALSE) %>% 
+  binarize_var(outcome, legit_skip = FALSE) %>% 
   group_by(.data[[outcome]]) %>% 
   summarise(total = n(), type = class(.data[[outcome]]))
 

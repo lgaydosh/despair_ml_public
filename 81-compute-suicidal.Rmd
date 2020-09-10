@@ -69,11 +69,11 @@ testing_df <- dataset_list$testing_df
 # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  mtries = c(-1, 20, by=3),
-                  min_rows = c(2, 15, by=3),
-                  stopping_rounds = 3,
+                  mtries = c(-1, 20, by=5),
+                  min_rows = c(2, 15, by=2),
+                  #stopping_rounds = 3,
                   #balance_classes = c(TRUE, FALSE),
-                  stopping_metric = 'AUCPR',
+                  #stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
 
 # define number of bootstraps (defined in slurm_experiments.R)
@@ -215,9 +215,9 @@ rf_params <- list(max_depth = 50,
                   ntrees = 150,
                   mtries = seq(-1, 20, by=5),
                   min_rows = seq(2, 20, by=2),
-                  stopping_rounds = 3,
+                  #stopping_rounds = 3,
                   #balance_classes = c(TRUE, FALSE),
-                  stopping_metric = 'AUCPR',
+                  #stopping_metric = 'AUCPR',
                   categorical_encoding = 'one_hot_explicit')
 
 # Function parameters

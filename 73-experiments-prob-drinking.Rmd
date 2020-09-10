@@ -65,6 +65,7 @@ filebase = '/scratch/p_gaydosh_lab'
 dataset_list <- generate_datasets(outcome, legit_skip=TRUE, skip_var = 97, filebase=filebase, seed_val=seed)
 
 #parse out dataset components
+wave_data <- dataset_list$wave_data
 full_dataset <- dataset_list$full_dataset
 ds_raw <- dataset_list$ds_raw_outcome
 ds <- dataset_list$ds_final

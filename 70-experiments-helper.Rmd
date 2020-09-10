@@ -56,6 +56,7 @@ generate_datasets <- function(outcome_var, legit_skip=FALSE, skip_var = NULL,
   return (list(full_dataset = full_dataset,
               ds_raw_outcome = ds_raw_outcome,
               ds_final = ds_final,
+              wave_data = wave_data,
               training_df = training_df,
               validation_df = validation_df,
               testing_df = testing_df))

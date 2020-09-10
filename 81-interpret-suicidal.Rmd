@@ -1,5 +1,5 @@
 ---
-title: "71-experiments-suicidal"
+title: "81-interpret-suicidal"
 output:
   html_notebook:
     code_folding: hide
@@ -71,6 +71,7 @@ filebase = '/scratch/p_gaydosh_lab'
 dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
 
 #parse out dataset components
+wave_data <- dataset_list$wave_data
 full_dataset <- dataset_list$full_dataset
 ds_raw <- dataset_list$ds_raw_outcome
 ds <- dataset_list$ds_final
@@ -345,7 +346,7 @@ head(joined_results, 20)
 ```
 
 The following visualization provides the intuition about the differences in the rankings between model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
-```{r bs feature importance plotly, fig.width = 16, fig.height = 14, eval=!from_script}
+```{r bs feature importance plotly, fig.width = 16, fig.height = 14}
 # Comparison of top_n features
 joined_results %>%
   compare_feature_select(interactive = TRUE,
