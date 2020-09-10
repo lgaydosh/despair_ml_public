@@ -1,0 +1,62 @@
+---
+title: "80-slurm-experiments"
+author: "Charreau Bell"
+output: html_document
+---
+
+**Purpose**:  This notebook assists in unified loading/writing csv operations to be used in the 80 series.
+
+# Saving functions
+
+```{r unified 80 csv saving function}
+save_to_csv <- function(save_data, save_dir, taskid){
+  #Function save_to_csv: saves dataframes as 'save_dir/[save_data]_taskid.csv
+  # to csv using the variable name with taskid as filename
+  #save_data: dataframe/tibble to save, appropriately named for saving
+  #save_dir: string reflecting base directory; if you want to save in the current directory, use '.'
+  #taskid: id of process running the function
+  #Output: writes the file to the constructed filepath
+  #Returns: a string of the filepath where the data was saved
+  
+  #get variable name as string
+  save_data_str <- deparse(substitute(save_data))
+  
+  #generate the save file
+  save_fname <- str_c(save_dir, str_c('/', save_data_str, '_', taskid), '.csv')
+  
+  #write the csv
+  write_csv(save_data, save_fname)
+  
+  #return filename in case we want to use it for logging
+  return(save_fname)
+}
+
+```
+
+```{r unified 80 model saving function}
+save_h2o_model <- function(h2o_mdl, is_rf, save_dir, taskid){
+  #Function save_h2o_model: saves FINAL h2o models as "save_dir/final_x_model_taskid" where x is the model type 
+  #  defined by is_rf
+  #is_rf: Boolean; TRUE if the model is a random forest; false if LASSO.
+  #save_dir: string reflecting base directory; if you want to save in the current directory, use '.'
+  #taskid: string or numeric id of process running the function
+  #Output: writes the model to the specified directory
+  #Returns: a string of the filepath where the model was saved
+  
+  #get variable name as string
+  if(is_rf)
+    save_data_str <- 'final_rf_model'
+  else
+    save_data_str <- 'final_lasso_model'
+  
+  #generate the save filename
+  save_fname <- str_c(save_dir, str_c('/', save_data_str, '_', taskid))
+  
+  #save the model
+  temp_out <- h2o.saveModel(object = h2o_mdl, path = save_fname, force = TRUE)
+  
+  #return the filename just in case we want to use it for logging
+  return(save_fname)
+}
+
+```
