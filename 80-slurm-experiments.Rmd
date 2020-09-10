@@ -9,11 +9,11 @@ output: html_document
 # Saving functions
 
 ```{r unified 80 csv saving function}
-save_to_csv <- function(save_data, save_dir, taskid){
+save_to_csv <- function(save_data, save_dir='.', taskid){
   #Function save_to_csv: saves dataframes as 'save_dir/[save_data]_taskid.csv
   # to csv using the variable name with taskid as filename
   #save_data: dataframe/tibble to save, appropriately named for saving
-  #save_dir: string reflecting base directory; if you want to save in the current directory, use '.'
+  #save_dir (default '.'): string reflecting base directory
   #taskid: id of process running the function
   #Output: writes the file to the constructed filepath
   #Returns: a string of the filepath where the data was saved
@@ -34,10 +34,10 @@ save_to_csv <- function(save_data, save_dir, taskid){
 ```
 
 ```{r unified 80 model saving function}
-save_h2o_model <- function(h2o_mdl, save_dir, taskid){
+save_h2o_model <- function(h2o_mdl, save_dir='.', taskid){
   #Function save_h2o_model: saves the h2o models as "save_dir/[h2o_mdl]_taskid"
   #h2o_mdl: h2o model to save, appropriately named for saving
-  #save_dir: string reflecting base directory; if you want to save in the current directory, use '.'
+  #save_dir (default '.'): string reflecting base directory
   #taskid: string or numeric id of process running the function
   #Output: writes the model to the specified directory
   #Returns: a string of the filepath where the model was saved
@@ -56,3 +56,56 @@ save_h2o_model <- function(h2o_mdl, save_dir, taskid){
 }
 
 ```
+
+#Loading functions
+
+```{r unified 80 csv loading function}
+load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = NULL){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #read_var: variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #notasks: total number of processes that have this file
+  #best_ind: specific process index to read.  If specified, `notasks` is ignored.
+  #Returns: the generated dataframe from all processes
+  
+  #get variable name as string
+  read_var_str <- deparse(substitute(read_var))
+  
+  if(!is.null(best_ind))
+    inds_to_read = best_ind
+  else
+    inds_to_read = seq(1, notasks)
+  
+  #generate file strings
+  read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))
+  
+  #read the csvs
+  read_data <- map_dfr(read_fnames, read_csv)
+  
+  #return the data
+  return(read_data)
+}
+
+```
+
+```{r unified 80 final model loading function}
+load_best_model <- function(model_var_name, read_dir = '.', best_ind){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #model_var_name: STRING variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #best_ind: index (ie, process/task number) of model to return
+  #Returns: the h2o model specified by best_ind
+  
+  #get the directory name
+  final_model_dir <- str_c(read_dir, str_c('/', model_var_name, '_', best_ind, '/'))
+  
+  #get the name of the model in this directory and load model
+  final_model_path <- list.files(final_model_dir)[[1]]
+  final_model <- h2o.loadModel(str_c(final_model_dir, final_model_path))
+  
+  #return the model
+  return(final_model)
+}
+
+```
+
