@@ -38,6 +38,12 @@ source(r_file)
 
 # Delete the generated file
 if(file_exists(r_file)){
-  file_delete(r_file) 
+  
+  #tryCatch to handle race conditions among several processors
+  tryCatch({
+    file_delete(r_file)
+  }, error = function(e){
+    print(str_c("file ", r_file, " already deleted by another process.  Continuing..."))
+  })
 }
 
