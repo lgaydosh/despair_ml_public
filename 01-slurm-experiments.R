@@ -27,9 +27,11 @@ notebook_file = '81-compute-suicidal'
 outcome = 'h5mn8'
 results_directory = str_c(outcome, '/results_run_2')
 kfold_file = str_c(outcome, '/kfold_assign_3895_tts_9384.csv')
+log_file = file(str_c(results_directory, '/log.txt'))
 
-print(c("Notebook: ", notebook_file))
-print(c("Outcome: ", outcome))
+write(paste("Notebook: ", notebook_file), log_file)
+write(paste("Outcome: ", outcome), log_file)
+
 # Convert the 70 series notebook to a script
 purl(paste0(notebook_file, '.Rmd'))
 
@@ -43,4 +45,3 @@ source(r_file)
 if(file_exists(r_file)){
   file_delete(r_file) 
 }
-

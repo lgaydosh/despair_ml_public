@@ -59,7 +59,7 @@ wave_data <- load_waves(1:5, filebase=filebase)
 
 full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
 
-print("Raw data loaded")
+write("Raw data loaded", log_file)
 ```
 
 ```{r compose working dataset, warning=False, message=False}
@@ -79,7 +79,7 @@ suicide_ds <- full_dataset %>%
   dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
   recode_missing_levels(na_levels)
 
-print(c("Variables: ", colnames(suicide_ds_)))
+write(paste("Variables: ", colnames(suicide_ds_)), log_file)
 ```
 
 ## Outcome variable: Binarizing and recoding details
@@ -91,7 +91,7 @@ suicide_ds <- suicide_ds %>%
   mutate_at(vars(outcome), as.factor) %>%
   drop_na(outcome)
 
-print("Outcome binarized, NAs removed")
+write("Outcome binarized, NAs removed", log_file)
 ```
 
 # Machine learning split of the data
@@ -107,7 +107,7 @@ training_df <- data_splits$train
 validation_df <- data_splits$valid
 testing_df <- data_splits$test
 
-print("Data split")
+write("Data split", log_file)
 ```
 
 
@@ -157,7 +157,7 @@ bs_rf_file <- str_c(results_directory, str_c('/bs_rf_perfs_', task_ID), '.csv')
 
 write_csv(bs_rf_perf, bs_rf_file)
 
-print("RF model set up")
+write("RF model set up", log_file)
 ```
 
 ### Feature importances: Random Forest
@@ -172,7 +172,7 @@ bs_rf_mdi_file <- str_c(results_directory, str_c('/bs_rf_mdi_', task_ID), '.csv'
 
 write_csv(bs_rf_mdi, bs_rf_mdi_file)
 
-print("MDI calculated")
+write("MDI calculated", log_file)
 ```
 
 
@@ -188,7 +188,7 @@ boot_rf_perm_file <- str_c(results_directory, str_c('/boot_rf_perm_plt_', task_I
 
 write_csv(boot_rf_perm_plt, boot_rf_perm_file)
 
-print("Permutation importance calculated")
+write("Permutation importance calculated", log_file)
 ```
 
 
@@ -227,7 +227,7 @@ bs_lasso_file <- str_c(results_directory, str_c('/bs_lasso_perfs_', task_ID), '.
 
 write_csv(bs_lasso_perf, bs_lasso_file)
 
-print("LASSO model set up")
+write("LASSO model set up", log_file)
 ```
 
 ### Feature importances: LASSO
@@ -242,7 +242,7 @@ bs_lasso_mdi_file <- str_c(results_directory, str_c('/bs_lasso_mdi_', task_ID), 
 
 write_csv(bs_lasso_mdi, bs_lasso_mdi_file)
 
-print("Coefficient-based variable importance")
+write("Coefficient-based variable importance calculated", log_file)
 ```
 
 #### Permutation importance
@@ -256,7 +256,7 @@ boot_lasso_perm_file <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', 
 
 write_csv(boot_lasso_perm_plt, boot_lasso_perm_file)
   
-print("Permutation importance calculated")
+write("Permutation importance calculated", log_file)
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
@@ -278,7 +278,7 @@ if(!is.null(kfold_file)){
   }
 }
 
-print("Folds added to training set")
+write("Training set folds added", log_file)
 ```
 
 ## RF model
@@ -326,7 +326,7 @@ temp_out <- h2o.saveModel(object = final_model_rf[[1]], path = final_rf_model_fi
 final_rf_file <- str_c(results_directory, str_c('/final_rf_perfs_', task_ID), '.csv')
 write_csv(final_rf_perf, final_rf_file)
 
-print("Final RF model completed")
+write("Final RF model completed", log_file)
 ```
 
 ### Features: permutation importance
@@ -341,7 +341,7 @@ final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', task
 
 write_csv(final_rf_perm_plt, final_rf_perm_file)
 
-print("RF permutation importance completed")
+write("RF permutation importance completed", log_file)
 ```
 
 
@@ -381,7 +381,7 @@ temp_out <- h2o.saveModel(object = final_model_lasso[[1]], path = final_lasso_mo
 final_lasso_file <- str_c(results_directory, str_c('/final_lasso_perfs_', task_ID), '.csv')
 write_csv(final_lasso_perf, final_lasso_file)
 
-print("Final LASSO model completed")
+write("Final LASSO model completed", log_file)
 ```
 
 ### Features: permutation importance
@@ -396,6 +396,6 @@ final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_'
 
 write_csv(final_lasso_perm_plt, final_lasso_perm_file)
 
-print("LASSO permutation importance completed")
+write("LASSO permutation importance completed", log_file)
 ```
 
