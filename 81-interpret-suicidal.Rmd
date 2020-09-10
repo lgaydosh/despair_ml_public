@@ -109,6 +109,7 @@ The table also demonstrates that the classes are very imbalanced, with about 14x
 suicide_ds <- suicide_ds %>%
   mutate_at(vars(outcome), as.factor) %>%
   drop_na(outcome)
+
 ```
 
 After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
@@ -175,6 +176,7 @@ data_splits <- suicide_ds %>%
 training_df <- data_splits$train
 validation_df <- data_splits$valid
 testing_df <- data_splits$test
+
 ```
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
