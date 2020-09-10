@@ -1,6 +1,8 @@
 ---
 title: "86-slurm-kfold-helper"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 #Introduction
@@ -36,16 +38,25 @@ To generate the splits for your k-folds, you need to do two things:
 1. Run 10, 40, 50, and 70 notebooks
 1. Set the two variables below to generate your folds.
 
-```{r}
+```{r settings, purl=FALSE}
 ## set outcome variable of interest
 outcome = 'h5mn8'
-no_folds=5
+legit_skip=FALSE
+skip_var = NULL
 ```
 
-The following seeds wil generate our kfold lists.  Note that the parameter `seed` must also be set identically when you run the models; otherwise, you'll generate different train/test/valid sets that won't match the kfold splits below.
-```{r}
-seed = 9384
-seeds = c(2435, 9834, 7903, 3895, 1236)
+```{r settings from command line, purl=FALSE}
+args <- commandArgs(trailingOnly = TRUE)
+
+outcome <- as.character(args[[1]])
+legit_skip <- as.logical(args[[2]])
+
+if( nargs()==3){
+  skip_var <- as.numeric(args[[3]])
+} else {
+  skip_var <- NULL
+}
+
 ```
 
 ```{r library imports}
@@ -54,10 +65,20 @@ pacman::p_load(tidyverse, furrr, h2o, tictoc, rsample)
 future::plan(multiprocess)
 ```
 
-# Basic code development and unit tests
+```{r import source files, warning=FALSE, message=FALSE}
+source("function_import.R")
+```
+
+The following seeds wil generate our kfold lists.  Note that the parameter `seed` must also be set identically when you run the models; otherwise, you'll generate different train/test/valid sets that won't match the kfold splits below.
+```{r seeding settings}
+no_folds=5
+seed = 9384
+seeds = c(2435, 9834, 7903, 3895, 1236)
+filebase = '/scratch/p_gaydosh_lab/'
+```
 
 Get the cross validation splits
-```{r}
+```{r splitting helper function}
 split_extract <- function(d_split, fold_no){
   fold_assigns <- d_split %>%
     assessment() %>%
@@ -68,7 +89,69 @@ split_extract <- function(d_split, fold_no){
 }
 ```
 
-```{r}
+# Application to our data
+I'm just going to quickly modify a previous function to accommodate our needs:
+
+```{r xval saving function}
+xval_save_helper <- function(in_data, xseed, tts_seed, strat_var, no_folds, out_var, filebase){
+  
+  set.seed(xseed)
+  xfolds <- in_data %>%
+    vfold_cv(v = no_folds, repeats=1, strata = strat_var) %>%
+    pull(splits) %>%
+    map2_df(seq(1, no_folds), split_extract) %>%
+    select(aid, fold_assign)
+  
+  #create save variable
+  save_csv <- str_c(filebase, '/DSI/', out_var, '/kfold_assign_', xseed, '_tts_', tts_seed, '.csv')
+  write_csv(xfolds, save_csv)
+  
+  return(xfolds)
+}
+```
+
+Load up the data using abridged feature set and simple datatype settings:
+```{r generate data}
+#create data in specified form
+dataset_list <- generate_datasets(outcome, legit_skip=legit_skip, skip_var = skip_var, 
+                                  filebase=filebase, seed_val=seed)
+
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
+
+#just select a few variables
+ds <- ds %>% dplyr::select(aid, all_of(outcome))
+
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
+
+#working_ds %>% glimpse()
+```
+
+Generate the csvs of the kfolds
+```{r actually create and save xval folds}
+test_splits <- map(seeds, ~xval_save_helper(in_data = training_df, xseed=.x, strat_var=outcome, no_folds=no_folds,
+                                            tts_seed = seed, out_var=outcome, filebase=filebase))
+test_splits
+```
+
+Let's quickly check to make sure these splits aren't all the same!
+```{r, purl=FALSE}
+ins <- (filter(test_splits[[1]], fold_assign==1) %>% pull(aid)) %in% (filter(test_splits[[2]], fold_assign==1) %>% pull(aid))
+sum(as.numeric(ins))
+nrow(training_df)/no_folds
+
+```
+
+They all aren't the same.  In looking at just this fold assignment, we can see that there are only 244 out of a size of 1283 aids which are shared between the first folds of differently folded seeds.  Great!
+
+
+# Basic code development and unit tests
+```{r, purl=FALSE}
 xval_save_helper <- function(in_data, seed, strat_var, no_folds){
   
   set.seed(seed)
@@ -88,7 +171,7 @@ xval_save_helper <- function(in_data, seed, strat_var, no_folds){
 ```
 
 Make sure it works on demo mtcars data.  We'll start by making sure that mtcars is large enough to have a good ratio.
-```{r, eval=FALSE}
+```{r, purl=FALSE}
 mtcars_2 <- rbind(mtcars, mtcars, mtcars) %>%
   mutate_at(vars(am), as.factor)
 
@@ -106,72 +189,12 @@ test_splits %>%
 
 This looks about right for stratified splits.  Let's quicky make sure this works with the map we intend to use on the seeds:
 
-```{r, eval=FALSE}
+```{r, purl=FALSE}
 test_splits <- map(seeds, ~xval_save_helper(in_data = mtcars_2, seed=.x, strat_var=NULL, no_folds=no_folds))
 test_splits
 ```
 It does! Let's apply this to our data.
 
-# Application to our data
-I'm just going to quickly modify a previous function to accommodate our needs:
-
-```{r}
-xval_save_helper <- function(in_data, xseed, tts_seed, strat_var, no_folds, out_var){
-  
-  set.seed(xseed)
-  xfolds <- in_data %>%
-    vfold_cv(v = no_folds, repeats=1, strata = strat_var) %>%
-    pull(splits) %>%
-    map2_df(seq(1, no_folds), split_extract) %>%
-    select(aid, fold_assign)
-  
-  #create save variable
-  save_csv <- str_c(prefix, out_var, '/kfold_assign_', xseed, '_tts_', tts_seed, '.csv')
-  write_csv(xfolds, save_csv)
-  
-  return(xfolds)
-}
-```
-
-Load up the data using abridged feature set and simple datatype settings:
-```{r generate data}
-filebase = '/scratch/p_gaydosh_lab'
-prefix = ''
-
-#create data in specified form
-dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
-
-#parse out dataset components
-full_dataset <- dataset_list$full_dataset
-ds_raw <- dataset_list$ds_raw_outcome
-ds <- dataset_list$ds_final
-
-#just select a few variables
-ds <- ds %>% dplyr::select(aid, all_of(outcome))
-
-#ml splits of the data
-training_df <- dataset_list$training_df
-validation_df <- dataset_list$validation_df
-testing_df <- dataset_list$testing_df
-
-#working_ds %>% glimpse()
-```
-
-
-Generate the csvs of the kfolds
-```{r}
-test_splits <- map(seeds, ~xval_save_helper(in_data = training_df, xseed=.x, strat_var=outcome, no_folds=no_folds,
-                                            tts_seed = seed, out_var=outcome))
-test_splits
-```
-Let's quickly check to make sure these splits aren't all the same!
-```{r}
-ins <- (filter(test_splits[[1]], fold_assign==1) %>% pull(aid)) %in% (filter(test_splits[[2]], fold_assign==1) %>% pull(aid))
-sum(as.numeric(ins))
-nrow(training_df)/no_folds
-
-```
-They all aren't the same.  In looking at just this fold assignment, we can see that there are only 244 out of a size of 1283 aids which are shared between the first folds of differently folded seeds.  Great!
 
 
 
