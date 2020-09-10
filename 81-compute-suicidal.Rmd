@@ -39,58 +39,24 @@ set.seed(seed)
 
 The predictors we will be using will be several variable lists loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, optimism, some demographics, and biological despair.
 
-```{r load raw data}
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-#outcome = 'h5mn8'
+outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
-wave_data <- load_waves(1:5, filebase=filebase)
+#create data in specified form
+dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
 
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-```
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
-```{r compose working dataset, warning=False, message=False}
-## Only study the subjects that we're interested in.
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## get na_levels : dataset to recode all skip levels in variables
-na_levels <- read_csv("na_levels.csv")
-
-## use the features and ids that you want to select out what you want
-suicide_ds <- full_dataset %>%
-  filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  add_demographics() %>%
-  add_bio_despair(filebase=filebase) %>% 
-  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
-  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
-  recode_missing_levels(na_levels)
-
-```
-
-## Outcome variable: Binarizing and recoding details
-
-Here, we binarize and drop NAs from the outcome.
-
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
-suicide_ds <- suicide_ds %>%
-  mutate_at(vars(outcome), as.factor) %>%
-  drop_na(outcome)
-```
-
-# Machine learning split of the data
-
-In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r ml splits, message=FALSE, warning=FALSE}
-## split the data into relevant proportions desired
-data_splits <- suicide_ds %>%
-  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
 ```
 
 
@@ -113,7 +79,7 @@ rf_params <- list(max_depth = 50,
 # define number of bootstraps (defined in slurm_experiments.R)
 #n_boot = 2
 
-suicide_rf <- model_feature_selection("RF",training_frame = training_df,
+boots_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
                       outcome = outcome, n = n_boot, seed=seed, h2o_seed = h2o_seed)
@@ -121,7 +87,7 @@ suicide_rf <- model_feature_selection("RF",training_frame = training_df,
 ```
 
 ```{r get rf bootstrap model seeds and save}
-bs_rf_seeds <- get_model_seeds(suicide_rf$models)
+bs_rf_seeds <- get_model_seeds(boots_rf$models)
 
 save_to_csv(bs_rf_seeds, results_directory, task_ID)
 
@@ -130,7 +96,7 @@ save_to_csv(bs_rf_seeds, results_directory, task_ID)
 
 ```{r save/load rf bootstrap model performance, include=FALSE}
 
-bs_rf_perf <- get_metric_set_from_perfs(suicide_rf$perfs) %>%
+bs_rf_perf <- get_metric_set_from_perfs(boots_rf$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
                 tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
 
@@ -143,7 +109,7 @@ save_to_csv(bs_rf_perf, results_directory, task_ID)
 
 ```{r save/load rf bootstrap model mdi, include=FALSE}
 
-bs_rf_mdi <- suicide_rf$mdi %>% 
+bs_rf_mdi <- boots_rf$mdi %>% 
   purrr::reduce(rbind)
 
 save_to_csv(bs_rf_mdi, results_directory, task_ID)
@@ -156,7 +122,7 @@ Calculate and save permutation importance
 
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
-boot_rf_perm_plt <- suicide_rf$models %>%
+boot_rf_perm_plt <- boots_rf$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 
 save_to_csv(bs_rf_perm_plt, results_directory, task_ID)
@@ -171,7 +137,7 @@ In this step, we model the relation between the outcomes and the predictors usin
 # Function parameters
 lasso_params <- list(alpha = c(1))
 
-suicide_lasso <- model_feature_selection( "Lasso",
+boots_lasso <- model_feature_selection( "Lasso",
                                           training_frame = training_df,
                                           validation_frame = validation_df,
                                           hyper_params = lasso_params,
@@ -182,14 +148,14 @@ suicide_lasso <- model_feature_selection( "Lasso",
 ```
 
 ```{r get lasso bootstrap model seeds and save}
-bs_lasso_seeds <- get_model_seeds(suicide_lasso$models)
+bs_lasso_seeds <- get_model_seeds(boots_lasso$models)
 
 save_to_csv(bs_lasso_seeds, results_directory, task_ID)
 ```
 
 ```{r save/load lasso bootstrap model performance, include=FALSE}
 
-bs_lasso_perf <- get_metric_set_from_perfs(suicide_lasso$perfs) %>%
+bs_lasso_perf <- get_metric_set_from_perfs(boots_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
                 tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
 
@@ -202,7 +168,7 @@ save_to_csv(bs_lasso_perf, results_directory, task_ID)
 
 ```{r save/load lasso bootstrap model mdi, include=FALSE}
 
-bs_lasso_mdi <- suicide_lasso$mdi %>% 
+bs_lasso_mdi <- boots_lasso$mdi %>% 
   purrr::reduce(rbind)
 
 save_to_csv(bs_lasso_mdi, results_directory, task_ID)
@@ -213,7 +179,7 @@ save_to_csv(bs_lasso_mdi, results_directory, task_ID)
 
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
-boot_lasso_perm_plt <- suicide_lasso$models %>%
+boot_lasso_perm_plt <- boots_lasso$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 
 save_to_csv(boot_lasso_perm_plt, results_directory, task_ID)

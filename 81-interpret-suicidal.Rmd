@@ -62,34 +62,23 @@ knitr::include_graphics('./img/pipeline_overview.jpg')
 
 The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
 
-```{r load raw data}
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
 outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
-wave_data <- load_waves(1:5, filebase=filebase)
+#create data in specified form
+dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
 
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-```
-
-
-```{r compose working dataset, warning=False, message=False}
-## Only study the subjects that we're interested in.
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## get na_levels : dataset to recode all skip levels in variables
-na_levels <- read_csv("na_levels.csv")
-
-## use the features and ids that you want to select out what you want
-suicide_ds <- full_dataset %>%
-  filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  add_demographics() %>%
-  add_bio_despair(filebase=filebase) %>% 
-  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
-  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
-  recode_missing_levels(na_levels)
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
 ```
 
@@ -98,23 +87,29 @@ suicide_ds <- full_dataset %>%
 The following table details the values present in the outcome variable.  As we can see, we need to convert the variable into a factor, and drop the NAs.
 
 ```{r warning=FALSE, message=FALSE}
-suicide_ds %>% 
-  group_by(get(outcome)) %>% 
-  summarise(total = n(), type = class(get(outcome)))
+ds_raw %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+ds_raw %>% explore_outcome(outcome, binary = TRUE)
 ```
 
 The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.
 
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
-suicide_ds <- suicide_ds %>%
-  mutate_at(vars(outcome), as.factor) %>%
-  drop_na(outcome)
+```{r warning=FALSE, message=FALSE}
+ds_raw %>% 
+  binarize_var(.data[[outcome]], legit_skip = FALSE, skip_var = NULL) %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+ds_raw %>% 
+  explore_outcome(outcome, binary = TRUE, legit_skip = FALSE, skip_var = NULL)
 ```
 
 After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
 
 ```{r warning=FALSE, message=FALSE}
-suicide_ds %>% explore_outcome(outcome)
+ds %>% explore_outcome(outcome)
 ```
 The distribution of the data is a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
 
@@ -123,13 +118,13 @@ Here, we comment about the general characteristics of the data based on the prov
 
 ```{r warning=FALSE, message=FALSE}
 #Report about the characteristics of the subjects left out of the join
-suicide_ds %>% explore_dropped()
+ds %>% explore_dropped()
 
 ```
 
 ```{r eda distributions, fig.width = 15, fig.height=15}
 # Visualize distributions of variables of interest
-suicide_ds %>% 
+ds %>% 
   dplyr::select(-aid) %>%
   graph_bar_discrete(df = .,
                      plot_title = "Distributions of Discrete Variables",
@@ -142,7 +137,7 @@ suicide_ds %>%
 ```
 
 ```{r eda missing}
-suicide_ds %>%
+ds %>%
   graph_missing(only_missing = TRUE,
                 title = "Percent Missing",
                 box_line_size = .5,
@@ -154,7 +149,7 @@ suicide_ds %>%
 ```
 
 ```{r eda correlations}
-suicide_ds %>%
+ds %>%
   #dplyr::select(1:20) %>%
   pairwise_cramers_v() %>%
   plot_cramer_v(x_axis_angle = 90,
@@ -162,20 +157,6 @@ suicide_ds %>%
                 interactive = TRUE)
 ```
 The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
-
-# Machine learning split of the data
-
-In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r, message=FALSE, warning=FALSE}
-## split the data into relevant proportions desired
-data_splits <- suicide_ds %>%
-  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
-```
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 

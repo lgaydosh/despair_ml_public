@@ -33,7 +33,7 @@ Kfold assignments can be given to the final model, but there is some question ab
 # Generate k-fold folds
 To generate the splits for your k-folds, you need to do two things:
 
-1. Run 10, 40, and 50 notebooks
+1. Run 10, 40, 50, and 70 notebooks
 1. Set the two variables below to generate your folds.
 
 ```{r}
@@ -138,35 +138,25 @@ Load up the data using abridged feature set and simple datatype settings:
 filebase = '/scratch/p_gaydosh_lab'
 prefix = ''
 
-## load waves and join them
-wave_data <- load_waves(1:5, filebase=filebase)
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full')
+#create data in specified form
+dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
 
-## get the aids that you want
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-## use the features and ids that you want to select out what you want
-working_ds <- full_dataset %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  filter(aid %in% inner_aids) %>%
-  dplyr::select(aid, all_of(outcome)) %>%
-  mutate_all(as.factor) %>%
-  drop_na(outcome)
+#just select a few variables
+ds <- ds %>% dplyr::select(aid, all_of(outcome))
+
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
 #working_ds %>% glimpse()
 ```
 
-Split the data according to some seed; note: you'll have to use the same seed
-```{r}
-set.seed(seed)
-data_splits <- working_ds %>%
-  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
-```
 
 Generate the csvs of the kfolds
 ```{r}
