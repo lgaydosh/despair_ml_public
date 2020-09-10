@@ -122,7 +122,7 @@ Calculate and save permutation importance
 
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
-boot_rf_perm_plt <- boots_rf$models %>%
+bs_rf_perm_plt <- boots_rf$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 
 save_to_csv(bs_rf_perm_plt, results_directory, task_ID)
@@ -179,10 +179,10 @@ save_to_csv(bs_lasso_mdi, results_directory, task_ID)
 
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
-boot_lasso_perm_plt <- boots_lasso$models %>%
+bs_lasso_perm_plt <- boots_lasso$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 
-save_to_csv(boot_lasso_perm_plt, results_directory, task_ID)
+save_to_csv(bs_lasso_perm_plt, results_directory, task_ID)
   
 ```
 

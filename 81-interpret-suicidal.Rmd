@@ -18,17 +18,18 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
-## Project run parameters
-```{r seeds for reproducibility}
-no_tasks=3
-seed = 9384
-outcome = 'h5mn8'
-results_directory = str_c(outcome, '/results_run_2')
-set.seed(seed)
-```
-
 ```{r source files, include=FALSE}
 source("function_import.R")
+```
+
+## Project run parameters
+```{r seeds for reproducibility}
+no_tasks=2
+seed = 9384
+outcome = 'h5mn8'
+fbase = '/scratch/p_gaydosh_lab/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_test_run')
+set.seed(seed)
 ```
 
 **Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
@@ -64,7 +65,6 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 
 ```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
 #create data in specified form
@@ -98,7 +98,7 @@ The table also demonstrates that the classes are very imbalanced, with about 14x
 
 ```{r warning=FALSE, message=FALSE}
 ds_raw %>% 
-  binarize_var(.data[[outcome]], legit_skip = FALSE, skip_var = NULL) %>% 
+  binarize_var(outcome, legit_skip = TRUE, skip_var = NULL) %>% 
   group_by(.data[[outcome]]) %>% 
   summarise(total = n(), type = class(.data[[outcome]]))
 
@@ -197,7 +197,7 @@ bs_rf_mdi = load_from_csv(bs_rf_mdi, results_directory, no_tasks)
 ```
 
 ```{r evaluate bootstrap mdi}
-boot_rf_mdi <- bs_rf_mdi %>%
+boot_rf_mdi <- list(bs_rf_mdi) %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -208,7 +208,7 @@ This table returns the MDI variable importance ranks that returned from each of 
 
 ```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
-plot_placement_boxplot(bs_rf_mdi)
+plot_placement_boxplot(list(bs_rf_mdi))
 ```
 
 #### Permutation importance
@@ -216,33 +216,33 @@ Now, let's look at the permutation importance:
 
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
-boot_rf_perm_plt = NULL
+bs_rf_perm_plt <- NULL
   
 # get data files
-boot_rf_perm_plt = load_from_csv(boot_rf_perm_plt, results_directory, no_tasks)
+bs_rf_perm_plt <- load_from_csv(bs_rf_perm_plt, results_directory, no_tasks)
 
 ```
 
 
 ```{r aggregate rf perm results}
 met <- 'pr_auc'
-boot_rf_perm <- boot_rf_perm_plt %>%
+bs_rf_perm <- bs_rf_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
-head(boot_rf_perm, 20)
+head(bs_rf_perm, 20)
 ```
 
 #### MDI vs Permutation importance
 In this step, we assess the differences generated between the different types of importances.
 ```{r fig.width = 16, fig.height = 14}
-cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -all_of(met)))
+cbind(boot_rf_mdi[1:20,], dplyr::select(bs_rf_perm[1:20,], -all_of(met)))
 ```
 As shown, the MDI importance suffers from imbalances due to the number of values associated with a predictor.  Because the wave ages have so many more values than the other factors, this artificially inflates their importance in MDI.  The permutation importance is more intuitive.
 
 ```{r fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_rf_perm, metric = met)
+plot_permute_var_imp(bs_rf_perm, metric = met)
 ```
 
 
@@ -282,7 +282,7 @@ bs_lasso_mdi = load_from_csv(bs_lasso_mdi, results_directory, no_tasks)
 ```
 
 ```{r show bs lasso normalized coefficients}
-boot_lasso_mdi <- bs_lasso_mdi %>%
+boot_lasso_mdi <- list(bs_lasso_mdi) %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -291,14 +291,14 @@ head(boot_lasso_mdi, 20)
 ```
 
 ```{r fig.width = 10, fig.height = 12}
-plot_placement_boxplot(bs_lasso_mdi)
+plot_placement_boxplot(list(bs_lasso_mdi))
 ```
 
 #### Permutation importance
 
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
-boot_lasso_perm_plt = NULL
+bs_lasso_perm_plt = NULL
   
 # get data files
 bs_lasso_perm_plt = load_from_csv(bs_lasso_perm_plt, results_directory, no_tasks)
@@ -307,22 +307,22 @@ bs_lasso_perm_plt = load_from_csv(bs_lasso_perm_plt, results_directory, no_tasks
 
 
 ```{r aggregate lasso permutations and get metrics}
-boot_lasso_perm <- boot_lasso_perm_plt %>%
+bs_lasso_perm <- bs_lasso_perm_plt %>%
   get_permute_placement(metric_oi=met) %>% #set in random forest section
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
-head(boot_lasso_perm, 20)
+head(bs_lasso_perm, 20)
 ```
 
 ```{r plot lasso permutation, fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_lasso_perm, metric = met)
+plot_permute_var_imp(bs_lasso_perm, metric = met)
 ```
 
 #### Coefficient vs. Permutation importance
 Now, we compare the feature importances generated by the two different approaches.  The traditional method of evaluating feature importance for regression methods is through analysis of the coefficients.
 ```{r fig.width = 16, fig.height = 14}
-cbind(boot_lasso_mdi[1:20,], dplyr::select(boot_lasso_perm[1:20,], -met))
+cbind(boot_lasso_mdi[1:20,], dplyr::select(bs_lasso_perm[1:20,], -met))
 ```
 
 ## Comparison: Model Type Mean Performance
@@ -335,9 +335,9 @@ bs_comp_perfs
 ## Comparison: Model Type Feature Importance
 Here, we look at the aggregated results of the bootstrapped predictors and compare the models generated to each other.
 ```{r compre bs feature importance}
-joined_results <- boot_rf_perm %>%
+joined_results <- bs_rf_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
   mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
   arrange(mean_rank)
 
@@ -413,7 +413,7 @@ This section investigates the differences in the bootstrap results vs the featur
 ```{r compare rf final with bootstrap}
 rf_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  full_join(dplyr::select(bs_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
@@ -487,7 +487,7 @@ This section investigates the differences in the bootstrap results vs the featur
 ```{r compare lasso final with bootstrap}
 lasso_joined_results <- final_lasso_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
