@@ -186,7 +186,7 @@ The following table displays the mean performance metrics for the bootstrapped m
 bs_rf_perf = NULL
 
 # get array of files to read
-bs_rf_files <- str_c(results_directory, str_c('/bs_rf_perfs_', seq(1,no_tasks)), '.csv')
+bs_rf_files <- str_c(results_directory, str_c('/bs_rf_perf_', seq(1,no_tasks)), '.csv')
 
 # map read them into a df
 bs_rf_perf <- map_dfr(bs_rf_files, read_csv)
@@ -283,7 +283,7 @@ In this step, we model the relation between the outcomes and the predictors usin
 bs_lasso_perf = NULL
   
 # get array of files to read
-bs_lasso_files <- str_c(results_directory, str_c('/bs_lasso_perfs_', seq(1,no_tasks)), '.csv')
+bs_lasso_files <- str_c(results_directory, str_c('/bs_lasso_perf_', seq(1,no_tasks)), '.csv')
 
 # map read them into a df
 bs_lasso_perf <- map_dfr(bs_lasso_files, read_csv)
@@ -402,7 +402,7 @@ In this step, we build the final model for the random forest.  We use slightly m
 final_rf_perf = NULL
   
 # get array of files to read
-final_rf_files <- str_c(results_directory, str_c('/final_rf_perfs_', seq(1,no_tasks)), '.csv')
+final_rf_files <- str_c(results_directory, str_c('/final_rf_perf_', seq(1,no_tasks)), '.csv')
 
 # map read them into a df
 final_rf_perfs <- map_dfr(final_rf_files, read_csv)
@@ -485,7 +485,7 @@ Now, we create the final model for LASSO.  There is no substantial difference be
 final_lasso_perf = NULL
   
 # get array of files to read
-final_lasso_files <- str_c(results_directory, str_c('/final_lasso_perfs_', seq(1,no_tasks)), '.csv')
+final_lasso_files <- str_c(results_directory, str_c('/final_lasso_perf_', seq(1,no_tasks)), '.csv')
 
 # map read them into a df
 final_lasso_perfs <- map_dfr(final_lasso_files, read_csv)
