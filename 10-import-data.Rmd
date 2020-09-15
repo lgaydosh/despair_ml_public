@@ -399,7 +399,6 @@ add_demographics <- function(df){
 
 
 The following function is used because for some reason, there are some subjects in Waves 2 and 3 that are not in Wave 1.  The following function loads the errant AIDs from a remote server and then removes them from the desired dataset.  Details of this function in file `project-component-verification.Rmd`
-
 ```{r remove errant subjects}
 # This function removes subjects that are not present in Wave 1
 remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth'){
@@ -429,7 +428,6 @@ remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server
 }
 ```
 
-
 These functions create the outcomes of prescription and illegal drug uses.
 ```{r}
 add_pres_drug <- function(df){
@@ -452,7 +450,6 @@ add_ill_drug <- function(df){
     )
 }
 ```
-
 
 ## Binarize "times used" outcome variables by 0 vs rest of values
 Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
@@ -507,9 +504,8 @@ binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
 #   unique_outcomes("Petal.Width")
 ```
 
-
 ## Recode Miss Variables
-Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded as just coded as NA. 
+Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded as just coded as NA.
 ```{r}
 recode_missing_factors<-function(df, na_levels){
   
@@ -517,19 +513,21 @@ recode_missing_factors<-function(df, na_levels){
   # function to replace skip levels in factor variables with NA
   # df: dataframe of wave data
   # na_levels: read data from na_levels.csv file
-  vars_with_miss <- intersect(na_levels
-                              %>% filter(type == "factor")
-                              %>% select(variable) 
-                              %>% unique() 
-                              %>% pull(variable), names(df))
+  vars_with_miss <- intersect(na_levels %>% 
+                                filter(type == "Factor") %>% 
+                                select(variable_name) %>% 
+                                pull(), names(df))
   
   print(paste("Factor variables being recoded : ", length(vars_with_miss) ))
   
   for (i in 1:length(vars_with_miss)){
     
-    mlevels <- na_levels %>%  # generate vectors of levels that are skip
-      filter(variable == vars_with_miss[i]) %>% 
-      pull(na_level) %>% 
+    mlevels <- na_levels %>% 
+      filter(variable_name == vars_with_miss[i]) %>% 
+      select(na_values) %>% 
+      pull() %>% 
+      str_split(',') %>% 
+      .[[1]] %>% 
       as.character()
     
     if(!is.na(mlevels[1])){ 
@@ -560,12 +558,7 @@ recode_missing_factors<-function(df, na_levels){
 #   h3wgt = c(2,888, 4, 6, 2, NA, 8, 9, 12, 24, 11, 12, 996, 33)
 # )
 # recode_missing_factors(test_df, na_csv)
-
 ```
-
-
-
-
 
 ```{r}
 recode_missing_numeric<-function(df, na_levels){
@@ -574,11 +567,10 @@ recode_missing_numeric<-function(df, na_levels){
   # na_levels: read data from na_levels.csv file
   
   print("Recoding Missing Numeric Variables")
-  vars_with_miss <- intersect(na_levels
-                              %>% filter(type == "numeric")
-                              %>% select(variable) 
-                              %>% unique() 
-                              %>% pull(variable), names(df))
+  vars_with_miss <- intersect(na_levels %>% 
+                                filter(type == "Numeric") %>% 
+                                select(variable_name) %>% 
+                                pull(), names(df))
   
   print(paste("Numeric variables being recoded : ", length(vars_with_miss) ))
   
@@ -586,8 +578,11 @@ recode_missing_numeric<-function(df, na_levels){
   for (i in 1:length(vars_with_miss)){
     
     mlevels <- na_levels %>% 
-      filter(variable == vars_with_miss[i]) %>% 
-      pull(na_level) 
+      filter(variable_name == vars_with_miss[i]) %>% 
+      select(na_values) %>% 
+      pull() %>% 
+      str_split(',') %>% 
+      .[[1]]  
     
     if(!is.na(mlevels[1])){ # verify that the variable in question actually has missing levels
       
@@ -624,17 +619,17 @@ recode_missing_numeric<-function(df, na_levels){
 ```
 
 ```{r}
-# Function to replace the missing levels in the variables. 
-# Calls other functions that replace missing levels in factors and numeric variables.  
-recode_missing_levels <- function(df, reference_df){
+load_predictors <- function(df, sheet_num){
+  # Function to load predictor variables from different sheets in the variables_of_interest file
+  ## we will use this function to load different types of predictors: despair predictors, relevant individual predictors, contextual predictors
+  # df: dataframe of wave data
+  # sheet_num : this sheet number
   
-  df <- df %>% 
-    recode_missing_factors(reference_df) %>% # recodes factor variables based on the reference dataframe
-    recode_missing_numeric(reference_df)  # recodes numeric variables based on the reference dataframe
-  
+  sheet_df <- read_excel("Variables_of_Interest_9.xlsx", sheet = sheet_num) %>% clean_num()
+  df <- recode_missing_factors(df, sheet_df)
+  df <- recode_missing_numeric(df, sheet_df)
   return(df)
 }
-
 ```
 
 
