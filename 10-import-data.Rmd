@@ -451,59 +451,6 @@ add_ill_drug <- function(df){
 }
 ```
 
-## Binarize "times used" outcome variables by 0 vs rest of values
-Some outcome variables are not binary. This function is used to binarize outcome variables by 0 versus rest of values.
-```{r}
-
-binary_helper <- function(x){
-  if_else(x >0, 1, 0)
-}
-
-# function to binarize the outcome 
-binarize_var <- function(df, variable, legit_skip = F, skip_var = 99){
-  # df : working dataset
-  # variable : outcome variable to be binarized
-  # legit_skip : boolean if there is a legitimate skip variable
-  # skip : variable or variables (sent in as a vector) to be skipped
-  
-  tmp <- c()
-  tmp
-  skip_var<- append(tmp, skip_var)
-  
-  if(legit_skip == F){
-    df %>% 
-      mutate_at(vars(matches(variable)), as.character) %>% 
-      mutate_at(vars(matches(variable)), as.numeric) %>% 
-      mutate_at(vars(matches(variable)), binary_helper) %>% 
-      mutate_at(vars(matches(variable)), as.character) %>% 
-      mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
-  }
-  
-  else{
-    df %>% 
-      mutate_at(vars(matches(variable)), as.character) %>% 
-      mutate_at(vars(matches(variable)), as.numeric) %>%
-      mutate_at(vars(matches(variable)), funs(case_when(. == 0 ~ 0,
-                                                        . %in% skip_var ~ 0,
-                                                        !(. %in% skip_var) & (. > 0) ~ 1))) %>% 
-      mutate_at(vars(matches(variable)), as.character) %>% 
-      mutate_at(vars(matches(variable)), as.factor) # explicit NA maybe?
-  }
-  
-}
-
-
-# Example:
-# iris %>%
-#   mutate(Petal.Width = floor(Petal.Width)) %>% 
-#   unique_outcomes("Petal.Width")
-# 
-# iris %>%
-#   mutate(Petal.Width = floor(Petal.Width)) %>%
-#   binarize_var(variable = 'Petal.Width', legit_skip = T, skip_var = 2) %>% 
-#   unique_outcomes("Petal.Width")
-```
-
 ## Recode Miss Variables
 Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded as just coded as NA.
 ```{r}
@@ -513,17 +460,23 @@ recode_missing_factors<-function(df, na_levels){
   # function to replace skip levels in factor variables with NA
   # df: dataframe of wave data
   # na_levels: read data from na_levels.csv file
-  vars_with_miss <- intersect(na_levels %>% 
-                                filter(type == "Factor") %>% 
-                                select(variable_name) %>% 
-                                pull(), names(df))
   
-  print(paste("Factor variables being recoded : ", length(vars_with_miss) ))
   
-  for (i in 1:length(vars_with_miss)){
+  
+  var_names <- intersect(na_levels %>%  
+                           filter(type == "Factor") %>%
+                           select(variable_name) %>% 
+                           pull() %>% tolower(), names(df))
+  
+  print(paste("Number of factor variables being recoded : ", length(var_names) ))
+  print("Factor variables being recoded : ")
+  print(var_names)
+  
+  for (i in 1:length(var_names)){
     
+    print(var_names[i])
     mlevels <- na_levels %>% 
-      filter(variable_name == vars_with_miss[i]) %>% 
+      filter(variable_name == var_names[i]) %>% 
       select(na_values) %>% 
       pull() %>% 
       str_split(',') %>% 
@@ -531,19 +484,13 @@ recode_missing_factors<-function(df, na_levels){
       as.character()
     
     if(!is.na(mlevels[1])){ 
-      # verify that the variable in question actually has missing levels
-      
-      df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
-      
-      df[[vars_with_miss[i]]] <-ifelse(df[[vars_with_miss[i]]] %in% mlevels, NA, df[[vars_with_miss[i]]])
+      df[[var_names[i]]] <-ifelse(df[[var_names[i]]] %in% mlevels, NA, df[[var_names[i]]])
     }
-    
-    else{
-      # if it does not have any missing levels, then just convert it to a factor
-      
-      df[[vars_with_miss[i]]] <- as.factor(df[[vars_with_miss[i]]])
-    }
+
   }
+  
+  df[var_names] <- lapply(df[var_names] , factor)
+  print(sapply(df[var_names], class))
   
   return(df)
 }
@@ -560,6 +507,7 @@ recode_missing_factors<-function(df, na_levels){
 # recode_missing_factors(test_df, na_csv)
 ```
 
+
 ```{r}
 recode_missing_numeric<-function(df, na_levels){
   # function to replace skip levels in factor variables with NA
@@ -567,38 +515,40 @@ recode_missing_numeric<-function(df, na_levels){
   # na_levels: read data from na_levels.csv file
   
   print("Recoding Missing Numeric Variables")
-  vars_with_miss <- intersect(na_levels %>% 
-                                filter(type == "Numeric") %>% 
-                                select(variable_name) %>% 
-                                pull(), names(df))
+  var_names <- intersect(na_levels %>%
+                           filter(type == "Numeric") %>% 
+                           select(variable_name) %>% 
+                           pull() %>% 
+                           tolower(), names(df))
   
-  print(paste("Numeric variables being recoded : ", length(vars_with_miss) ))
+  print(paste("Number of numeric variables being recoded : ", length(var_names) ))
+  print("Numeric variables being recoded : ")
+  print(var_names)
   
   
-  for (i in 1:length(vars_with_miss)){
-    
+  for (i in 1:length(var_names)){
+
     mlevels <- na_levels %>% 
-      filter(variable_name == vars_with_miss[i]) %>% 
+      filter(variable_name == var_names[i]) %>% 
       select(na_values) %>% 
       pull() %>% 
       str_split(',') %>% 
       .[[1]]  
+
     
     if(!is.na(mlevels[1])){ # verify that the variable in question actually has missing levels
       
-      df[,vars_with_miss[i]] <- ifelse(as.vector(pull(df[,vars_with_miss[i]]) %in% mlevels),
+      df[,var_names[i]] <- ifelse(as.vector(pull(df[,var_names[i]]) %in% mlevels),
                                        NA, 
-                                       pull(df[,vars_with_miss[i]]))
+                                       pull(df[,var_names[i]]))
       # if the column of the numeric variable has values that are supposed to be skipped
       # replace them with NA
       # else keep the original value
       
     }
     
-    else{
-      # do nothing and let it stay the same
-    }
   }
+  
   
   return(df)
 }
@@ -618,16 +568,50 @@ recode_missing_numeric<-function(df, na_levels){
 
 ```
 
+
+
+
+
 ```{r}
-load_predictors <- function(df, sheet_num){
-  # Function to load predictor variables from different sheets in the variables_of_interest file
-  ## we will use this function to load different types of predictors: despair predictors, relevant individual predictors, contextual predictors
+recode_variables <- function(df, sheet_num, outcome = NULL, binary = T){
+  # Function to recode variables from different sheets in the variables_of_interest file
+  ## we will use this function to load different variabless: despair predictors, relevant individual predictors, contextual predictors, outcome variables
   # df: dataframe of wave data
   # sheet_num : this sheet number
+  # outcome : outcome variable of interest that needs to be recoded
+  # binary : if F means that the outcome variable needs to be binarized
   
-  sheet_df <- read_excel("Variables_of_Interest_9.xlsx", sheet = sheet_num) %>% clean_num()
-  df <- recode_missing_factors(df, sheet_df)
-  df <- recode_missing_numeric(df, sheet_df)
+  
+  sheet_df <- read_excel("Variables_of_Interest.xlsx", sheet = sheet_num) %>% clean_names()
+  sheet_df$variable_name <- sheet_df$variable_name %>% tolower()
+  
+  if(is.null(outcome)){
+    df <- recode_missing_factors(df, sheet_df) %>% 
+      recode_missing_numeric(sheet_df)
+    
+    return(df)
+  }
+  
+  else{
+    df <- recode_missing_factors(df, sheet_df) %>% drop_na(outcome) # dropping rows where outcoome variable is NULL
+    
+    if(binary == F){
+      fct_levels <- df %>% 
+        select(h5to21) %>% 
+        pull() %>% 
+        unique() %>% 
+        as.vector()
+      
+      not_zero <- fct_levels[fct_levels != 0]
+      
+      
+      df[outcome] <- fct_collapse(df[outcome] %>% pull() %>% as.vector(), "1" = not_zero)
+      
+      print(nrow(df))
+    }
+    
+  }
+  
   return(df)
 }
 ```
@@ -885,43 +869,5 @@ add_bio_despair <- function(df, filebase= "~/gvfs/smb-share:server=vu1file.it.va
 ```
 
 
-### Output Variable
-```{r}
-# This function preprocesses the outcome variable so that
-## 1. It is binarized
-## 2. Does not have any NAs (drops the NAs)
-## 3. Converts it into a factor variable
-# If the outcome is already binary, then it skips step 1 and just performs steps 2 and 3.
 
-fix_outcome_variable <- function(df, outcome_var, is_binary = TRUE, is_skip = FALSE, miss_var = 99){
-  # df : dataframe to be preprocessed
-  # outcome_var : outcome variable name passed as a string
-  
-  # is_binary : boolean indicator if the outcome is already binary or needs to be binarized
-  ## default of is_binary set to TRUE. Be explicit in call if otherwise
-  
-  # is_skip : boolean indicator if the outcome variable has a skip variable or not
-  ## default of is_skip set to FALSE. Be explicit in call if otherwise
-  
-  # miss_var : vector of variables that are going to be missed
-  ## default of miss_var is set to 99. Be explicit in call if otherwise
-  
-  if(is_binary == TRUE){
-    df <- df %>% 
-      drop_na(outcome_var) %>% 
-      mutate_at(vars(matches(outcome_var)), as.factor())
-  }
-  
-  else{
-    df <- df %>% 
-      binarize_var(outcome_var, legit_skip = is_skip, skip_var = miss_var ) %>% 
-      drop_na(outcome_var) %>% 
-      mutate_at(vars(matches(outcome_var)), as.factor)
-  }
-  
-  return(df)
-}
-
-
-```
 
