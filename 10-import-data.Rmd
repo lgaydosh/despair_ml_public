@@ -573,13 +573,13 @@ recode_missing_numeric<-function(df, na_levels){
 
 
 ```{r}
-recode_variables <- function(df, sheet_num, outcome = NULL, binary = T){
+recode_variables <- function(df, sheet_num, outcome = NULL, binarize = TRUE){
   # Function to recode variables from different sheets in the variables_of_interest file
   ## we will use this function to load different variabless: despair predictors, relevant individual predictors, contextual predictors, outcome variables
   # df: dataframe of wave data
   # sheet_num : this sheet number
   # outcome : outcome variable of interest that needs to be recoded
-  # binary : if F means that the outcome variable needs to be binarized
+  # binarize : if TRUE means that the outcome variable needs to be binarized
   
   
   sheet_df <- read_excel("Variables_of_Interest.xlsx", sheet = sheet_num) %>% clean_names()
@@ -595,9 +595,9 @@ recode_variables <- function(df, sheet_num, outcome = NULL, binary = T){
   else{
     df <- recode_missing_factors(df, sheet_df) %>% drop_na(outcome) # dropping rows where outcoome variable is NULL
     
-    if(binary == F){
+    if(binarize == TRUE){
       fct_levels <- df %>% 
-        select(h5to21) %>% 
+        select(outcome) %>% 
         pull() %>% 
         unique() %>% 
         as.vector()
