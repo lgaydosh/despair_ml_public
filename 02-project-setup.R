@@ -13,15 +13,8 @@ args <- commandArgs(trailingOnly = TRUE)
 
 #get variable arguments
 outcome <- as.character(args[[1]])
-legit_skip <- as.logical(args[[2]])
-
-if(as.character(args[[3]])=="NULL"){
-  skip_var <- NULL
-} else {
-  skip_var <- as.numeric(args[[3]])
-}
-
-results_directory <- as.character(args[[4]])
+binarize <- as.logical(args[[2]])
+results_directory <- as.character(args[[3]])
 
 print(outcome)
 print(legit_skip)

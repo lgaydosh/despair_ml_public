@@ -45,7 +45,7 @@ outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
 #create data in specified form
-dataset_list <- generate_datasets(outcome, legit_skip=FALSE, filebase=filebase, seed_val=seed)
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
 
 #parse out dataset components
 full_dataset <- dataset_list$full_dataset

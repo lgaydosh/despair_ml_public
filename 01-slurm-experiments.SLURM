@@ -11,8 +11,7 @@
 
 #Variable inputs
 OUTVAR=h5mn8
-LEGIT_SKIP=TRUE
-SKIP_VAR=NULL
+BINARIZE=FALSE
 RESULTS_DIR=$OUTVAR/'results_test_run'
 NB_FILE='81-compute-suicidal'
 N_BOOT=2
@@ -21,6 +20,6 @@ N_BOOT=2
 module load GCC/8.2.0 OpenMPI/3.1.4 Intel/2019.1.144 IntelMPI/2018.4.274 R/3.6.0
 
 #Run the R desired R script using the desired file inputs
-Rscript --vanilla 02-project-setup.R $OUTVAR $LEGIT_SKIP $SKIP_VAR $RESULTS_DIR
+Rscript --vanilla 02-project-setup.R $OUTVAR $BINARIZE $RESULTS_DIR
 Rscript --vanilla 01-slurm-experiments.R $OUTVAR $NB_FILE $N_BOOT ${SLURM_ARRAY_TASK_ID} $RESULTS_DIR
 Rscript --vanilla 03-rm-rsource.R

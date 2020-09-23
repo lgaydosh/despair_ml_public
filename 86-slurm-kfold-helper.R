@@ -46,7 +46,7 @@ xval_save_helper <- function(in_data, xseed, tts_seed, strat_var, no_folds, out_
 
 ## ----generate data-------------------------------------------------------
 #create data in specified form
-dataset_list <- generate_datasets(outcome, legit_skip=legit_skip, skip_var = skip_var, 
+dataset_list <- generate_datasets(outcome, binarize=binarize, 
                                   filebase=filebase, seed_val=seed)
 
 #parse out dataset components
