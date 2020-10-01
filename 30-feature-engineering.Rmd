@@ -1,6 +1,8 @@
 ---
 title: "30-feature-engineering"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Predictive Features
@@ -67,7 +69,12 @@ add_ill_drug <- function(df){
 }
 ```
 
-Here is a function that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above, and add the function below so that it can be constructed and added to the full modeling dataframe.
+Here are functions and aggregate "lists" that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above.  Add the name of the variable to the vector below.  Then, add the function to the `add_constructed_outcomes` function below so that it can be constructed and added to the full modeling dataframe.
+
+```{r}
+constructed_outcomes = c('p_drug', 'i_drug')
+```
+
 
 ```{r add all constructed variables}
 add_constructed_outcomes <- function(df){

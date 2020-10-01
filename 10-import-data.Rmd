@@ -17,7 +17,7 @@ if (!require("pacman"))
   install.packages("pacman")
 
 # Load libraries required for this file
-pacman::p_load(tidyverse, janitor, haven, furrr)
+pacman::p_load(tidyverse, janitor, haven, furrr, readxl)
 ```
 
 # Importing data
@@ -554,35 +554,49 @@ recode_variables <- function(df, sheet_num, outcome = NULL, binarize = TRUE){
   # df: dataframe of wave data
   # sheet_num : this sheet number
   # outcome : outcome variable of interest that needs to be recoded
-  # binarize : if TRUE means that the outcome variable needs to be binarized
+  # binarize : if TRUE means that the outcome variable has a range to be binarized to 0 or 1
   
   
   sheet_df <- read_excel("Variables_of_Interest.xlsx", sheet = sheet_num) %>% clean_names()
   sheet_df$variable_name <- sheet_df$variable_name %>% tolower()
   
+  #if you're recoding the predictors
   if(is.null(outcome)){
-    df <- recode_missing_factors(df, sheet_df) %>% 
-      recode_missing_numeric(sheet_df)
     
-    return(df)
-  }
+      df <- recode_missing_factors(df, sheet_df) %>%
+        recode_missing_numeric(sheet_df)
   
-  else{
-    df <- recode_missing_factors(df, sheet_df) %>% drop_na(outcome) # dropping rows where outcoome variable is NULL
+  #otherwise you're recoding the outcomes    
+  } else {
     
-    if(binarize == TRUE){
-      fct_levels <- df %>% 
-        select(outcome) %>% 
-        pull() %>% 
-        unique() %>% 
-        as.vector()
+    # if they're not constructed variables, recode them according to sheet
+    if ((outcome %in% constructed_outcomes) == FALSE) {
       
-      not_zero <- fct_levels[fct_levels != 0]
+      # dropping rows where outcoome variable is NULL
+      df <- recode_missing_factors(df, sheet_df) %>% drop_na(outcome) 
       
+      #if the values have a range and you need to binarize them to 0 or 1:
+      if (binarize == TRUE) {
+        fct_levels <- df %>%
+          select(outcome) %>%
+          pull() %>%
+          unique() %>%
+          as.vector()
+        
+        not_zero <- fct_levels[fct_levels != 0]
+        
+        df[outcome] <-
+          fct_collapse(df[outcome] %>% pull() %>% as.vector(), "1" = not_zero)
+        
+        print(nrow(df))
+      }
       
-      df[outcome] <- fct_collapse(df[outcome] %>% pull() %>% as.vector(), "1" = not_zero)
-      
-      print(nrow(df))
+    } else {
+
+      # convert constructed outcome to factors otherwise and drop NA
+      df <- df %>%
+        mutate(!!outcome := as.factor(.data[[outcome]])) %>%
+        drop_na(outcome)
     }
     
   }
