@@ -428,28 +428,6 @@ remove_subjects_not_in_wave1 <- function(df, filebase = '~/gvfs/smb-share:server
 }
 ```
 
-These functions create the outcomes of prescription and illegal drug uses.
-```{r}
-add_pres_drug <- function(df){
-  # df : joined waves input
-  # return : new data frame with additional variable indicating prescription drug use
-  df %>% 
-    mutate(p_drug = case_when(
-      ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
-      #TRUE ~ 0)
-      ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 0)) ~ 0)
-    )
-}
-add_ill_drug <- function(df){
-  # df : joined waves input
-  # return : new data frame with additional variable indicating illegal drug use
-  df %>% 
-    mutate(i_drug = case_when(
-      ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
-      ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
-    )
-}
-```
 
 ## Recode Miss Variables
 Levels of question that were "miss" variables. For numeric they are coded as NA and then later dropped, for factors they are coded as just coded as NA.
@@ -567,9 +545,6 @@ recode_missing_numeric<-function(df, na_levels){
 # recode_missing_numeric(test_df, na_csv)
 
 ```
-
-
-
 
 
 ```{r}
