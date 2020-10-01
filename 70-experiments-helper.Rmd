@@ -31,13 +31,14 @@ generate_datasets <- function(outcome_var, binarize_outcome,
     remove_subjects_not_in_wave1(filebase=filebase) %>%
     add_demographics() %>%
     add_bio_despair(filebase=filebase) %>% 
+    add_constructed_outcomes() %>%
     dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
     dplyr::select(-c(h5waist, h5bmi, h5dbp, h5bpjcls, h5bpcls4, h5sbp)) %>%
     recode_variables(sheet_num = 4)
   
   # binarize outcome variable and drop NAs
   ds_final <- ds_raw_outcome %>%
-    recode_variables(outcome=outcome, binarize=binarize_outcome)
+    recode_variables(outcome=outcome, sheet_num=2, binarize=binarize_outcome)
   
   # make sure the rng is initialized to our seed value of interest
   set.seed(seed_val)
