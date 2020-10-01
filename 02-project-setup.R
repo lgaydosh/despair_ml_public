@@ -17,8 +17,7 @@ binarize <- as.logical(args[[2]])
 results_directory <- as.character(args[[3]])
 
 print(outcome)
-print(legit_skip)
-print(skip_var)
+print(binarize)
 print(results_directory)
 
 ## ----load packages----------s------------------------
