@@ -68,7 +68,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 filebase = '/scratch/p_gaydosh_lab'
 
 #create data in specified form
-dataset_list <- generate_datasets(outcome, binarize=TRUE, filebase=filebase, seed_val=seed)
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
 
 #parse out dataset components
 wave_data <- dataset_list$wave_data
