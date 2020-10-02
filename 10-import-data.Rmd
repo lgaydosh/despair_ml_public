@@ -588,7 +588,7 @@ recode_variables <- function(df, sheet_num, outcome = NULL, binarize = TRUE){
         df[outcome] <-
           fct_collapse(df[outcome] %>% pull() %>% as.vector(), "1" = not_zero)
         
-        print(nrow(df))
+        #print(nrow(df))
       }
       
     } else {
