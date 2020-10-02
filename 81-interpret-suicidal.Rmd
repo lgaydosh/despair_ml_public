@@ -92,27 +92,24 @@ ds_raw %>%
   group_by(.data[[outcome]]) %>% 
   summarise(total = n(), type = class(.data[[outcome]]))
 
-ds_raw %>% explore_outcome(outcome, binary = TRUE)
-```
-
-The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.
-
-```{r warning=FALSE, message=FALSE}
-ds_raw %>% 
-  binarize_var(outcome, legit_skip = TRUE, skip_var = NULL) %>% 
+ds %>% 
   group_by(.data[[outcome]]) %>% 
   summarise(total = n(), type = class(.data[[outcome]]))
 
-ds_raw %>% 
-  explore_outcome(outcome, binary = TRUE, legit_skip = FALSE, skip_var = NULL)
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
 ```
 
-After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
+The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.  This is displayed graphically for easy consumption below.
 
-```{r warning=FALSE, message=FALSE}
-ds %>% explore_outcome(outcome)
+```{r fig.height=6, fig.width=10, warning=TRUE}
+ds_raw %>%
+  explore_outcome(ds, outcome)
+
 ```
-The distribution of the data is a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
+
+After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The distribution of the data has a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.

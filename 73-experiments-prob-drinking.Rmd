@@ -35,7 +35,7 @@ source("function_import.R")
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-p_install(plotly, force = FALSE)
+#p_install(plotly, force = FALSE)
 pacman::p_load(tidyverse, h2o, furrr)
 #pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
 
@@ -48,7 +48,7 @@ future::plan(multiprocess)
 ```
 
 ```{r seeds for reproducibility}
-seed= 3895
+seed= 9384
 set.seed(seed)
 ```
 
@@ -80,32 +80,30 @@ testing_df <- dataset_list$testing_df
 
 ## Binarizing and recoding details
 
-This is the table with all the counts for different levels of the variables. We can see 97 is a legitimate skip variable. We can send this into the binarize_var function and it will be coded as 0 (not responding to questions involving problematic drinking).
+This is the table with all the counts for different levels of the variables. We can see 97 is a legitimate skip variable. We can send this into the recode_variables function and it will be coded as 0 (not responding to questions involving problematic drinking).
 
 ```{r warning=FALSE, message=FALSE}
 ds_raw %>% 
   group_by(.data[[outcome]]) %>% 
   summarise(total = n(), type = class(.data[[outcome]]))
 
-ds_raw %>% explore_outcome(outcome, binary = TRUE)
+ds %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
 ```
 
 
-```{r warning=FALSE, message=FALSE}
-ds_raw %>% 
-  binarize_var(outcome, legit_skip = T, skip_var = 97) %>% 
-  group_by(.data[[outcome]]) %>% 
-  summarise(total = n(), type = class(.data[[outcome]]))
-
+```{r fig.height=6, fig.width=10, warning=TRUE}
 ds_raw %>%
-  explore_outcome(outcome, binary = FALSE, legit_skip = TRUE, skip_var = 97)
+  explore_outcome(ds, outcome)
 
 ```
 This shows the result of recoding; 0 and legitimate skip (97) are recoded as the negative class, and the rest are regarded as the positive class.  The results are consistent with the previous cell; 1372 97s + 3802 0s = 5174 total negative class.  This fully accounts for the 9,349 subjects in the current dataframe.
 
-```{r warning=FALSE, message=FALSE}
-ds %>% explore_outcome(outcome)
-```
 Now that the dataframe has been binarized and the null 11 outcomes dropped, There are 9338 subjects in the dataset with 76 total predictors, aid, and the outcome variable.  The distribution of the data is a slight imbalance, but not by much.  I think this warrants using AUC as the optimization and selection metric.
 
 # Data exploration and visualization
