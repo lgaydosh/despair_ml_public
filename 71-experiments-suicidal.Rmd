@@ -45,9 +45,10 @@ future::plan(multiprocess)
 ```
 
 ```{r seeds for reproducibility}
-seed= 3895
+seed= 9384
 set.seed(seed)
 ```
+
 # Pipeline overview
 ```{r echo=FALSE, out.width='50%'}
 knitr::include_graphics('./img/pipeline_overview.jpg')
@@ -56,34 +57,24 @@ knitr::include_graphics('./img/pipeline_overview.jpg')
 
 The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
 
-```{r load raw data}
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
 outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
-wave_data <- load_waves(1:5, filebase=filebase)
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
 
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+#parse out dataset components
+wave_data <- dataset_list$wave_data
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-```
-
-
-```{r compose working dataset, warning=False, message=False}
-## Only study the subjects that we're interested in.
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## get na_levels : dataset to recode all skip levels in variables
-na_levels <- read_csv("na_levels.csv")
-
-## use the features and ids that you want to select out what you want
-suicide_ds <- full_dataset %>%
-  filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  add_demographics() %>%
-  add_bio_despair(filebase=filebase) %>% 
-  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
-  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
-  recode_missing_levels(na_levels)
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
 ```
 
@@ -92,38 +83,41 @@ suicide_ds <- full_dataset %>%
 The following table details the values present in the outcome variable.  As we can see, we need to convert the variable into a factor, and drop the NAs.
 
 ```{r warning=FALSE, message=FALSE}
-suicide_ds %>% 
-  group_by(get(outcome)) %>% 
-  summarise(total = n(), type = class(get(outcome)))
+ds_raw %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+ds %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
 ```
 
-The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.
+The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.  This is displayed graphically for easy consumption below.
 
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
-suicide_ds <- suicide_ds %>%
-  mutate_at(vars(outcome), as.factor) %>%
-  drop_na(outcome)
+```{r fig.height=6, fig.width=10, warning=TRUE}
+ds_raw %>%
+  explore_outcome(ds, outcome)
+
 ```
 
-After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
-
-```{r warning=FALSE, message=FALSE}
-suicide_ds %>% explore_outcome(outcome)
-```
-The distribution of the data is a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
+After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The distribution of the data has a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
 
 ```{r warning=FALSE, message=FALSE}
 #Report about the characteristics of the subjects left out of the join
-suicide_ds %>% explore_dropped()
+ds_raw %>% explore_dropped()
 
 ```
 
 ```{r eda distributions, fig.width = 15, fig.height=15}
 # Visualize distributions of variables of interest
-suicide_ds %>% 
+ds %>% 
   dplyr::select(-aid) %>%
   graph_bar_discrete(df = .,
                      plot_title = "Distributions of Discrete Variables",
@@ -136,7 +130,7 @@ suicide_ds %>%
 ```
 
 ```{r eda missing}
-suicide_ds %>%
+ds %>%
   graph_missing(only_missing = TRUE,
                 title = "Percent Missing",
                 box_line_size = .5,
@@ -148,7 +142,7 @@ suicide_ds %>%
 ```
 
 ```{r eda correlations}
-suicide_ds %>%
+ds %>%
   #dplyr::select(1:20) %>%
   pairwise_cramers_v() %>%
   plot_cramer_v(x_axis_angle = 90,
@@ -156,20 +150,6 @@ suicide_ds %>%
                 interactive = TRUE)
 ```
 The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
-
-# Machine learning split of the data
-
-In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r, message=FALSE, warning=FALSE}
-## split the data into relevant proportions desired
-data_splits <- suicide_ds %>%
-  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
-```
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 
@@ -189,8 +169,8 @@ The RF models are chosen based on a grid search using the following the paramete
 # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  mtries = c(-1, 20),
-                  min_rows = c(5, 10),
+                  mtries = c(-1, 20, by = 5),
+                  min_rows = c(2, 20, by = 2),
                   #stopping_rounds = 4,
                   balance_classes = c(TRUE, FALSE),
                   #stopping_metric = 'AUCPR',
@@ -203,7 +183,7 @@ rf_params <- list(max_depth = 50,
 # define number of bootstraps
 n_boot = 2
 
-suicide_rf <- model_feature_selection("RF",training_frame = training_df,
+boots_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
                       outcome = outcome, n = n_boot, seed=seed)
@@ -213,7 +193,7 @@ suicide_rf <- model_feature_selection("RF",training_frame = training_df,
 The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
 
 ```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
-mean_bs_rf_perf <- get_metric_set_from_perfs(suicide_rf$perfs) %>%
+mean_bs_rf_perf <- get_metric_set_from_perfs(boots_rf$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
          tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>%
@@ -227,7 +207,7 @@ As shown, the bootstrapped models tend to have high specificity but low sensitiv
 ### Feature importances: Random Forest
 #### Mean decrease in impurity (MDI)
 ```{r}
-boot_rf_mdi <- suicide_rf$mdi %>%
+boot_rf_mdi <- boots_rf$mdi %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -238,14 +218,14 @@ This table returns the MDI variable importance ranks that returned from each of 
 
 ```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
-plot_placement_boxplot(suicide_rf$mdi)
+plot_placement_boxplot(boots_rf$mdi)
 ```
 
 #### Permutation importance
 Now, let's look at the permutation importance:
 
 ```{r get rf permutation importance, warning=FALSE, message=FALSE}
-boot_rf_perm_plt <- suicide_rf$models %>%
+boot_rf_perm_plt <- boots_rf$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 
@@ -279,7 +259,7 @@ In this step, we model the relation between the outcomes and the predictors usin
 lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
 
-suicide_lasso <- model_feature_selection( "Lasso",
+boots_lasso <- model_feature_selection( "Lasso",
                                           training_frame = training_df,
                                           validation_frame = validation_df,
                                           hyper_params = lasso_params,
@@ -288,7 +268,7 @@ suicide_lasso <- model_feature_selection( "Lasso",
 ```
 
 ```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
-mean_bs_lasso_perf <- get_metric_set_from_perfs(suicide_lasso$perfs) %>%
+mean_bs_lasso_perf <- get_metric_set_from_perfs(boots_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
          tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>% 
@@ -301,7 +281,7 @@ mean_bs_lasso_perf
 ### Feature importances: LASSO
 #### Coefficient-based variable importance
 ```{r}
-boot_lasso_mdi <- suicide_lasso$mdi %>%
+boot_lasso_mdi <- boots_lasso$mdi %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -310,12 +290,12 @@ head(boot_lasso_mdi, 20)
 ```
 
 ```{r fig.width = 10, fig.height = 12}
-plot_placement_boxplot(suicide_lasso$mdi)
+plot_placement_boxplot(boots_lasso$mdi)
 ```
 
 #### Permutation importance
 ```{r message=FALSE, warning=FALSE}
-boot_lasso_perm_plt <- suicide_lasso$models %>%
+boot_lasso_perm_plt <- boots_lasso$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome)
 ```
 

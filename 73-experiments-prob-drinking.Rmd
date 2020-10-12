@@ -35,7 +35,7 @@ source("function_import.R")
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-p_install(plotly, force = FALSE)
+#p_install(plotly, force = FALSE)
 pacman::p_load(tidyverse, h2o, furrr)
 #pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
 
@@ -48,7 +48,7 @@ future::plan(multiprocess)
 ```
 
 ```{r seeds for reproducibility}
-seed= 3895
+seed= 9384
 set.seed(seed)
 ```
 
@@ -56,70 +56,55 @@ set.seed(seed)
 
 The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
 
-```{r load raw data}
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
 outcome = 'h5to15'
 filebase = '/scratch/p_gaydosh_lab'
 
-wave_data <- load_waves(1:5)
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=TRUE, filebase=filebase, seed_val=seed)
 
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+#parse out dataset components
+wave_data <- dataset_list$wave_data
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-```
-
-
-```{r compose working dataset, warning=False, message=False}
-## Only study the subjects that we're interested in.
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## get na_levels : dataset to recode all skip levels in variables
-na_levels <- read_csv("na_levels.csv")
-
-## use the features and ids that you want to select out what you want
-ds <- full_dataset %>%
-  filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  add_demographics() %>%
-  add_bio_despair(filebase=filebase) %>% 
-  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
-  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
-  recode_missing_levels(na_levels)
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
 ```
+
 
 ## Binarizing and recoding details
 
-This is the table with all the counts for different levels of the variables. We can see 97 is a legitimate skip variable. We can send this into the binarize_var function and it will be coded as 0 (not responding to questions involving problematic drinking).
+This is the table with all the counts for different levels of the variables. We can see 97 is a legitimate skip variable. We can send this into the recode_variables function and it will be coded as 0 (not responding to questions involving problematic drinking).
 
 ```{r warning=FALSE, message=FALSE}
+ds_raw %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
 ds %>% 
-  group_by(get(outcome)) %>% 
-  summarise(total = n(), type = class(get(outcome)))
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
 ```
 
-```{r warning=FALSE, message=FALSE}
-ds %>% 
-  binarize_var(outcome, legit_skip = T, skip_var = 97) %>% 
-  group_by(get(outcome)) %>% 
-  summarise(total = n(), type = class(get(outcome)))
 
-ds %>% explore_outcome(outcome, binary = F, legit_skip = T, skip_var = 97)
+```{r fig.height=6, fig.width=10, warning=TRUE}
+ds_raw %>%
+  explore_outcome(ds, outcome)
 
 ```
 This shows the result of recoding; 0 and legitimate skip (97) are recoded as the negative class, and the rest are regarded as the positive class.  The results are consistent with the previous cell; 1372 97s + 3802 0s = 5174 total negative class.  This fully accounts for the 9,349 subjects in the current dataframe.
 
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
-ds <- ds %>%
-  binarize_var(outcome, legit_skip =T, skip_var = 97) %>%
-  drop_na(outcome)
-
-```
-Now that the dataframe has been binarized and the null 11 outcomes dropped, There are 9338 subjects in the dataset with 76 total predictors, aid, and the outcome variable.
-
-```{r warning=FALSE, message=FALSE}
-ds %>% explore_outcome(outcome)
-```
-The distribution of the data is a slight imbalance, but not by much.  I think this warrants using AUC as the optimization and selection metric.
+Now that the dataframe has been binarized and the null 11 outcomes dropped, There are 9338 subjects in the dataset with 76 total predictors, aid, and the outcome variable.  The distribution of the data is a slight imbalance, but not by much.  I think this warrants using AUC as the optimization and selection metric.
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
@@ -166,20 +151,6 @@ ds %>%
 ```
 We can see that some of the categorical variables actually have non-trivial correlation with others.  It appears as if entire blocks of predictors have high correlation among themselves.  (h4id5j, h4id5h) have correlation of 0.6, (h3id5j, h4mh26) have correlation of 0.51, and correlations among the h4mh* and h1fs* variables are near 0.5 or higher.  This may result in importance sharing in the future, and we may need to decide to remove some of these variables.
 
-# Machine learning split of the data
-
-In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r split data into ml partitions}
-## split the data into relevant proportions desired
-data_splits <- ds %>%
-  split_data(strat_var = all_of(outcome), ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
-```
-
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 In this section, we explore the importance of features using bootstrapping.
 
@@ -200,8 +171,8 @@ Note that here, if you don't set stopping rounds, early stopping will not be ena
 ```{r bootstrap rf training, warning=FALSE, message=FALSE}
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
-                  mtries = c(-1, 20),
-                  min_rows = c(5,10),
+                  mtries = c(-1, 20, by=5),
+                  min_rows = c(2,10, by=2),
                   stopping_rounds = 4,
                   balance_classes = FALSE,
                   stopping_metric = 'auc',
@@ -209,7 +180,7 @@ rf_params <- list(max_depth = 50,
 
 
 # define number of bootstraps
-n_boot = 100
+n_boot = 50
 
 boots_rf <- model_feature_selection("RF", training_frame = training_df,
                                         validation_frame = validation_df,
