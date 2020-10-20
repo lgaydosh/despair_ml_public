@@ -1,0 +1,67 @@
+---
+title: "70-experiments-helper"
+author: "Charreau Bell"
+output: html_document
+---
+
+**Purpose**:  This notebook defines a few functions for a more unified data loading across variables and across series.  This will help in minimizing copy/paste errors.  If we change our approach, we can change it in this single file rather than across 70 and 80 for all outcomes.
+
+**Requirements**:  This notebook requires all prior *0 notebooks (i.e., 10-50) to be run.
+
+```{r function to generate datasets}
+generate_datasets <- function(outcome_var, binarize_outcome,
+                              filebase = '/scratch/p_gaydosh_lab', seed_val=9384){
+  
+  #set parameters
+  outcome = outcome_var
+  
+  ## get na_levels : dataset to recode all skip levels in variables
+  na_levels <- read_csv("na_levels.csv")
+  
+  #load all wave data and join it together
+  wave_data <- load_waves(1:5, filebase=filebase)
+  full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+  
+  # Only study the subjects present in all waves
+  inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
+  
+  # use the features and ids that you want to select out what you want
+  ds_raw_outcome <- full_dataset %>%
+    filter(aid %in% inner_aids) %>%
+    remove_subjects_not_in_wave1(filebase=filebase) %>%
+    add_demographics() %>%
+    add_bio_despair(filebase=filebase) %>% 
+    add_constructed_outcomes() %>%
+    dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
+    dplyr::select(-c(h5waist, h5bmi, h5dbp, h5bpjcls, h5bpcls4, h5sbp)) %>%
+    recode_variables(sheet_num = 4)
+  
+  # binarize outcome variable and drop NAs
+  ds_final <- ds_raw_outcome %>%
+    recode_variables(outcome=outcome, sheet_num=2, binarize=binarize_outcome)
+  
+  # make sure the rng is initialized to our seed value of interest
+  set.seed(seed_val)
+  
+  # split the data
+  data_splits <- ds_final %>%
+    split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
+
+  # segment subsets
+  training_df <- data_splits$train
+  validation_df <- data_splits$valid
+  testing_df <- data_splits$test
+  
+  # return named list of datasets of interest
+  return (list(full_dataset = full_dataset,
+              ds_raw_outcome = ds_raw_outcome,
+              ds_final = ds_final,
+              wave_data = wave_data,
+              training_df = training_df,
+              validation_df = validation_df,
+              testing_df = testing_df))
+  
+}
+
+```
+

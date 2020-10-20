@@ -7,13 +7,13 @@ output:
     toc_depth: 3
 ---
 
-```{r}
-source("function_import.R")
-```
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, purl=FALSE}
+source("function_import.R")
 ```
 
 # Experiments Template
@@ -30,18 +30,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 **Predictor variables.** The predictors for these models are hand-picked, and based on previous work, relevance, and subject matter expertise. The set of predictors and the set of outcomes are disjoint.  Predictors from Waves 1-4 (excluding Wave 2, see above) are included, and will be detailed in the following analysis.
 
-```{r load libraries}
+```{r load libraries, purl=FALSE}
 # Load required libraries and import *0-functions.
 
 ```
 
-```{r h2o initialization}
+```{r h2o initialization, purl=FALSE}
 #initialize h2o
 ```
 
 # Dataset generation
 Here, we comment on the general size and shape of the data and provide justification if necessary.
-```{r load data}
+```{r load data, purl=FALSE}
 # Loading of joined data parameter list here (e.g., join type, predictor list, outcomes list)
 join_type <- 'inner'
 preds_list <-  c("h4id5j", "h4pe6", "h4pe14") #change to be explicit
@@ -56,7 +56,7 @@ out_list <- c('h5mn8')
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
-```{r eda}
+```{r eda, purl=FALSE}
 # Visualize distributions of variables of interest
 
 # Visualize missingness
@@ -71,7 +71,7 @@ Here, we comment about the general characteristics of the data based on the prov
 
 ## RF model
 Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
-```{r feature selection rf}
+```{r feature selection rf, purl=FALSE}
 # Function parameters
 
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report average performance metrics.
@@ -80,7 +80,7 @@ Here, we will comment on the features selected by the random forest, its trainin
 
 ## LASSO model
 Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
-```{r feature selection lasso}
+```{r feature selection lasso, purl=FALSE}
 # Function parameters
 
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
@@ -89,7 +89,7 @@ Here, we will comment on the features selected by LASSO, its training/validation
 
 ## Model comparison
 Here, we will comment in depth about the differences between these selected features
-```{r feature selection comparison}
+```{r feature selection comparison, purl=FALSE}
 # Comparison of performance metrics
 
 # Comparison of top_n features
@@ -101,7 +101,7 @@ The subject matter experts will comment on the relevance of these features to th
 
 ## RF model
 Here, we will comment on the behavior and performance of the final rf model.
-```{r final model evaluation rf}
+```{r final model evaluation rf, purl=FALSE}
 # Function parameters
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
@@ -109,7 +109,7 @@ Here, we will comment on the behavior and performance of the final rf model.
 
 ## LASSO model
 Here, we'll comment on the behavior and performance of the final lasso model.
-```{r final model evaluation lasso}
+```{r final model evaluation lasso, purl=FALSE}
 # Function parameters
 
 # Call final modeling function and show visualization of results.  Report performance metric stats.
@@ -117,7 +117,7 @@ Here, we'll comment on the behavior and performance of the final lasso model.
 
 ## Final model comparison
 Here, we'll describe the differences between the final models.
-```{r final model comparison}
+```{r final model comparison, purl=FALSE}
 # Comparison of performance metrics
 
 # Comparison of top_n features
@@ -125,7 +125,7 @@ Here, we'll describe the differences between the final models.
 
 # Outcome variable discussion
 Here, the subject matter experts will comment on the the differences in the features obtained between the studied outcomes variables and discuss the discrepancies and/or cohesion.
-```{r outcome variable comparison}
+```{r outcome variable comparison, purl=FALSE}
 # Show differences in features obtained
 
 ```

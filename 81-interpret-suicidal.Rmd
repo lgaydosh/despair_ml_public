@@ -1,5 +1,5 @@
 ---
-title: "71-experiments-suicidal"
+title: "81-interpret-suicidal"
 output:
   html_notebook:
     code_folding: hide
@@ -18,17 +18,18 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
-## Project run parameters
-```{r seeds for reproducibility}
-no_tasks=3
-seed = 9384
-outcome = 'h5mn8'
-results_directory = str_c(outcome, '/results_run_2')
-set.seed(seed)
-```
-
 ```{r source files, include=FALSE}
 source("function_import.R")
+```
+
+## Project run parameters
+```{r seeds for reproducibility}
+no_tasks=2
+seed = 9384
+outcome = 'h5mn8'
+fbase = '/scratch/p_gaydosh_lab/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_test_run')
+set.seed(seed)
 ```
 
 **Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
@@ -62,34 +63,23 @@ knitr::include_graphics('./img/pipeline_overview.jpg')
 
 The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
 
-```{r load raw data}
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_lab'
 
-wave_data <- load_waves(1:5, filebase=filebase)
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
 
-full_dataset <- get_working_dataset_full(wave_data, join_type = 'full') 
+#parse out dataset components
+wave_data <- dataset_list$wave_data
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
 
-```
-
-
-```{r compose working dataset, warning=False, message=False}
-## Only study the subjects that we're interested in.
-inner_aids <- get_inner(list(wave_data[[1]], wave_data[[3]], wave_data[[4]], wave_data[[5]]))
-
-## get na_levels : dataset to recode all skip levels in variables
-na_levels <- read_csv("na_levels.csv")
-
-## use the features and ids that you want to select out what you want
-suicide_ds <- full_dataset %>%
-  filter(aid %in% inner_aids) %>%
-  remove_subjects_not_in_wave1(filebase=filebase) %>%
-  add_demographics() %>%
-  add_bio_despair(filebase=filebase) %>% 
-  dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
-  dplyr::select(-c(h5waist,h5bmi,h5dbp,h5bpjcls,h5bpcls4,h5sbp)) %>%
-  recode_missing_levels(na_levels)
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
 
 ```
 
@@ -98,39 +88,42 @@ suicide_ds <- full_dataset %>%
 The following table details the values present in the outcome variable.  As we can see, we need to convert the variable into a factor, and drop the NAs.
 
 ```{r warning=FALSE, message=FALSE}
-suicide_ds %>% 
-  group_by(get(outcome)) %>% 
-  summarise(total = n(), type = class(get(outcome)))
+ds_raw %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+ds %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
+
 ```
 
-The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.
+The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.  This is displayed graphically for easy consumption below.
 
-```{r binarize and drop NA outcome, warning=FALSE, message=FALSE}
-suicide_ds <- suicide_ds %>%
-  mutate_at(vars(outcome), as.factor) %>%
-  drop_na(outcome)
+```{r fig.height=6, fig.width=10, warning=TRUE}
+ds_raw %>%
+  explore_outcome(ds, outcome)
 
 ```
 
-After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The following plot visually displays the class distribution.
-
-```{r warning=FALSE, message=FALSE}
-suicide_ds %>% explore_outcome(outcome)
-```
-The distribution of the data is a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
+After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The distribution of the data has a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
 
 # Data exploration and visualization
 Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
 
 ```{r warning=FALSE, message=FALSE}
 #Report about the characteristics of the subjects left out of the join
-suicide_ds %>% explore_dropped()
+ds %>% explore_dropped()
 
 ```
 
 ```{r eda distributions, fig.width = 15, fig.height=15}
 # Visualize distributions of variables of interest
-suicide_ds %>% 
+ds %>% 
   dplyr::select(-aid) %>%
   graph_bar_discrete(df = .,
                      plot_title = "Distributions of Discrete Variables",
@@ -143,7 +136,7 @@ suicide_ds %>%
 ```
 
 ```{r eda missing}
-suicide_ds %>%
+ds %>%
   graph_missing(only_missing = TRUE,
                 title = "Percent Missing",
                 box_line_size = .5,
@@ -155,7 +148,7 @@ suicide_ds %>%
 ```
 
 ```{r eda correlations}
-suicide_ds %>%
+ds %>%
   #dplyr::select(1:20) %>%
   pairwise_cramers_v() %>%
   plot_cramer_v(x_axis_angle = 90,
@@ -163,21 +156,6 @@ suicide_ds %>%
                 interactive = TRUE)
 ```
 The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
-
-# Machine learning split of the data
-
-In this section, we split the data to ensure that our model is able to generalize to other datasets.
-```{r, message=FALSE, warning=FALSE}
-## split the data into relevant proportions desired
-data_splits <- suicide_ds %>%
-  split_data(strat_var = outcome, ratios=c(0.7, 0.2, 0.1))
-
-# assemble list
-training_df <- data_splits$train
-validation_df <- data_splits$valid
-testing_df <- data_splits$test
-
-```
 
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 
@@ -187,11 +165,8 @@ The following table displays the mean performance metrics for the bootstrapped m
 
 bs_rf_perf = NULL
 
-# get array of files to read
-bs_rf_files <- str_c(results_directory, str_c('/bs_rf_perfs_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-bs_rf_perf <- map_dfr(bs_rf_files, read_csv)
+# get data files
+bs_rf_perf = load_from_csv(bs_rf_perf, results_directory, no_tasks)
 
 ```
 
@@ -214,17 +189,14 @@ As shown, the bootstrapped models tend to have high specificity but low sensitiv
 
 bs_rf_mdi = NULL
   
-# get array of files to read
-bs_rf_mdi_files <- str_c(results_directory, str_c('/bs_rf_mdi_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-bs_rf_mdi <- map(bs_rf_mdi_files, read_csv)
+# get data files
+bs_rf_mdi = load_from_csv(bs_rf_mdi, results_directory, no_tasks)
 
 
 ```
 
 ```{r evaluate bootstrap mdi}
-boot_rf_mdi <- bs_rf_mdi %>%
+boot_rf_mdi <- list(bs_rf_mdi) %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -235,7 +207,7 @@ This table returns the MDI variable importance ranks that returned from each of 
 
 ```{r fig.width = 10, fig.height = 12}
 # Needs to be fixed so that axes don't overlap each other and obscure understanding
-plot_placement_boxplot(bs_rf_mdi)
+plot_placement_boxplot(list(bs_rf_mdi))
 ```
 
 #### Permutation importance
@@ -243,36 +215,33 @@ Now, let's look at the permutation importance:
 
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 
-boot_rf_perm_plt = NULL
+bs_rf_perm_plt <- NULL
   
-# get array of files to read
-boot_rf_perm_files <- str_c(results_directory, str_c('/boot_rf_perm_plt_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-boot_rf_perm_plt <- map_dfr(boot_rf_perm_files, read_csv)
+# get data files
+bs_rf_perm_plt <- load_from_csv(bs_rf_perm_plt, results_directory, no_tasks)
 
 ```
 
 
 ```{r aggregate rf perm results}
 met <- 'pr_auc'
-boot_rf_perm <- boot_rf_perm_plt %>%
+bs_rf_perm <- bs_rf_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
-head(boot_rf_perm, 20)
+head(bs_rf_perm, 20)
 ```
 
 #### MDI vs Permutation importance
 In this step, we assess the differences generated between the different types of importances.
 ```{r fig.width = 16, fig.height = 14}
-cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -all_of(met)))
+cbind(boot_rf_mdi[1:20,], dplyr::select(bs_rf_perm[1:20,], -all_of(met)))
 ```
 As shown, the MDI importance suffers from imbalances due to the number of values associated with a predictor.  Because the wave ages have so many more values than the other factors, this artificially inflates their importance in MDI.  The permutation importance is more intuitive.
 
 ```{r fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_rf_perm, metric = met)
+plot_permute_var_imp(bs_rf_perm, metric = met)
 ```
 
 
@@ -284,11 +253,8 @@ In this step, we model the relation between the outcomes and the predictors usin
 
 bs_lasso_perf = NULL
   
-# get array of files to read
-bs_lasso_files <- str_c(results_directory, str_c('/bs_lasso_perfs_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-bs_lasso_perf <- map_dfr(bs_lasso_files, read_csv)
+# get data files
+bs_lasso_perf = load_from_csv(bs_lasso_perf, results_directory, no_tasks)
 
 
 ```
@@ -309,16 +275,13 @@ mean_bs_lasso_perf
 
 bs_lasso_mdi = NULL
   
-# get array of files to read
-bs_lasso_mdi_files <- str_c(results_directory, str_c('/bs_lasso_mdi_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-bs_lasso_mdi <- map(bs_lasso_mdi_files, read_csv)
+# get data files
+bs_lasso_mdi = load_from_csv(bs_lasso_mdi, results_directory, no_tasks)
 
 ```
 
 ```{r show bs lasso normalized coefficients}
-boot_lasso_mdi <- bs_lasso_mdi %>%
+boot_lasso_mdi <- list(bs_lasso_mdi) %>%
   get_median_placement(use_base_var = TRUE) %>%
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, att_name, overall_rank)
@@ -327,41 +290,38 @@ head(boot_lasso_mdi, 20)
 ```
 
 ```{r fig.width = 10, fig.height = 12}
-plot_placement_boxplot(bs_lasso_mdi)
+plot_placement_boxplot(list(bs_lasso_mdi))
 ```
 
 #### Permutation importance
 
 ```{r compute/save or load bs lasso model permutation, include=FALSE}
 
-boot_lasso_perm_plt = NULL
+bs_lasso_perm_plt = NULL
   
-# get array of files to read
-boot_lasso_perm_files <- str_c(results_directory, str_c('/boot_lasso_perm_plt_', seq(1,no_tasks)), '.csv')
-
-# map read them into a df
-boot_lasso_perm_plt <- map_dfr(boot_lasso_perm_files, read_csv)
+# get data files
+bs_lasso_perm_plt = load_from_csv(bs_lasso_perm_plt, results_directory, no_tasks)
 
 ```
 
 
 ```{r aggregate lasso permutations and get metrics}
-boot_lasso_perm <- boot_lasso_perm_plt %>%
+bs_lasso_perm <- bs_lasso_perm_plt %>%
   get_permute_placement(metric_oi=met) %>% #set in random forest section
   add_attribute_names('predictor', full_dataset) %>%
   dplyr::select(predictor, everything())
 
-head(boot_lasso_perm, 20)
+head(bs_lasso_perm, 20)
 ```
 
 ```{r plot lasso permutation, fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_lasso_perm, metric = met)
+plot_permute_var_imp(bs_lasso_perm, metric = met)
 ```
 
 #### Coefficient vs. Permutation importance
 Now, we compare the feature importances generated by the two different approaches.  The traditional method of evaluating feature importance for regression methods is through analysis of the coefficients.
 ```{r fig.width = 16, fig.height = 14}
-cbind(boot_lasso_mdi[1:20,], dplyr::select(boot_lasso_perm[1:20,], -met))
+cbind(boot_lasso_mdi[1:20,], dplyr::select(bs_lasso_perm[1:20,], -met))
 ```
 
 ## Comparison: Model Type Mean Performance
@@ -374,9 +334,9 @@ bs_comp_perfs
 ## Comparison: Model Type Feature Importance
 Here, we look at the aggregated results of the bootstrapped predictors and compare the models generated to each other.
 ```{r compre bs feature importance}
-joined_results <- boot_rf_perm %>%
+joined_results <- bs_rf_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
   mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
   arrange(mean_rank)
 
@@ -384,7 +344,7 @@ head(joined_results, 20)
 ```
 
 The following visualization provides the intuition about the differences in the rankings between model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
-```{r bs feature importance plotly, fig.width = 16, fig.height = 14, eval=!from_script}
+```{r bs feature importance plotly, fig.width = 16, fig.height = 14}
 # Comparison of top_n features
 joined_results %>%
   compare_feature_select(interactive = TRUE,
@@ -403,20 +363,15 @@ In this step, we build the final model for the random forest.  We use slightly m
 
 final_rf_perf = NULL
   
-# get array of files to read
-final_rf_files <- str_c(results_directory, str_c('/final_rf_perfs_', seq(1,no_tasks)), '.csv')
+# read file array
+final_rf_perfs = load_from_csv(final_rf_perf, results_directory, no_tasks)
 
-# map read them into a df
-final_rf_perfs <- map_dfr(final_rf_files, read_csv)
-
-# get the index of the best performance
+# get the index of the best performance and best performance
 final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met) %>% pull(met))
-
-final_rfmodel_dir <- str_c(results_directory, str_c('/final_rf_model_', final_rfmodel_ind, '/'))
-final_rfmodel_path <- list.files(final_rfmodel_dir)[[1]]
-final_model_rf <- h2o.loadModel(str_c(final_rfmodel_dir, final_rfmodel_path))
 final_rf_perf <- final_rf_perfs %>% slice(final_rfmodel_ind)
 
+# load the model of interest
+final_model_rf <- load_best_model('final_rf_model', results_directory, final_rfmodel_ind)
 
 ```
 
@@ -433,11 +388,8 @@ print(final_rf_perf)
 
 final_rf_perm_plt = NULL
   
-# get permutation importance of best file
-final_rf_perm_file <- str_c(results_directory, str_c('/final_rf_perm_plt_', final_rfmodel_ind), '.csv')
-
-# map read them into a df
-final_rf_perm_plt <- read_csv(final_rf_perm_file)
+# read best perm plt
+final_rf_perm_plt = load_from_csv(final_rf_perm_plt, results_directory, best_ind=final_rfmodel_ind)
 
 ```
 
@@ -460,7 +412,7 @@ This section investigates the differences in the bootstrap results vs the featur
 ```{r compare rf final with bootstrap}
 rf_joined_results <- final_rf_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  full_join(dplyr::select(bs_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
@@ -486,19 +438,15 @@ Now, we create the final model for LASSO.  There is no substantial difference be
 
 final_lasso_perf = NULL
   
-# get array of files to read
-final_lasso_files <- str_c(results_directory, str_c('/final_lasso_perfs_', seq(1,no_tasks)), '.csv')
+# read file array
+final_lasso_perfs = load_from_csv(final_lasso_perf, results_directory, no_tasks)
 
-# map read them into a df
-final_lasso_perfs <- map_dfr(final_lasso_files, read_csv)
-
-# get the index of the best performance
+# get the index of the best performance and best performance
 final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met) %>% pull(met))
-
-final_lassomodel_dir <- str_c(results_directory, str_c('/final_lasso_model_', final_lassomodel_ind, '/'))
-final_lassomodel_path <- list.files(final_lassomodel_dir)[[1]]
-final_model_lasso <- h2o.loadModel(str_c(final_lassomodel_dir, final_lassomodel_path))
 final_lasso_perf <- final_lasso_perfs %>% slice(final_lassomodel_ind)
+
+# load the model of interest
+final_model_lasso <- load_best_model('final_lasso_model', results_directory, final_lassomodel_ind)
 
 ```
 
@@ -513,12 +461,9 @@ print(final_lasso_perf)
 ```{r compute/save or load final lasso model permutation}
 
 final_lasso_perm_plt = NULL
-  
-# get permutation importance of best file
-final_lasso_perm_file <- str_c(results_directory, str_c('/final_lasso_perm_plt_', final_lassomodel_ind), '.csv')
 
-# map read them into a df
-final_lasso_perm_plt <- read_csv(final_lasso_perm_file)
+#load best index permutation from file  
+final_lasso_perm_plt = load_from_csv(final_lasso_perm_plt, results_directory, best_ind=final_lassomodel_ind)
 
 
 ```
@@ -541,7 +486,7 @@ This section investigates the differences in the bootstrap results vs the featur
 ```{r compare lasso final with bootstrap}
 lasso_joined_results <- final_lasso_perm %>%
   dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
   arrange(mean_rank)
 
