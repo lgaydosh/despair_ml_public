@@ -99,6 +99,7 @@ ds %>%
 print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
 print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
 print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
+
 ```
 
 The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.  This is displayed graphically for easy consumption below.

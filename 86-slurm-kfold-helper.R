@@ -5,7 +5,8 @@ future::plan(multiprocess)
 
 
 ## ----import source files, warning=FALSE, message=FALSE-------------------
-source("function_import.R")
+source_files_list <- list.files(source_dir)
+map(str_c(source_dir, '/', source_files_list), source)
 
 
 ## ----seeding settings----------------------------------------------------
@@ -37,7 +38,7 @@ xval_save_helper <- function(in_data, xseed, tts_seed, strat_var, no_folds, out_
     select(aid, fold_assign)
   
   #create save variable
-  save_csv <- str_c(filebase, '/DSI/', out_var, '/kfold_assign_', xseed, '_tts_', tts_seed, '.csv')
+  save_csv <- str_c(filebase, 'DSI/', out_var, '/kfold_assign_', xseed, '_tts_', tts_seed, '.csv')
   write_csv(xfolds, save_csv)
   
   return(xfolds)
