@@ -1,6 +1,8 @@
 ---
 title: "30-feature-engineering"
 output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 # Predictive Features
@@ -36,3 +38,56 @@ add_wave_3_bmi <- function(df){
 # full_dataset %>% 
 #   add_wave_3_bmi()
 ```
+
+# Outcome variables
+
+These functions create the outcomes of prescription and illegal drug use.
+```{r prescription drug constructed variable}
+add_pres_drug <- function(df){
+  # add_pres_drug: constructs prescription drug use from variables in core wave 5 dataframe
+  # df : joined waves input
+  # return : new data frame with additional variable indicating prescription drug use
+  df %>% 
+    mutate(p_drug = case_when(
+      ((h5to26a == 1)|(h5to26b == 1)|(h5to26c == 1)|(h5to26d == 1)) ~ 1,
+      #TRUE ~ 0)
+      ((h5to26a == 0)&(h5to26b == 0)&(h5to26c == 0)&(h5to26d == 0)) ~ 0)
+    )
+}
+```
+
+```{r illegal drug use constructed variable}
+add_ill_drug <- function(df){
+  # add_ill_drug: constructs illegal drug use from variables in core wave 5 dataframe
+  # df : joined waves input
+  # return : new data frame with additional variable indicating illegal drug use
+  df %>% 
+    mutate(i_drug = case_when(
+      ((h5to27a == 1)|(h5to27b == 1)|(h5to27c == 1)|(h5to27d == 1)) ~ 1,
+      ((h5to27a == 0)&(h5to27b == 0)&(h5to27c == 0)&(h5to27d == 0)) ~ 0)
+    )
+}
+```
+
+Here are functions and aggregate "lists" that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above.  Add the name of the variable to the vector below.  Then, add the function to the `add_constructed_outcomes` function below so that it can be constructed and added to the full modeling dataframe.
+
+```{r}
+constructed_outcomes = c('p_drug', 'i_drug')
+```
+
+
+```{r add all constructed variables}
+add_constructed_outcomes <- function(df){
+  # add_constructed_outcomes: constructs illegal drug use from variables in core wave 5 dataframe
+  # df : joined waves input
+  # return : new data frame with all additional specified constructed outcome variables
+  
+  df <- df %>%
+    add_pres_drug() %>%
+    add_ill_drug()
+  
+  return(df)
+}
+
+```
+
