@@ -681,7 +681,7 @@ bio_despair_core_list_exp <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f
 bio_despair_other_list_exp <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg')
 
 # List of all behavioral despair measures
-behavioral_despair_predictors <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11", "h3ds18H", "h3ds18A", "h3ds18I", "h3to49", "h3ds6", "h3ds5", "h3ds4", "h4ds7", "h4ds19", "h4ds14", "h4ds20", "h4ds6", "h4ds5", "h4ds4", "h4cj17", "h5cj1d", "h5cj1e", "h5cj2b", "h5cj1f", "h5cj1b", "h5cj1c", "h5cj1a")
+behavioral_despair_predictors <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11", "h3ds18h", "h3ds18a", "h3ds18i", "h3to49", "h3ds6", "h3ds5", "h3ds4", "h4ds7", "h4ds19", "h4ds14", "h4ds20", "h4ds6", "h4ds5", "h4ds4", "h4cj17", "h5cj1d", "h5cj1e", "h5cj2b", "h5cj1f", "h5cj1b", "h5cj1c", "h5cj1a")
 
 # List of all Demographic Variable
 demographic_list <- c("one_race5","bio_sex") #removed "race1","mulrace1","race1rul"
