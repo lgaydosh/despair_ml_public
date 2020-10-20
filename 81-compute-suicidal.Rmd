@@ -46,7 +46,7 @@ filebase = '/scratch/p_gaydosh_lab'
 #create data in specified form
 write(str_c("\n\nGenerating the data...\n\n"), log_file, append=TRUE)
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
-write(str_c('Dataset generation parameters - binarize: ', binarize, ' Seed: ', seed), log_file, append=TRUE)
+write(str_c('Dataset generation parameters - Seed: ', seed), log_file, append=TRUE)
 
 #parse out dataset components
 full_dataset <- dataset_list$full_dataset
