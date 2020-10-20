@@ -57,9 +57,10 @@ in_files <- map(dir_contents, function(x) grep(pat, x))
 res <- unlist(in_files)
 
 #if there isn't a kfold file, create them with the args above
-if(sum(res)==0)
+if(sum(res)==0){
   print("Looks like you haven't made your kfold splits yet.  Making them now...")
   source("86-slurm-kfold-helper.R")
+}
 
 ## ---- Check for results directory -----------------------------------
 print('Checking your results directory...')

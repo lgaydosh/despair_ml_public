@@ -6,7 +6,7 @@
 #SBATCH --time=05:00:00        # 5 hours
 #SBATCH --mem=64GB
 #SBATCH --array=1-2
-# #SBATCH --constraint=skylake
+#SBATCH --constraint=skylake
 #SBATCH --output=R_slurmjob_%A_task_%a.out
 
 #Variable inputs
