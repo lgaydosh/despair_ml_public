@@ -51,10 +51,6 @@ w1_religion <- c("h1re3", "h1re4", "h1re7")
 
 w1_family <- c("h1wp9", "h1wp10", "h1wp13", "h1wp14", "h1wp17f", "h1wp18f", "h1pf1", "h1pf4", "h1pf5", "h1pf23", "h1pf25", "h1pf24", "h1nm12f", "h1nm14", "h1nf12f", "h1nf14", "h1pr3", "h1pr5", "h1pr7", "h1pr8", "h1wp11", "h1wp12", "h1wp15", "h1wp16")
 
-w1_future <- c("h1ee14", "h1ee12")
-
-w1_criminal <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11")
-
 w1_parent_ses <- c("h1nf4", "h1nm4", "h1rf1", "h1rm1") 
 
 w1_education <- c("h1gi20", "h1ee1", "h1ee2")
@@ -63,7 +59,7 @@ w1_prospects <- ("s45f")
 
 w1_ses <- c(w1_parent_ses, w1_education, w1_prospects)
 
-w1_ind_vars <- c(w1_health, w1_social, w1_peer, w1_religion, w1_family, w1_future, w1_criminal, w1_ses)
+w1_ind_vars <- c(w1_health, w1_social, w1_peer, w1_religion, w1_family, w1_ses)
 ```
 
 ```{r wave 3}
@@ -160,10 +156,6 @@ w3_partner <- c("h3mr1", "h3mr3_a", "h3mr6_a", "h3mr3_b", "h3mr6_b", "h3bm2")
 
 w3_child <- c("h3mac10")
 
-w3_future <- ("h3ec56")
-
-w3_criminal <- c("h3ds18H", "h3ds18A", "h3ds18I", "h3to49", "h3ds6", "h3ds5", "h3ds4")
-
 w3_education <- c("h3ed1", "h3ed19", "h3ed20", "h3ed27", "h3ed29", "h3ed30", "h3ed16", "h3ed17")
 
 w3_poverty <- c("h3ed1c", "h3ed1d", "h3ec1e", "h3ec3", "h3ec4", "h3ec5", "h3ec6", "h3ec7", "h3ec9")
@@ -184,7 +176,7 @@ w3_prospects <- c("h3ec59", "h3ec30")
 
 w3_ses <- c(w3_education, w3_poverty, w3_employ, w3_prospects)
 
-w3_ind_vars <- c(w3_health, w3_social, w3_prosocial, w3_peer, w3_religion, w3_family, w3_structure, w3_partner, w3_child, w3_future, w3_criminal, w3_ses)
+w3_ind_vars <- c(w3_health, w3_social, w3_prosocial, w3_peer, w3_religion, w3_family, w3_structure, w3_partner, w3_child, w3_ses)
 ```
 
 ```{r wave 4}
@@ -205,8 +197,6 @@ w4_structure <- c("h4wp3", "h4wp9", "h3wp16", "h3wp30")
 w4_partner <- c("h4rd7b", "h4rd7d", "h4rd7e", "h4rd9", "h4rd12", "h4rd14")
 
 w4_child <- c("h4tr9", "h4tr10")
-
-w4_criminal <- c("h4ds7", "h4ds19", "h4ds14", "h4ds20", "h4ds6", "h4ds5", "h4ds4", "h4cj17")
 
 w4_stress <-("h4mh29")
 
@@ -230,7 +220,7 @@ w4_prospects <- c("h4ec19")
 
 w4_ses <- c(w4_education, w4_poverty, w4_employ, w4_prospects)
 
-w4_ind_vars <- c(w4_health, w4_social, w4_prosocial, w4_peer, w4_religion, w4_family, w4_structure, w4_partner, w4_child, w4_criminal, w4_stress, w4_ses)
+w4_ind_vars <- c(w4_health, w4_social, w4_prosocial, w4_peer, w4_religion, w4_family, w4_structure, w4_partner, w4_child, w4_stress, w4_ses)
 ```
 
 ```{r wave 5}
@@ -267,8 +257,6 @@ w5_partner <- c("h5tr1", "h5tr6", "h5tr4", "h5hr1", "h5hr2", "h5tr3", "h5tr4m", 
 
 w5_child <- c("h5se21", "h5se22", "h5se23")
 
-w5_criminal <- c("h5cj1d", "h5cj1e", "h5cj2b", "h5cj1f", "h5cj1b", "h5cj1c", "h5cj1a")
-
 w5_stress <- c("h5mh5a", "h5mh5b", "h5mh5c", "h5mh5d", "h5mh5e", "h5mh6a", "h5mh6b", "h5mh6c", "h5mh6d", "h5mh6e", "h5mh6f","h5mh6g","h5mh6h","h5mh6i","h5mh6j","h5mh6k","h5mh6l","h5mh6m","h5mh6n")
 
 w5_education <- c("h5od10", "h5od11")
@@ -281,7 +269,7 @@ w5_prospects <- c("h5ec9")
 
 w5_ses <- c(w5_education, w5_poverty, w5_employ, w5_prospects)
 
-w5_ind_vars <- c(w5_health, w5_social, w5_prosocial, w5_peer, w5_religion, w5_family, w5_structure, w5_partner, w5_child, w5_criminal, w5_stress, w5_ses)
+w5_ind_vars <- c(w5_health, w5_social, w5_prosocial, w5_peer, w5_religion, w5_family, w5_structure, w5_partner, w5_child, w5_stress, w5_ses)
 ```
 
 
@@ -303,8 +291,6 @@ ind_vars_structure <- c(w3_structure, w4_structure, w5_structure)
 ind_vars_partner <- c(w3_partner, w4_partner, w5_partner)
 
 ind_vars_child <- c(w3_child , w4_child , w5_child)
-
-ind_vars_criminal <- c(w1_criminal, w3_criminal, w4_criminal, w5_criminal)
 
 ind_vars_stress <- c(w4_stress, w5_stress)
 

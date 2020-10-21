@@ -630,8 +630,9 @@ emotional_despair_predictors <- c(diagnosed_depression_list, depression_list, di
 optimism_list <- c("h4pe7","h4pe15","h4pe23","h4pe31","h5pe1","h5pe2", "h5pe3")
 other_cog_despair_list <- c('h4mh3', 'h4mh4', 'h4mh5', 'h4mh6', 'h4mh2',
                             'h5mn1', 'h5mn2', 'h5mn3', 'h5mn4')
+future_hopes_list <- c("h1ee14", "h1ee12", "h3ec56")
 
-cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list)
+cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list, future_hopes_list)
 
 #List of all biological despair measures
 
@@ -647,13 +648,16 @@ bio_despair_core_list_exp <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f
 
 bio_despair_other_list_exp <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg')
 
+# List of all behavioral despair measures
+behavioral_despair_predictors <- c("h1ds14", "h1ed9", "h1ed7", "h1ds3", "h1ed2", "h1fv7", "h1fv1", "h1fv8", "h1jo9", "h1ds13", "h1ds12", "h1ds11", "h3ds18h", "h3ds18a", "h3ds18i", "h3to49", "h3ds6", "h3ds5", "h3ds4", "h4ds7", "h4ds19", "h4ds14", "h4ds20", "h4ds6", "h4ds5", "h4ds4", "h4cj17", "h5cj1d", "h5cj1e", "h5cj2b", "h5cj1f", "h5cj1b", "h5cj1c", "h5cj1a")
+
 # List of all Demographic Variable
 demographic_list <- c("one_race5","bio_sex") #removed "race1","mulrace1","race1rul"
 
 demographic_age_list <- c("age_w5") #"age_w1", "age_w3", "age_w4" ## Removing ages 1-4. 
 
 # Total predictor variable list
-predictor_list <- c(emotional_despair_predictors, cognitive_despair_predictors, bio_despair_predictors)
+predictor_list <- c(emotional_despair_predictors, cognitive_despair_predictors, bio_despair_predictors, behavioral_despair_predictors)
 
 # Note: Look into importing these later
 #c4var009,
