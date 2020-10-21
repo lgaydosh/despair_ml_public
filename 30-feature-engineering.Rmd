@@ -69,10 +69,68 @@ add_ill_drug <- function(df){
 }
 ```
 
+#Add heavy drinking variable (by sex)
+```{r}
+add_hv_drink <- function(df){
+  
+  # df - full dataframe with the original drinking data
+  #h5to11- ever drink alcohol; if not then 0
+  #h5to12- past 12 months drink; if 0 then 0
+  # h5to13- drink days in past 30 days, if 0 then 0
+  #else, calculate days per month with drinking using h5to13
+  #multiply drinking days per month by answer from h5to14 to get monthly drinks
+  #divide by four for average drinks per week
+  # >15 for men or >8 for women, then 1
+    
+    mutate(days_per_month = case_when( #4 weeks in 30 days
+      h5to13==1 ~ 1,
+      h5to13==2 ~ 2.5,
+      h5to13==3 ~ 4,
+      h5to13==4 ~ 8,
+      h5to13==5 ~ 16,
+      h5to13==6 ~ 26)
+    )
+ 
+    df['weekly_drinks'] <- df[["h5to14"]] * df[["days_per_month"]] / 4
+    
+    df %>% 
+    mutate(hv_drink = case_when(
+      #sex at birth
+      ((weekly_drinks>15) & (h5od2a==1))|((weekly_drinks>8)&(h5od2a==0)) ~ 1,
+      ((h5to11 == 0)|(h5to12 == 0)|(h5to13 == 0)) ~ 0)
+    )
+  
+}
+
+# Example
+# full_dataset %>% 
+#   add_hv_drink()
+```
+
+#Add binge drinking
+```{r}
+#combine all drinking variables to calculate days of binge drinking in past year
+#female 4+ drinks, male 5+ drinks
+add_binge_drink <- function(df){
+  df %>% 
+    mutate(binge_drink = case_when(
+
+      (h5to15==1) ~ 1.5,
+      (h5to15==2) ~ 7.5,
+      (h5to15==3) ~ 18,
+      (h5to15==4) ~ 78,
+      (h5to15==5) ~ 208,
+      (h5to15==6) ~ 338,
+      ((h5to11 == 0)|(h5to12 == 0)|(h5to15==0)) ~ 0)
+    )
+  
+}
+```
+
 Here are functions and aggregate "lists" that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above.  Add the name of the variable to the vector below.  Then, add the function to the `add_constructed_outcomes` function below so that it can be constructed and added to the full modeling dataframe.
 
 ```{r}
-constructed_outcomes = c('p_drug', 'i_drug')
+constructed_outcomes = c('p_drug', 'i_drug', 'hv_drink', 'binge_drink')
 ```
 
 
@@ -84,7 +142,10 @@ add_constructed_outcomes <- function(df){
   
   df <- df %>%
     add_pres_drug() %>%
-    add_ill_drug()
+    add_ill_drug() %>%
+    add_hv_drink() %>%
+    add_binge_drink
+    
   
   return(df)
 }
