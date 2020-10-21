@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --mail-user=charreau.s.bell@vanderbilt.edu
+#SBATCH --mail-user=katrina.tsun@vanderbilt.edu
 #SBATCH --mail-type=ALL
 #SBATCH --account=p_dsi
 #SBATCH --ntasks=24
@@ -10,10 +10,10 @@
 #SBATCH --output=R_slurmjob_%A_task_%a.out
 
 #Variable inputs
-OUTVAR=h5mn8
+OUTVAR=i_drug
 BINARIZE=FALSE
-RESULTS_DIR=$OUTVAR/'results_test_run'
-NB_FILE='81-compute-suicidal'
+RESULTS_DIR=$OUTVAR/'results_test_run_behavioral'
+NB_FILE='84-compute-ill-drug'
 N_BOOT=2
 
 #Load the relevant modules using Lmod
