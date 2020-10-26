@@ -111,18 +111,13 @@ add_hv_drink <- function(df){
 
 #Add binge drinking
 ```{r}
-#combine all drinking variables to calculate days of binge drinking in past year
-#female 4+ drinks, male 5+ drinks
-add_binge_drink <- function(df){
+#combine all drinking variables to calculate whether there was binge drinking in past year
+#female 4+ drinks, male 5+ drinks as asked in h5to15
+add_prob_drink <- function(df){
   df %>% 
-    mutate(binge_drink = case_when(
+    mutate(prob_drink = case_when(
 
-      (h5to15==1) ~ 1.5,
-      (h5to15==2) ~ 7.5,
-      (h5to15==3) ~ 18,
-      (h5to15==4) ~ 78,
-      (h5to15==5) ~ 208,
-      (h5to15==6) ~ 338,
+      (h5to15>=1) ~ 1,
       ((h5to11 == 0)|(h5to12 == 0)|(h5to15==0)) ~ 0)
     )
   
@@ -146,7 +141,7 @@ add_constructed_outcomes <- function(df){
     add_pres_drug() %>%
     add_ill_drug() %>%
     add_hv_drink() %>%
-    add_binge_drink
+    add_prob_drink
     
   
   return(df)
