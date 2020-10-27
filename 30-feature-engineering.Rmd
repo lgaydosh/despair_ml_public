@@ -141,7 +141,7 @@ add_constructed_outcomes <- function(df){
     add_pres_drug() %>%
     add_ill_drug() %>%
     add_hv_drink() %>%
-    add_prob_drink
+    add_prob_drink()
     
   
   return(df)
