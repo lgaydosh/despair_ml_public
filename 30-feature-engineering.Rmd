@@ -127,7 +127,7 @@ add_prob_drink <- function(df){
 Here are functions and aggregate "lists" that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above.  Add the name of the variable to the vector below.  Then, add the function to the `add_constructed_outcomes` function below so that it can be constructed and added to the full modeling dataframe.
 
 ```{r}
-constructed_outcomes = c('p_drug', 'i_drug', 'hv_drink', 'binge_drink')
+constructed_outcomes = c('p_drug', 'i_drug', 'hv_drink', 'prob_drink')
 ```
 
 
