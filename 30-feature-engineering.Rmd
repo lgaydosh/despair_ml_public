@@ -129,7 +129,7 @@ add_prob_drink <- function(df){
 #   df %>% 
 #     mutate(prob_drink = case_when(
 #       
-#       ((h5to15>=1) && (h5to15 <= 6)) ~ 1,
+#       ((h5to15>=1) & (h5to15 <= 6)) ~ 1,
 #       ((h5to11 == 0)|(h5to12 == 0)|(h5to15==0)) ~ 0,
 #       (h5to15 == 97) ~ 97
 #     ))
