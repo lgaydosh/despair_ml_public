@@ -109,20 +109,35 @@ add_hv_drink <- function(df){
 #   add_hv_drink()
 ```
 
-#Add binge drinking
+#Add binge/problematic drinking
 ```{r}
 #combine all drinking variables to calculate whether there was binge drinking in past year
 #female 4+ drinks, male 5+ drinks as asked in h5to15
+#encode 97 and all NAs as NA, use this for real test
 add_prob_drink <- function(df){
   df %>% 
     mutate(prob_drink = case_when(
-
-      (h5to15>=1) ~ 1,
+      
+      ((h5to15>=1) & (h5to15 <= 6)) ~ 1,
       ((h5to11 == 0)|(h5to12 == 0)|(h5to15==0)) ~ 0)
     )
   
 }
+
+# #same as above but added a line to encode specific 97 category just to check distributuon
+# add_prob_drink_97 <- function(df){
+#   df %>% 
+#     mutate(prob_drink = case_when(
+#       
+#       ((h5to15>=1) && (h5to15 <= 6)) ~ 1,
+#       ((h5to11 == 0)|(h5to12 == 0)|(h5to15==0)) ~ 0,
+#       (h5to15 == 97) ~ 97
+#     ))
+#   
+# }
 ```
+
+
 
 Here are functions and aggregate "lists" that we can use to add all constructed outcome variables.  Create your outcome variables in the same manner as `add_pres_drug` and `add_ill_drug` above.  Add the name of the variable to the vector below.  Then, add the function to the `add_constructed_outcomes` function below so that it can be constructed and added to the full modeling dataframe.
 
