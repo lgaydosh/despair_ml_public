@@ -462,7 +462,7 @@ I'm going to look at three things in particular:
 I'm going to replicate each endeavor a couple times just to get an average.
 
 ```{r}
-h2o.init();
+port_no<-start_h2o()
 ```
 
 I'm going to also formulate the hyperparameters as a function of the number of features in the dataset.
