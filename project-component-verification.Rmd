@@ -219,7 +219,7 @@ return(calc_metrics)
 In this section, we want to make sure that h2o is working as we would expect and require for this project.  I think I've figured it out.  Let's generate our regular workflow just to start out with:
 
 ```{r}
-h2o.init()
+port_no<-start_h2o()
 ```
 
 ```{r}

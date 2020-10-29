@@ -15,7 +15,7 @@ pacman::p_load(tidyverse, h2o, yardstick,
 ```
 
 ```{r initialize h2o}
-h2o.init()
+port_no<-start_h2o()
 ```
 
 ```{r get performance function}

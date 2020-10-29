@@ -53,7 +53,7 @@ testing_df <- data_splits$test
 
 Initializations for h2o and set furrr to be multiprocess:
 ```{r}
-h2o.init()
+port_no<-start_h2o()
 future::plan(multiprocess)
 ```
 
