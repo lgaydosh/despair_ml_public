@@ -23,7 +23,7 @@ map(str_c(rsource_dir, '/', source_files_list), source)
 ```
 
 ```{r initializations, include=FALSE}
-h2o.init() 
+port_no <- start_h2o()
 h2o.no_progress()
 future::plan(multiprocess)
 ```
@@ -140,7 +140,7 @@ Calculate and save permutation importance
 write("\n\nCalculating RF bootstrap permutation importance...", log_file, append=TRUE)
 
 bs_rf_perm_plt <- boots_rf$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 
 save_to_csv(bs_rf_perm_plt, results_directory, task_ID)
 
@@ -215,7 +215,7 @@ write("Coefficient-based variable importance calculated\n\n", log_file, append=T
 write("\n\nCalcuating LASSO permutation importance...", log_file, append=TRUE)
 
 bs_lasso_perm_plt <- boots_lasso$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 
 save_to_csv(bs_lasso_perm_plt, results_directory, task_ID)
   
@@ -307,7 +307,7 @@ write("\n\nCalculating final RF permutation importance...", log_file, append=TRU
 
 final_rf_perm_plt <- list(final_model_rf[[1]]) %>%
   get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
-                             outcome=outcome)
+                             outcome=outcome, h2o_port=port_no)
 
 save_to_csv(final_rf_perm_plt, results_directory, task_ID)
 
@@ -367,10 +367,14 @@ write("\n\nCalculating final LASSO permutation importance", log_file, append=TRU
 
 final_lasso_perm_plt <- list(final_model_lasso[[1]]) %>%
   get_aggregated_permute_imp(dplyr::select(training_df, -fold_assign),
-                             outcome=outcome)
+                             outcome=outcome, h2o_port=port_no)
 
 save_to_csv(final_lasso_perm_plt, results_directory, task_ID)
 
 write("LASSO permutation importance completed\n\n", log_file, append=TRUE)
 ```
 
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
+```
