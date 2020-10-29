@@ -55,7 +55,7 @@ start_h2o <- function(){
   
   #signals
   success <- FALSE
-  tries <- 3
+  tries <- 10
   
   #try to start a server of h2o
   port_no <- try_h2o()
