@@ -52,7 +52,7 @@ The following function creates temp files and is copied from h2o's h2o-3/connect
 get_tempfile <- function(temp_type){
   
   #Make sure the file type is correct
-  if(missing(type) || !(type %in% c("stdout", "stderr", "pid")))
+  if(missing(temp_type) || !(temp_type %in% c("stdout", "stderr", "pid")))
     stop("type must be one of 'stdout', 'stderr', or 'pid'")
   
   #Generate the directory name based on user credentials
@@ -65,9 +65,9 @@ get_tempfile <- function(temp_type){
   #Generate the log file name based on user credentials
   temp_dir_path <- tempfile()
   dir.create(temp_dir_path)
-  if(type == "stdout")
+  if(temp_type == "stdout")
     file.path(temp_dir_path, paste("h2o", usr, "started_from_r.out", sep="_"))
-  else if(type == "stderr")
+  else if(temp_type == "stderr")
     file.path(temp_dir_path, paste("h2o", usr, "started_from_r.err", sep="_"))
   else
     file.path(temp_dir_path, paste("h2o", usr, "started_from_r.pid", sep="_"))
