@@ -105,7 +105,7 @@ if(taskid==1){
 } else {
     
   print('Sleeping until task 1 has completed setup to tell me to wake up...')
-  while(!(dir_exists(results_dir) & dir_exists(outcome_dir) & check_kfold_exists(outcome_dir))) pause_for(10)
+  while(!(dir_exists(source_dir) & dir_exists(results_dir) & dir_exists(outcome_dir) & check_kfold_exists(outcome_dir))) pause_for(10)
   print('Looks like everything has been created.  Waking up to continue...')
   
   }
