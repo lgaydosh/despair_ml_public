@@ -49,7 +49,7 @@ pacman::p_load(tidyverse, h2o, furrr)
 ```
 
 ```{r initializations, include=FALSE}
-h2o.init() 
+port_no <- start_h2o()
 h2o.no_progress()
 future::plan(multiprocess)
 ```
@@ -569,3 +569,7 @@ test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_intere
 gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
 ```
 
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
+```

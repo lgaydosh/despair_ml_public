@@ -40,7 +40,7 @@ pacman::p_load(tidyverse, janitor, rsample, h2o, furrr, rcompanion, ggcorrplot)
 ```
 
 ```{r initializations, include=FALSE}
-h2o.init() 
+port_no <- start_h2o()
 h2o.no_progress()
 future::plan(multiprocess)
 ```
@@ -224,7 +224,7 @@ Now, let's look at the permutation importance:
 
 ```{r get rf permutation importance, warning=FALSE, message=FALSE}
 boot_rf_perm_plt <- pr_drug_rf$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 ```
 
 ```{r aggregate rf perm results}
@@ -294,7 +294,7 @@ plot_placement_boxplot(pr_drug_lasso$mdi)
 #### Permutation importance
 ```{r message=FALSE, warning=FALSE}
 boot_lasso_perm_plt <- pr_drug_lasso$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 ```
 
 ```{r aggregate lasso permutations and get metrics}
@@ -384,7 +384,7 @@ print(final_model_rf[[2]])
 ### Features: permutation importance
 ```{r get plottable permutation importance, message=FALSE, warning=FALSE}
 final_rf_perm_plt <- c(final_model_rf[[1]]) %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 ```
 
 ```{r get metrics for final rf}
@@ -446,7 +446,7 @@ print(final_model_lasso[[2]])
 ### Features: permutation importance
 ```{r get plottable permutation importance lasso, message=FALSE, warning=FALSE}
 final_lasso_perm_plt <- c(final_model_lasso[[1]]) %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 ```
 
 ```{r get permute features for final lasso}
@@ -552,3 +552,7 @@ Here, the subject matter experts will comment on the the differences in the feat
 
 ```
 
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
+```

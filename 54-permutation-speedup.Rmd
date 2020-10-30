@@ -53,7 +53,7 @@ testing_df <- data_splits$test
 
 Initializations for h2o and set furrr to be multiprocess:
 ```{r}
-h2o.init()
+port_no<-start_h2o()
 future::plan(multiprocess)
 ```
 
@@ -83,7 +83,7 @@ future::plan(multiprocess)
 ```{r}
 tic()
 boot_lasso_perm_plt <- lasso_mdls$models %>%
-  get_aggregated_permute_imp(training_df, outcome=outcome)
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
 toc()
 ```
 To implement this, I put `future_map_dfr` inside the `get_aggregated_permute_imp` function so that the `future_map` separates the model list into individual models.
