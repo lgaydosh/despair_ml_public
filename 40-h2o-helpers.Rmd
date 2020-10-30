@@ -14,10 +14,14 @@ pacman::p_load(h2o, stringr)
 
 The following function will generate the bash command that we need to use to start an instance of h2o.
 ```{r function to make command string}
-make_cmd_string <- function(port_assign){
+make_cmd <- function(port_assign){
   java_dir <- '/accre/arch/easybuild/software/BinDist/Java/11.0.2/bin/java'
   h2o_dir <- '~/R/x86_64-pc-linux-gnu-library/3.6/h2o/java/h2o.jar'
-  cmd_str <- str_c(java_dir, ' -jar ', h2o_dir, ' -hash_login -login_conf realm.properties -port ', port_assign)
+  #cmd_str <- str_c(java_dir, '-ea -cp -jar ', h2o_dir, ' water.H2OApp -hash_login -login_conf realm.properties -port ', port_assign)
+  cmd_args <- c('-ea', '-cp', h2o_dir, "water.H2OApp", '-hash_login', '-login_conf', 'realm.properties', '-port', port_assign)
+  
+  return(list(cmd <- java_dir,
+              args <- cmd_args))
 }
 ```
 
@@ -31,11 +35,11 @@ try_h2o <- function(){
   port_no <- sample(40000:60000, 1)
   
   #generate the command to run to start R
-  cmd <- make_cmd_string(port_no)
+  cmd <- make_cmd(port_no)
   
   #run the command and don't wait for it to finish
   print(str_c('Trying to start h2o on port ', port_no, ' ....this will take at least 15 seconds'))
-  system(cmd, wait=FALSE)
+  system2(cmd$cmd, args=cmd$args, wait=FALSE)
   Sys.sleep(15)
   
   return(port_no)
