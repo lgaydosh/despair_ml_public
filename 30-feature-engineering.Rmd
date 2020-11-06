@@ -99,7 +99,8 @@ add_hv_drink <- function(df){
     mutate(hv_drink = case_when(
       #sex at birth
       ((weekly_drinks>15) & (h5od2a==1))|((weekly_drinks>8)&(h5od2a==2)) ~ 1,
-      ((h5to11 == 0)|(h5to12 == 0)|(h5to13 == 0)) ~ 0)
+      ((weekly_drinks<=15) & (h5od2a==1))|((weekly_drinks<=8)&(h5od2a==2)| 
+         (h5to11 == 0)|(h5to12 == 0)|(h5to13 == 0)) ~ 0)
     )
   
 }
@@ -163,4 +164,3 @@ add_constructed_outcomes <- function(df){
 }
 
 ```
-
