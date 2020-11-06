@@ -10,3 +10,7 @@
 
 #SLURM files
 *.out
+
+#Secrets
+realm.properties
+.h2oconfig
