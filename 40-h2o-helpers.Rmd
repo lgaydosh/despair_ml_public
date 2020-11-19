@@ -14,10 +14,14 @@ pacman::p_load(h2o, stringr)
 
 The following function will generate the bash command that we need to use to start an instance of h2o.
 ```{r function to make command string}
-make_cmd_string <- function(port_assign){
+make_cmd <- function(port_assign){
   java_dir <- '/accre/arch/easybuild/software/BinDist/Java/11.0.2/bin/java'
   h2o_dir <- '~/R/x86_64-pc-linux-gnu-library/3.6/h2o/java/h2o.jar'
-  cmd_str <- str_c(java_dir, ' -jar ', h2o_dir, ' -hash_login -login_conf realm.properties -port ', port_assign)
+  #cmd_str <- str_c(java_dir, '-ea -cp -jar ', h2o_dir, ' water.H2OApp -hash_login -login_conf realm.properties -port ', port_assign)
+  cmd_args <- c('-ea', '-cp', h2o_dir, "water.H2OApp", '-hash_login', '-login_conf', 'realm.properties', '-port', port_assign)
+  
+  return(list(cmd <- java_dir,
+              args <- cmd_args))
 }
 ```
 
@@ -25,23 +29,51 @@ make_cmd_string <- function(port_assign){
 The following function randomly assigns a port number and tries to start up h2o on that port.
 ```{r make command from random port no}
 
-try_h2o <- function(){
+try_h2o <- function(log_out, log_err){
   
   #generate some random number for the port start
   port_no <- sample(40000:60000, 1)
   
   #generate the command to run to start R
-  cmd <- make_cmd_string(port_no)
+  cmd <- make_cmd(port_no)
   
   #run the command and don't wait for it to finish
   print(str_c('Trying to start h2o on port ', port_no, ' ....this will take at least 15 seconds'))
-  system(cmd, wait=FALSE)
+  system2(cmd$cmd, args=cmd$args, stdout=log_out, stderr=log_err, wait=FALSE)
   Sys.sleep(15)
   
   return(port_no)
 }
   
 ```
+
+The following function creates temp files and is copied from h2o's h2o-3/connection.R implemention.
+```{r}
+get_tempfile <- function(temp_type){
+  
+  #Make sure the file type is correct
+  if(missing(temp_type) || !(temp_type %in% c("stdout", "stderr", "pid")))
+    stop("type must be one of 'stdout', 'stderr', or 'pid'")
+  
+  #Generate the directory name based on user credentials
+  if(.Platform$OS.type == "windows") {
+    usr <- gsub("[^A-Za-z0-9]", "_", Sys.getenv("USERNAME", unset="UnknownUser"))
+  } else {
+    usr <- gsub("[^A-Za-z0-9]", "_", Sys.getenv("USER", unset="UnknownUser"))
+  }
+
+  #Generate the log file name based on user credentials
+  temp_dir_path <- tempfile()
+  dir.create(temp_dir_path)
+  if(temp_type == "stdout")
+    file.path(temp_dir_path, paste("h2o", usr, "started_from_r.out", sep="_"))
+  else if(temp_type == "stderr")
+    file.path(temp_dir_path, paste("h2o", usr, "started_from_r.err", sep="_"))
+  else
+    file.path(temp_dir_path, paste("h2o", usr, "started_from_r.pid", sep="_"))
+}
+```
+
 
 If the port is in use, this will make our h2o server generation fail.  So, if it does fail, then we need to try to connect on a different port.  After the h2o instance is successfully connected using h2o.init(), then we have the port number to use for all future instances.
 
@@ -53,12 +85,16 @@ start_h2o <- function(){
     error("Looks like you haven't created your credentials for running h2o.  Please generate these credentials now!")
   }
   
+  #Create temp files
+  err_file <- get_tempfile("stderr")
+  out_file <- get_tempfile("stdout")
+  
   #signals
   success <- FALSE
   tries <- 10
   
   #try to start a server of h2o
-  port_no <- try_h2o()
+  port_no <- try_h2o(out_file, err_file)
   
   #keep trying to connect until h2o_init() succeeds or we run out of tries
   while((success==FALSE) & (tries>0)){
@@ -70,7 +106,7 @@ start_h2o <- function(){
     }, error = function(e){
       
       #if we did fail, let's try another port.
-      port_no <- try_h2o()
+      port_no <- try_h2o(out_file, err_file)
       tries <- tries - 1
       
       #print something
