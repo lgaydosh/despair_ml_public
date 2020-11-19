@@ -462,7 +462,12 @@ recode_missing_factors<-function(df, na_levels){
       as.character()
     
     if(!is.na(mlevels[1])){ 
-      df[[var_names[i]]] <-ifelse(df[[var_names[i]]] %in% mlevels, NA, df[[var_names[i]]])
+      
+      if (class(df[[var_names[[i]]]]) != "factor"){ # if the variable to be changed is not a factor already
+        df[[var_names[[i]]]] <- df[[var_names[[i]]]] %>% as_factor() 
+      }
+      
+      levels(df[[var_names[i]]])[levels(df[[var_names[i]]]) %in% mlevels] <- NA
     }
 
   }
