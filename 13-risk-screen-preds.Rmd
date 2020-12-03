@@ -1,0 +1,21 @@
+---
+title: "13-risk-screening-preds"
+author: "Katrina Tsun"
+date: "12/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+alcohol_risk <- c("h5to16", "h5to17", "h5to18", "h5to19", "h5cj4a", "h5cj4ac", "h5cj4ag", "h5cj4b", "h5cj4bc", "h5cj4bg")
+
+suicide_risk <- c("h5mn11", "h5mn12", "h5id6h", "h5id6i", "hv_drink")
+
+i_drug_risk <- c("h5cj1d", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+
+p_drug_risk <- c("h5cj1d", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+```
+
