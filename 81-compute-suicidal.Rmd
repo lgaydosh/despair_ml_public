@@ -382,5 +382,5 @@ write("LASSO permutation importance completed\n\n", log_file, append=TRUE)
 
 # Other cleanup
 ```{r shutdown h2o instance}
-#h2o.shutdown(FALSE)
+h2o.shutdown(FALSE)
 ```
