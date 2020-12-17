@@ -349,3 +349,205 @@ Other variables:
 
 *	Wave I – III predictors
 
+
+#Unit tests
+#missing factor
+```{r}
+recode_missing_factors<-function(df, na_levels){
+  
+  print("Recoding Missing Factor Variables")
+  # function to replace skip levels in factor variables with NA
+  # df: dataframe of wave data
+  # na_levels: read data from na_levels.csv file
+  
+  
+  
+  var_names <- intersect(na_levels %>%  
+                           filter(type == "Factor") %>%
+                           select(variable_name) %>% 
+                           pull() %>% tolower(), names(df))
+  
+  print(paste("Number of factor variables being recoded : ", length(var_names) ))
+  print("Factor variables being recoded : ")
+  print(var_names)
+  
+  for (i in 1:length(var_names)){
+    
+    print(var_names[i])
+    mlevels <- na_levels %>% 
+      filter(variable_name == var_names[i]) %>% 
+      select(na_values) %>% 
+      pull() %>% 
+      str_split(',') %>% 
+      .[[1]] %>% 
+      as.character()
+    
+    if(!is.na(mlevels[1])){ 
+            
+      if (class(df[[var_names[[i]]]]) != "factor"){ # if the variable to be changed is not a factor already
+        df[[var_names[[i]]]] <- df[[var_names[[i]]]] %>% as_factor() 
+      }
+      
+      levels(df[[var_names[i]]])[levels(df[[var_names[i]]]) %in% mlevels] <- NA
+
+    }
+
+  }
+  
+  #df[var_names] <- lapply(df[var_names] , factor)
+  print(sapply(df[var_names], class))
+  
+  return(df)
+}
+
+
+```
+```{r}
+
+# read csv file of NA values
+# na_csv <- read_csv('na_levels.csv')
+na_sheet <- read_excel("Variables_of_Interest.xlsx", sheet = 4) %>% clean_names()
+
+#Test tibble
+# test_df_fac <- tibble(
+#   h1fs3 = as.factor(c(0, 1, 2, 3, NA, 6 , 8, 9, 100)), #allowable 0-3
+#   h3sp4 = as.factor(c(NA, 6 , 8, 9, 0, 1, 2, 3, 100)), #allowable 0-3
+#   h4pe14 = as.factor(c(NA, 5, 4, 3, 6, 8, 0, 29, 30)), #allowable 1-5
+#   h5id62 = as.factor(c(0, 1, NA, 2, 3, 40, NA, 1, 0)) #allowable 0-1
+# )
+
+test_df_fac <- tibble(
+  h1fs3 = as.factor(c(0, 1, 2, 3, NA, 6 , 8, 9, 100)), #allowable 0-3
+  h3sp5 = as.factor(c(NA, 6 , 8, 9, 0, 1, 2, 3, 100)), #allowable 0-3
+  h4pe14 = as.factor(c(NA, 5, 4, 3, 6, 8, 0, 29, 30)), #allowable 1-5
+  h5id6g = as.factor(c(0, 1, NA, 2, 3, 40, NA, 1, 0)) #allowable 0-1
+)
+
+outcome_factors_data <- recode_missing_factors(test_df_fac, na_sheet)
+```
+
+#missing numeric
+```{r}
+recode_missing_numeric<-function(df, na_levels){
+  # function to replace skip levels in factor variables with NA
+  # df: dataframe of wave data
+  # na_levels: read data from na_levels.csv file
+  
+  print("Recoding Missing Numeric Variables")
+  var_names <- intersect(na_levels %>%
+                           filter(type == "Numeric") %>% 
+                           select(variable_name) %>% 
+                           pull() %>% 
+                           tolower(), names(df))
+  
+  print(paste("Number of numeric variables being recoded : ", length(var_names) ))
+  print("Numeric variables being recoded : ")
+  print(var_names)
+  
+  
+  for (i in 1:length(var_names)){
+
+    mlevels <- na_levels %>% 
+      filter(variable_name == var_names[i]) %>% 
+      select(na_values) %>% 
+      pull() %>% 
+      str_split(',') %>% 
+      .[[1]]  
+
+    
+    if(!is.na(mlevels[1])){ # verify that the variable in question actually has missing levels
+      
+      df[,var_names[i]] <- ifelse(as.vector(pull(df[,var_names[i]]) %in% mlevels),
+                                       NA, 
+                                       pull(df[,var_names[i]]))
+      # if the column of the numeric variable has values that are supposed to be skipped
+      # replace them with NA
+      # else keep the original value
+      
+    }
+  }
+  return(df)
+}
+
+```
+
+```{r}
+
+# read csv file of NA values
+#na_csv <- read_csv('na_levels.csv')
+na_sheet <- read_excel("Variables_of_Interest.xlsx", sheet = 4) %>% clean_names()
+
+#Test tibble
+test_df_num <- tibble(
+  h3wgt = c(996, 888, 4, -6, NA, 78, 321.5, 400, 888), #allowable 78-330
+  h4sbp = c(-3, 75.5, NA, 222.5, 996, 999, 997, 321, 223), #allowable 74-222.5
+  h5waist = c(NA, 9994,9996, 50, 9997,9999, 189, 100.5, NA) #allowable 47-185
+)
+
+recode_missing_numeric(test_df_num, na_sheet)
+```
+
+#missing variable
+```{r}
+recode_variables <- function(df, sheet_num, outcome = NULL, binarize = TRUE){
+  # Function to recode variables from different sheets in the variables_of_interest file
+  ## we will use this function to load different variabless: despair predictors, relevant individual predictors, contextual predictors, outcome variables
+  # df: dataframe of wave data
+  # sheet_num : this sheet number
+  # outcome : outcome variable of interest that needs to be recoded
+  # binarize : if TRUE means that the outcome variable needs to be binarized
+  
+  
+  sheet_df <- read_excel("Variables_of_Interest.xlsx", sheet = sheet_num) %>% clean_names()
+  sheet_df$variable_name <- sheet_df$variable_name %>% tolower()
+  
+  if(is.null(outcome)){
+    df <- recode_missing_factors(df, sheet_df) %>% 
+      recode_missing_numeric(sheet_df)
+    
+    return(df)
+  }
+  
+  else{
+    df <- recode_missing_factors(df, sheet_df) %>% drop_na(outcome) # dropping rows where outcoome variable is NULL
+    
+    if(binarize == TRUE){
+      fct_levels <- df %>% 
+        select(outcome) %>% 
+        pull() %>% 
+        unique() %>% 
+        as.vector()
+      
+      not_zero <- fct_levels[fct_levels != 0]
+      
+      
+      df[outcome] <- fct_collapse(df[outcome] %>% pull() %>% as.vector(), "1" = not_zero)
+      
+      print(nrow(df))
+    }
+    
+  }
+  
+  return(df)
+}
+```
+```{r}
+# read csv file of NA values
+#na_csv <- read_csv('na_levels.csv')
+
+#Test tibbles
+test_df_vars1 <- tibble(
+  h1fs3 = as.factor(c(0, 1, 2, 3, NA, 6 , 8, 9, 100)), #allowable 0-3
+  h3sp5 = as.factor(c(NA, 6 , 8, 9, 0, 1, 2, 3, 100)), #allowable 0-3
+  h4pe14 = as.factor(c(NA, 5, 4, 3, 6, 8, 0, 29, 30)), #allowable 1-5
+  h5id6g = as.factor(c(0, 1, NA, 2, 3, 40, NA, 1, 0)), #allowable 0-1
+  h3wgt = c(996, 888, 4, -6, NA, 78, 321.5, 400, 888), #allowable 78-330
+  h4sbp = c(-3, 75.5, NA, 222.5, 996, 999, 997, 321, 223), #allowable 74-222.5
+  h5waist = c(NA, 9994,9996, 50, 9997,9999, 189, 100.5, NA) #allowable 47-185
+)
+test_df_vars2 <- test_df_vars1
+
+outcome_recode_bin <- recode_variables(test_df_vars1, sheet_num=4, outcome = NULL, binarize = TRUE)
+
+outcome_recode_non <- recode_variables(test_df_vars2, sheet_num=4, outcome = NULL, binarize = FALSE)
+```
