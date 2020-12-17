@@ -484,7 +484,7 @@ test_df_num <- tibble(
   h5waist = c(NA, 9994,9996, 50, 9997,9999, 189, 100.5, NA) #allowable 47-185
 )
 
-recode_missing_numeric(test_df_num, na_sheet)
+outcome_num_data <- recode_missing_numeric(test_df_num, na_sheet)
 ```
 
 #missing variable
