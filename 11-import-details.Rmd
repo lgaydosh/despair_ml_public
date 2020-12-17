@@ -407,7 +407,7 @@ recode_missing_factors<-function(df, na_levels){
 # read csv file of NA values
 # na_csv <- read_csv('na_levels.csv')
 na_sheet <- read_excel("Variables_of_Interest.xlsx", sheet = 4) %>% clean_names()
-
+na_sheet$variable_name <- na_sheet$variable_name %>% tolower()
 #Test tibble
 # test_df_fac <- tibble(
 #   h1fs3 = as.factor(c(0, 1, 2, 3, NA, 6 , 8, 9, 100)), #allowable 0-3
@@ -476,7 +476,7 @@ recode_missing_numeric<-function(df, na_levels){
 # read csv file of NA values
 #na_csv <- read_csv('na_levels.csv')
 na_sheet <- read_excel("Variables_of_Interest.xlsx", sheet = 4) %>% clean_names()
-
+na_sheet$variable_name <- na_sheet$variable_name %>% tolower()
 #Test tibble
 test_df_num <- tibble(
   h3wgt = c(996, 888, 4, -6, NA, 78, 321.5, 400, 888), #allowable 78-330
