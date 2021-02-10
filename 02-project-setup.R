@@ -61,7 +61,7 @@ check_kfold_exists <- function(dir_out){
   
 }
 
-fbase <- '/scratch/p_gaydosh_lab/DSI/'
+fbase <- '/scratch/p_gaydosh_dsi/DSI/'
 outcome_dir <- str_c(fbase, outcome)
 results_dir <- str_c(fbase, results_directory)
 

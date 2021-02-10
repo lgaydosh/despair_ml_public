@@ -63,7 +63,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ```{r, include=FALSE}
 ## set outcome variable of interest
 outcome = 'p_drug' # This is the binary variable representing prescription drug use at wave 5
-#filebase = '/scratch/p_gaydosh_lab'
+#filebase = '/scratch/p_gaydosh_dsi'
 filebase = 'Z:'
 
 wave_data <- load_waves(1:5, filebase=filebase)
