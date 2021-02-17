@@ -25,7 +25,7 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(knitr, stringr, readr, fs)
 
 #other parameters
-fbase <- '/scratch/p_gaydosh_lab/DSI/'
+fbase <- '/scratch/p_gaydosh_dsi/DSI/'
 results_directory <- str_c(fbase, results_dir)
 kfold_file <- str_c(fbase, outcome, '/kfold_assign_3895_tts_9384.csv')
 

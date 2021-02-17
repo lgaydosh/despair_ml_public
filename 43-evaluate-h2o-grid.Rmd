@@ -119,7 +119,7 @@ You'll need to run 10, 30, 40, and 50 before attempting to run this code.
 In the commit following 661a3f7d4 (again, I haven't committed yet), I try out adding the keyword `parallelism=0` parameter to the grid search.  The documentation [here](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/grid-search.html) states that this allows h2o to try to parallelize as much as possible. We'll see how this works on ACCRE, because the minute h2o uses up too much memory, the session will be terminated.  However, h2o is also memory bounded during the `init()` call, so we might just need to set that value higher.  Whatever the case, we'll see!
 
 ```{r}
-filebase = '/scratch/p_gaydosh_lab'
+filebase = '/scratch/p_gaydosh_dsi'
 
 ## load waves and join them
 wave_data <- load_waves(1:5, filebase=filebase)

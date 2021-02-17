@@ -262,7 +262,7 @@ marijuana_outcome_usage30 <- outcome_vars[marijuana_outcome_use30_list]
 
 # Ensuring the behavior of loading the data
 ```{r test flexible filebase}
-filebase = '/scratch/p_gaydosh_lab'
+filebase = '/scratch/p_gaydosh_dsi'
 
 ## load waves and join them
 tic()
