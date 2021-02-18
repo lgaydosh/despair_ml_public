@@ -7,6 +7,28 @@ output: html_document
 **Purpose**:  This notebook assists in unified loading/writing csv operations to be used in the 80 series.
 
 # Saving functions
+```{r}
+pacman::p_load(stringr, dplyr, purrr)
+```
+
+
+```{r}
+get_good_task_ids <- function(results_dir){
+  ran_files <- list.files(results_dir)
+  
+  good_tasks <- map(ran_files, ~str_extract(., "\\d+")) %>%
+    unlist() %>%
+    tibble() %>%
+    rename(ids='.') %>%
+    group_by(ids) %>%
+    summarise(counts=n(), .groups='drop_last') %>%
+    filter(counts==max(counts)) %>%
+    pull(ids)
+  
+  return(good_tasks)
+}
+```
+
 
 ```{r unified 80 csv saving function}
 save_to_csv <- function(save_data, save_dir='.', taskid){
@@ -73,8 +95,14 @@ load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = N
   
   if(!is.null(best_ind))
     inds_to_read = best_ind
-  else
-    inds_to_read = seq(1, notasks)
+  else{
+    if(length(notasks)==1){
+      inds_to_read <- seq(1, notasks)
+    }
+    else{
+      inds_to_read <- notasks
+    }
+  }
   
   #generate file strings
   read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))

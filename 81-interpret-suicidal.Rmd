@@ -157,6 +157,12 @@ ds %>%
 ```
 The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
 
+# Get good tasks
+```{r}
+no_tasks <- get_good_task_ids(results_directory)
+```
+
+
 # Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
 
 The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
@@ -371,7 +377,7 @@ final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met) %>% pull(met))
 final_rf_perf <- final_rf_perfs %>% slice(final_rfmodel_ind)
 
 # load the model of interest
-final_model_rf <- load_best_model('final_rf_model', results_directory, final_rfmodel_ind)
+final_model_rf <- load_best_model('final_rf_model', results_directory, no_tasks[[final_rfmodel_ind]])
 
 ```
 
@@ -389,7 +395,7 @@ print(final_rf_perf)
 final_rf_perm_plt = NULL
   
 # read best perm plt
-final_rf_perm_plt = load_from_csv(final_rf_perm_plt, results_directory, best_ind=final_rfmodel_ind)
+final_rf_perm_plt = load_from_csv(final_rf_perm_plt, results_directory, best_ind=no_tasks[[final_rfmodel_ind]])
 
 ```
 
@@ -446,7 +452,7 @@ final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met) %>% pull
 final_lasso_perf <- final_lasso_perfs %>% slice(final_lassomodel_ind)
 
 # load the model of interest
-final_model_lasso <- load_best_model('final_lasso_model', results_directory, final_lassomodel_ind)
+final_model_lasso <- load_best_model('final_lasso_model', results_directory, no_tasks[[final_lassomodel_ind]] )
 
 ```
 
@@ -463,7 +469,7 @@ print(final_lasso_perf)
 final_lasso_perm_plt = NULL
 
 #load best index permutation from file  
-final_lasso_perm_plt = load_from_csv(final_lasso_perm_plt, results_directory, best_ind=final_lassomodel_ind)
+final_lasso_perm_plt = load_from_csv(final_lasso_perm_plt, results_directory, best_ind=no_tasks[[final_lassomodel_ind]])
 
 
 ```
