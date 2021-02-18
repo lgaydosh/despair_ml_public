@@ -13,7 +13,7 @@ To use this file, you'll need to actually run it from slurm_experiments.R.  This
 ```{r load libraries, include=FALSE}
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, h2o, furrr)
+pacman::p_load(tidyverse, h2o, furrr, tictoc)
 ```
 
 ```{r source files}
@@ -70,6 +70,7 @@ testing_df <- dataset_list$testing_df
 
 write("\n\nBootstrapping RF models...", log_file, append=TRUE)
 
+tic()
 # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
@@ -87,6 +88,8 @@ boots_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
                       outcome = outcome, n = n_boot, seed=seed, h2o_seed = h2o_seed)
+
+toc()
 
 write("RF bootstrapping completed\n\n", log_file, append=TRUE)
 ```
@@ -139,8 +142,11 @@ Calculate and save permutation importance
 ```{r compute/save or load bs rf model permutation, include=FALSE}
 write("\n\nCalculating RF bootstrap permutation importance...", log_file, append=TRUE)
 
+tic()
 bs_rf_perm_plt <- boots_rf$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
+
+toc()
 
 save_to_csv(bs_rf_perm_plt, results_directory, task_ID)
 

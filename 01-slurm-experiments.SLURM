@@ -3,8 +3,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --account=p_dsi
 #SBATCH --ntasks=24
-#SBATCH --time=05:00:00        # 5 hours
-#SBATCH --mem=64GB
+#SBATCH --time=12:00:00        # 5 hours
+#SBATCH --mem=128GB
 #SBATCH --array=1-2
 #SBATCH --constraint=skylake
 #SBATCH --output=R_slurmjob_%A_task_%a.out
@@ -12,7 +12,7 @@
 #Variable inputs
 OUTVAR=h5mn8
 BINARIZE=FALSE
-RESULTS_DIR=$OUTVAR/'results_test_run'
+RESULTS_DIR=$OUTVAR/'mem_test'
 NB_FILE='81-compute-suicidal'
 N_BOOT=2
 

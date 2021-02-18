@@ -71,8 +71,9 @@ rf_model <- function(outcome,
 
   # create random grid name
   grid_name <- str_c('rf_', stringi::stri_rand_strings(1, 30))
+  tf_name <- str_c('tfname_', stringi::stri_rand_strings(1, 30))
   
-  training_frame_h2o <- as.h2o(training_frame)
+  training_frame_h2o <- as.h2o(training_frame, destination_frame = tf_name)
   
   #Create parameter lists for inputs into h2o.grid
   rf_grid_params <- list(algorithm = "randomForest",
@@ -115,10 +116,28 @@ rf_model <- function(outcome,
   
   # Grab the top rf model, chosen by validation AUC
   best_rf <- h2o.getModel(rf_gridperf@model_ids[[1]])
+  
+  # Remove training frame and everything from grid other than best model
+  h2o.rm(tf_name)
+  remove_excess_models(rf_gridperf)
 
   # return model and its performance on validation_frame
   return(list(best_rf, get_performance(validation_frame, best_rf, outcome = outputs)))
 }
+```
+
+```{r remove unwanted h2o grid models}
+remove_excess_models <- function(h2o_model_grid){
+  
+  #the best model is the first id, so we can remove all the rest
+  for (mdl in h2o_model_grid@model_ids[-1]){
+    h2o.rm(mdl)
+  }
+  
+  #garbage collection
+  h2o:::.h2o.garbageCollect()
+}
+
 ```
 
 ```{r lasso modeling function}
@@ -151,17 +170,22 @@ lasso_model <- function(outcome,
     warning("`aid` is in your validation data frame.  Dropping for modeling purposes.\n")
   }
   
+  
   #initialize function parameters for h2o.randomForest
   outputs <- outcome
   inputs <- setdiff(names(training_frame), c(outcome, fold_column))
   
   # create random grid name
   grid_name <- str_c('lasso_',stringi::stri_rand_strings(1, 30))
+  tf_name <- str_c('tfname_', stringi::stri_rand_strings(1, 30))
   #print(grid_name)
+  
+  #set training frame for 2ho
+  training_frame_h2o <- as.h2o(training_frame, destination_frame=tf_name)
   
   lasso_grid_params <- list(algorithm = "glm", x = inputs, y = outputs,
                             grid_id = grid_name,
-                            training_frame = as.h2o(training_frame),
+                            training_frame = training_frame_h2o,
                             lambda_search = TRUE,
                             family = "binomial",
                             nfolds = nfolds,
@@ -195,8 +219,11 @@ lasso_model <- function(outcome,
                                 sort_by = perf_metric,
                                 decreasing = TRUE)
   
-  # Grab the top rf model, chosen by validation AUC
+  # Grab the top lasso model, chosen by validation AUC
   best_lasso <- h2o.getModel(lasso_gridperf@model_ids[[1]])
+  
+  # Remove training frame; don't need to remove grid because the grid only has one model
+  h2o.rm(tf_name)
   
   #print(str(best_lasso))
   #print(best_lasso@model$coefficients_table$names)
@@ -376,11 +403,14 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
     dplyr::rename(actual = outcome)
   
   #get predictions - this returns predictions according to the training f1 score
+  testf_name <- str_c('testfname_', stringi::stri_rand_strings(1, 30))
+  testing_frame <- as.h2o(test_data, destination_frame = testf_name)
+  
   #releveling is done because yardstick wants to see the first level as the level of interest.
   preds <- h2o.predict(test_model, as.h2o(test_data)) %>% 
     as_tibble() %>%
     dplyr::select(-predict) %>%
-    mutate(predict = as.factor(as.numeric(p1>thresh_val))) %>%
+    mutate(predict = as.factor(as.numeric(p1>=thresh_val))) %>%
     bind_cols(act) %>%
     mutate(predict = fct_expand(predict, "0", "1"), predict = fct_relevel(predict, "1", "0")) %>% #make sure we always have the right levels available (e.g., if predict only predicts 0)
     mutate(actual = fct_expand(actual, "0", "1"), actual = fct_relevel(actual, "1", "0"))
@@ -413,6 +443,9 @@ get_performance <- function(test_data, test_model, thresh_met = 'f1', thresh_val
     mutate(log_loss = mn_log_loss(preds, actual, p1) %>% pull(.estimate)) %>% 
     mutate(rmse = rmse(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate)) %>%
     mutate(mae = mae(preds, truth=as.numeric(actual), estimate=as.numeric(predict)) %>% pull(.estimate))
+  
+  #remove frame
+  h2o.rm(testf_name)
   
   return(calc_metrics)
 }

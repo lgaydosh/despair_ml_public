@@ -18,7 +18,7 @@ make_cmd <- function(port_assign){
   java_dir <- '/accre/arch/easybuild/software/BinDist/Java/11.0.2/bin/java'
   h2o_dir <- '~/R/x86_64-pc-linux-gnu-library/3.6/h2o/java/h2o.jar'
   #cmd_str <- str_c(java_dir, '-ea -cp -jar ', h2o_dir, ' water.H2OApp -hash_login -login_conf realm.properties -port ', port_assign)
-  cmd_args <- c('-ea', '-cp', h2o_dir, "water.H2OApp", '-hash_login', '-login_conf', 'realm.properties', '-port', port_assign)
+  cmd_args <- c('-Xmx32g', '-ea', '-cp', h2o_dir, "water.H2OApp", '-hash_login', '-login_conf', 'realm.properties', '-port', port_assign)
   
   return(list(cmd <- java_dir,
               args <- cmd_args))
