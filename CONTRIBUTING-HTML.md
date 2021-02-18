@@ -14,8 +14,8 @@ The following steps are to be performed if you have generated results or visuali
 3.  Do all tasks required for the PR to be approved.  
 4.  After the reviewer submits the approval, **set up a Zoom session in which you show them the html results**.  **Do NOT record this session.**  
 5.  The reviewer should ensure that there are no tables which show subject data.  
-6.  After the reviewer agrees, go back to ACCRE, add + commit your html file, and push this up to GitHub on your branch.  
-7.  Make sure you see your new commit and that everything looks right.  
+6.  After the reviewer agrees, go back to ACCRE, add + commit your html file, and push this up to GitHub on your branch.  Note that because these files are in the `.gitignore` (don't modify this), you'll need to modify your add command to be `git add -f html_results/filename.nb.html`.  The `-f` indicates a force add.
+7.  Make sure you look at your new added commit on GitHub and that everything looks right.  
 8.  Merge in your pull request.  
 9.  Delete your branch.  
 
