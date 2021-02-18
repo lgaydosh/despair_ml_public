@@ -27,8 +27,8 @@ source("function_import.R")
 no_tasks=2
 seed = 9384
 outcome = 'h5mn8'
-fbase = '/scratch/p_gaydosh_lab/DSI/'
-results_directory <- str_c(fbase, outcome, '/2020-10-20_results_454a961')
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_test_run')
 set.seed(seed)
 ```
 
@@ -65,7 +65,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 
 ```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-filebase = '/scratch/p_gaydosh_lab'
+filebase = '/scratch/p_gaydosh_dsi'
 
 #create data in specified form
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)

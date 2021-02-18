@@ -10,7 +10,7 @@ output: html_document
 
 ```{r function to generate datasets}
 generate_datasets <- function(outcome_var, binarize_outcome,
-                              filebase = '/scratch/p_gaydosh_lab', seed_val=9384){
+                              filebase = '/scratch/p_gaydosh_dsi', seed_val=9384){
   
   #set parameters
   outcome = outcome_var
@@ -32,7 +32,7 @@ generate_datasets <- function(outcome_var, binarize_outcome,
     add_demographics() %>%
     add_bio_despair(filebase=filebase) %>% 
     add_constructed_outcomes() %>%
-    dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list, constructed_outcomes))) %>%
+    dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
     dplyr::select(-c(h5waist, h5bmi, h5dbp, h5bpjcls, h5bpcls4, h5sbp)) %>%
     recode_variables(sheet_num = 4)
   

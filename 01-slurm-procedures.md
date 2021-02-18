@@ -85,7 +85,7 @@ To view your data outputs:
 
 1. Navigate to ACCRE portal, click Files on the top bar and select Home Directory on the dropdown menu
 2. Click the Go To button on the top bar
-3. Type `/scratch/p_gaydosh_lab/`
+3. Type `/scratch/p_gaydosh_dsi/`
 4. Click `DSI`
 5. Select appropriate folder for your variable
 6. Select any output of interest and click `View`.

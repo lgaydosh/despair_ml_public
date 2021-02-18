@@ -41,7 +41,7 @@ The predictors we will be using will be several variable lists loaded from `10-i
 
 ```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-filebase = '/scratch/p_gaydosh_lab'
+filebase = '/scratch/p_gaydosh_dsi'
 
 #create data in specified form
 write(str_c("\n\nGenerating the data...\n\n"), log_file, append=TRUE)

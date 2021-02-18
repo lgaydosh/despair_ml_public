@@ -13,7 +13,7 @@ map(str_c(source_dir, '/', source_files_list), source)
 no_folds=5
 seed = 9384
 seeds = c(2435, 9834, 7903, 3895, 1236)
-filebase = '/scratch/p_gaydosh_lab/'
+filebase = '/scratch/p_gaydosh_dsi/'
 
 
 ## ----splitting helper function-------------------------------------------

@@ -74,7 +74,7 @@ The following seeds wil generate our kfold lists.  Note that the parameter `seed
 no_folds=5
 seed = 9384
 seeds = c(2435, 9834, 7903, 3895, 1236)
-filebase = '/scratch/p_gaydosh_lab/'
+filebase = '/scratch/p_gaydosh_dsi/'
 ```
 
 Get the cross validation splits

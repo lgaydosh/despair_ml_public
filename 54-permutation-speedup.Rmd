@@ -17,7 +17,7 @@ pacman::p_load(tidyverse, furrr, h2o, tictoc)
 
 Load up the data using abridged feature set and simple datatype settings:
 ```{r generate data}
-filebase = '/scratch/p_gaydosh_lab'
+filebase = '/scratch/p_gaydosh_dsi'
 
 ## load waves and join them
 wave_data <- load_waves(1:5, filebase=filebase)
