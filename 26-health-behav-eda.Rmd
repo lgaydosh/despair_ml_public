@@ -73,7 +73,7 @@ pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, p
 
 
 ```{r read in data, cache=TRUE}
-wave_files_all <- str_c("Z:/Gaydosh/Core Files/In Home Interview Files/wave"
+wave_files_all <- str_c("/scratch/p_gaydosh_dsi/Gaydosh/Core Files/In Home Interview Files/wave"
                ,c(1, 3:5),
                ".xpt")
 # read in files with map and time it
