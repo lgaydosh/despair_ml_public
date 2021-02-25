@@ -644,12 +644,12 @@ cognitive_despair_predictors <- c(optimism_list, other_cog_despair_list, future_
 bio_despair_predictors <- c(#'h3wgt', 'h3hgt_f', 'h3hgt_i', these will be used in calculations for h3bmi 
 'h3bmi', # this will be the contructed variable (wave 3 bmi) from the above three variables
 'h4bmi', 'hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls',
-'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5htenjc')
 
 
 bio_despair_core_list_exp <- c('h1gh60', 'h1gh59a', 'h1gh59b', 'h3wgt', 'h3hgt_f', 'h3hgt_i', 'h4bmi',
                                'h4waist', 'h4sbp', 'h4dbp', 'h4bpcls', 'h5bmi', 'h5waist', 'h5sbp', 
-                               'h5dbp', 'h5bpcls4', 'h5bpjcls')
+                               'h5dbp', 'h5bpcls4', 'h5htenjc')
 
 bio_despair_other_list_exp <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg')
 
@@ -673,7 +673,7 @@ predictor_list <- c(emotional_despair_predictors, cognitive_despair_predictors, 
 ###Predictor list addendum
 Currently, we're not sure about what files some of the variables are located in.  For now, we're just going to remove those errant variables from the predictor list
 ```{r unsure variables}
-# unsure_variables <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5bpjcls')
+# unsure_variables <- c('hba1c', 'crp', 'hdl', 'ldl', 'tg', 'h5bmi', 'h5waist', 'h5sbp', 'h5dbp', 'h5bpcls4', 'h5htenjc')
 # predictor_list <- setdiff(predictor_list, unsure_variables)
 ```
 
@@ -806,9 +806,9 @@ add_wave_5_anthro <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it
 # df <- df %>% add_wave_5_anthro()
 ```
 
-### h5sbp, h5dbp, h5bpc1s4, h5bpjcls
+### h5sbp, h5dbp, h5bpc1s4, h5htenjc
 ```{r}
-# This function takes in the full dataframe and path of the cardiovascular biomarker file and adds the variables: h5sbp, h5dbp, h5bpc1s4, h5bpjcls
+# This function takes in the full dataframe and path of the cardiovascular biomarker file and adds the variables: h5sbp, h5dbp, h5bpc1s4, h5htenjc
 add_wave_5_cardio <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth" ){
   
   # Default file ending
@@ -819,11 +819,11 @@ add_wave_5_cardio <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it
   
   cardio <- read_xpt(filepath) %>% 
     janitor::clean_names() %>% 
-    select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls)
+    select(aid, h5sbp, h5dbp, h5bpcls4, h5htenjc)
   
   df <- df %>% 
     left_join(cardio, by = "aid") %>% 
-    select(aid, h5sbp, h5dbp, h5bpcls4, h5bpjcls, everything())
+    select(aid, h5sbp, h5dbp, h5bpcls4, h5htenjc, everything())
   
   return(df)
 }
@@ -836,7 +836,7 @@ add_wave_5_cardio <- function(df, filebase = "~/gvfs/smb-share:server=vu1file.it
 ```{r}
 # This function takes in file paths for antro and cardio vascular biomarker file paths and calls functions that loads these variables. 
 # This abstracts the functionality of the individual functions that load the relevant variables
-## Variables loaded with this function: h5sbp, h5dbp, h5bpc1s4, h5bpjcls, h5bmi, h5waist
+## Variables loaded with this function: h5sbp, h5dbp, h5bpc1s4, h5htenjc, h5bmi, h5waist
 add_wave_5_bio_despair <- function(df, filebase= "~/gvfs/smb-share:server=vu1file.it.vanderbilt.edu,share=gaydosh_addhealth") {
   
   df <- df %>% 
