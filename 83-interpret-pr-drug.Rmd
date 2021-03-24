@@ -28,7 +28,7 @@ no_tasks=2
 seed = 9384
 outcome = 'p_drug'
 fbase = '/scratch/p_gaydosh_dsi/DSI/'
-results_directory <- str_c(fbase, outcome, '/results_3.25')
+results_directory <- str_c(fbase, outcome, '/results_3.25_ind')
 set.seed(seed)
 ```
 

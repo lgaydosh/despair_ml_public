@@ -12,9 +12,9 @@
 #Variable inputs
 OUTVAR=p_drug
 BINARIZE=FALSE
-RESULTS_DIR=$OUTVAR/'results_3.25'
+RESULTS_DIR=$OUTVAR/'results_3.25_ind'
 NB_FILE='83-compute-pr-drug'
-N_BOOT=25
+N_BOOT=20
 
 #Load the relevant modules using Lmod
 module load GCC/8.2.0 OpenMPI/3.1.4 Intel/2019.1.144 IntelMPI/2018.4.274 R/3.6.0
