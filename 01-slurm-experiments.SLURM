@@ -1,20 +1,20 @@
 #!/bin/bash
-#SBATCH --mail-user=charreau.s.bell@vanderbilt.edu
+#SBATCH --mail-user=rachel.fan@vanderbilt.edu
 #SBATCH --mail-type=ALL
 #SBATCH --account=p_dsi
 #SBATCH --ntasks=24
-#SBATCH --time=12:00:00        # 5 hours
+#SBATCH --time=30:00:00        # 5 hours
 #SBATCH --mem=128GB
-#SBATCH --array=1-2
+#SBATCH --array=1-30
 #SBATCH --constraint=skylake
 #SBATCH --output=R_slurmjob_%A_task_%a.out
 
 #Variable inputs
-OUTVAR=h5mn8
+OUTVAR=p_drug
 BINARIZE=FALSE
-RESULTS_DIR=$OUTVAR/'mem_test'
-NB_FILE='81-compute-suicidal'
-N_BOOT=2
+RESULTS_DIR=$OUTVAR/'results_3.25'
+NB_FILE='83-compute-pr-drug'
+N_BOOT=25
 
 #Load the relevant modules using Lmod
 module load GCC/8.2.0 OpenMPI/3.1.4 Intel/2019.1.144 IntelMPI/2018.4.274 R/3.6.0
