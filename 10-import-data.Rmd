@@ -178,7 +178,7 @@ load_using_chooser <- function(use_clean_names = TRUE) {
   
   # Load data; returned as list of tibbles
   file_data <- files %>%
-    map(load_file, use_clean_names)
+    future_map(load_file, use_clean_names, .options = future_options(seed = TRUE))
   
   return(file_data)
 }
