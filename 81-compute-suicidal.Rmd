@@ -154,6 +154,10 @@ write("Bootstrap RF permutation importance completed\n\n", log_file, append=TRUE
 
 ```
 
+```{r clear memory after rf perm imp}
+h2o.removeAll()
+```
+
 
 ## LASSO model
 In this step, we model the relation between the outcomes and the predictors using a linear regression with L2 regularization.  This drives the importance of unimportant and redudant features towards zero.
@@ -226,6 +230,10 @@ bs_lasso_perm_plt <- boots_lasso$models %>%
 save_to_csv(bs_lasso_perm_plt, results_directory, task_ID)
   
 write("Permutation importance calculated...\n\n", log_file, append=TRUE)
+```
+
+```{r clear memory after lasso perm imp}
+h2o.removeAll()
 ```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
@@ -320,6 +328,9 @@ save_to_csv(final_rf_perm_plt, results_directory, task_ID)
 write("Final RF permutation importance completed\n\n", log_file, append=TRUE)
 ```
 
+```{r clear memory between final model perm imp}
+h2o.removeAll()
+```
 
 ## LASSO model
 Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.

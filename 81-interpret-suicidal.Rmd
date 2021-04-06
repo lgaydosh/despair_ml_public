@@ -157,8 +157,7 @@ ds %>%
 ```
 The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
 
-# Get good tasks
-```{r}
+```{r Get Good Tasks}
 no_tasks <- get_good_task_ids(results_directory)
 ```
 
@@ -526,7 +525,7 @@ head(rf_lasso_final_joined_results, 20)
 
 The following visualization provides the intuition about the differences in the rankings between the final model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
 
-```{r plotly lasso v random forest features}
+```{r plotly lasso v random forest features, fig.height=14, fig.width=16}
 # Comparison of top_n features
 rf_lasso_final_joined_results %>%
   compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
