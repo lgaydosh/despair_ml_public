@@ -1,0 +1,569 @@
+---
+title: "83-interpret-pr-drug"
+output:
+  html_notebook:
+    code_folding: hide
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files, include=FALSE}
+source("function_import.R")
+```
+
+## Project run parameters
+```{r seeds for reproducibility}
+no_tasks=2
+seed = 9384
+outcome = 'p_drug'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_3.25_ind')
+set.seed(seed)
+```
+
+**Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
+
+**Subject inclusion.** For this investigation, we will omit the entirety of Wave 2.  This is commonly done in analyses of AddHealth data due the design of the original study.  Otherwise, our dataset will include only subjects who have predictor and outcome data in _all_ of the waves.
+
+**Outcome variables.** In this experiment, we assess _suicidal ideation_ at Wave 5.  
+
+**Predictor variables.** The predictors for these models are hand-picked, and based on previous work, relevance, and subject matter expertise. The set of predictors and the set of outcomes are disjoint.  Predictors from Waves 1-4 (excluding Wave 2, see above) are included, and will be detailed in the following analysis.
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
+
+```
+
+```{r initializations, include=FALSE}
+port_no <- start_h2o()
+h2o.no_progress()
+future::plan(multiprocess)
+```
+
+# Pipeline overview
+```{r echo=FALSE, out.width='50%'}
+knitr::include_graphics('./img/pipeline_overview.jpg')
+```
+
+# Dataset generation
+
+The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
+
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
+## set outcome variable of interest
+filebase = '/scratch/p_gaydosh_dsi'
+
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
+
+#parse out dataset components
+wave_data <- dataset_list$wave_data
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
+
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
+
+```
+
+## Outcome variable: Binarizing and recoding details
+
+The following table details the values present in the outcome variable.  As we can see, we need to convert the variable into a factor, and drop the NAs.
+
+```{r warning=FALSE, message=FALSE}
+ds_raw %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+ds %>% 
+  group_by(.data[[outcome]]) %>% 
+  summarise(total = n(), type = class(.data[[outcome]]))
+
+print(str_c('Total number of subjects in unprocessed outcome data: ', nrow(ds_raw)))
+print(str_c('Total number of subjects in processed outcome data: ', nrow(ds)))
+print(str_c('Total subjects dropped due to NA or skip: ', nrow(ds_raw)-nrow(ds)))
+
+```
+
+The table also demonstrates that the classes are very imbalanced, with about 14x the negative class as compared with the positive class.  This is displayed graphically for easy consumption below.
+
+```{r fig.height=6, fig.width=10, warning=TRUE}
+ds_raw %>%
+  explore_outcome(ds, outcome)
+
+```
+
+After dropping the NAs, we see that we now have 9168 rows, which is consistent with the table above.  The distribution of the data has a distinct imbalance as noted above.  I think this warrants using `pr_auc` as the optimization and selection metric.
+
+# Data exploration and visualization
+Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
+
+```{r warning=FALSE, message=FALSE}
+#Report about the characteristics of the subjects left out of the join
+ds %>% explore_dropped()
+
+```
+
+```{r eda distributions, fig.width = 15, fig.height=15}
+# Visualize distributions of variables of interest
+ds %>% 
+  dplyr::select(-aid) %>%
+  graph_bar_discrete(df = .,
+                     plot_title = "Distributions of Discrete Variables",
+                     max_categories = 50,
+                     num_rows = 3,
+                     num_cols = 3,
+                     x_axis_size = 12,
+                     y_axis_size = 12,
+                     title_size = 15)
+```
+
+```{r eda missing}
+ds %>%
+  graph_missing(only_missing = TRUE,
+                title = "Percent Missing",
+                box_line_size = .5,
+                label_size = .5,
+                x_axis_size = 12,
+                y_axis_size = 12,
+                title_size = 15)
+
+```
+
+```{r eda correlations}
+ds %>%
+  #dplyr::select(1:20) %>%
+  pairwise_cramers_v() %>%
+  plot_cramer_v(x_axis_angle = 90,
+                plot_title = "Association among Categorical Variables",
+                interactive = TRUE)
+```
+The correlation plot suggests that there are several variables we might think about removing.  Firstly, there are moderate correlations among the individual predictor blocks; this is due to the way that they are ordered, since they're essentially grouped into subsets.  Addtionally, some predictor pairs have extremely high correlations, like (h4id5j, h4mh26) (correlation of 0.72), and many variables in the h4mh* series.  (h3id5j, h4id5h) also has high correlation > 0.5.  We may want to consider removing several of these in addition to the age variables because it may cause feature importance masking within our approaches.
+
+# Robust feature evaluation {.tabset .tabset-fade .tabset-pills}
+
+The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
+
+```{r save/load rf bootstrap model performance, include=FALSE}
+
+bs_rf_perf = NULL
+
+# get data files
+bs_rf_perf = load_from_csv(bs_rf_perf, results_directory, no_tasks)
+
+```
+
+
+```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
+
+mean_bs_rf_perf <- bs_rf_perf %>%
+  summarise_if(is.numeric, mean, na.rm=TRUE) %>%
+  mutate(model = 'bs_rf') %>%
+  dplyr::select(model, everything())
+
+mean_bs_rf_perf
+```
+As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with suicidal ideation.
+
+### Feature importances: Random Forest
+#### Mean decrease in impurity (MDI)
+
+```{r save/load rf bootstrap model mdi, include=FALSE}
+
+bs_rf_mdi = NULL
+  
+# get data files
+bs_rf_mdi = load_from_csv(bs_rf_mdi, results_directory, no_tasks)
+
+
+```
+
+```{r evaluate bootstrap mdi}
+boot_rf_mdi <- list(bs_rf_mdi) %>%
+  get_median_placement(use_base_var = TRUE) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, att_name, overall_rank)
+
+head(boot_rf_mdi, 20)
+```
+This table returns the MDI variable importance ranks that returned from each of the bootstrapped models.
+
+```{r fig.width = 10, fig.height = 12}
+# Needs to be fixed so that axes don't overlap each other and obscure understanding
+plot_placement_boxplot(list(bs_rf_mdi))
+```
+
+#### Permutation importance
+Now, let's look at the permutation importance:
+
+```{r compute/save or load bs rf model permutation, include=FALSE}
+
+bs_rf_perm_plt <- NULL
+  
+# get data files
+bs_rf_perm_plt <- load_from_csv(bs_rf_perm_plt, results_directory, no_tasks)
+
+```
+
+
+```{r aggregate rf perm results}
+met <- 'pr_auc'
+bs_rf_perm <- bs_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(bs_rf_perm, 20)
+```
+
+#### MDI vs Permutation importance
+In this step, we assess the differences generated between the different types of importances.
+```{r fig.width = 16, fig.height = 14}
+cbind(boot_rf_mdi[1:20,], dplyr::select(bs_rf_perm[1:20,], -all_of(met)))
+```
+As shown, the MDI importance suffers from imbalances due to the number of values associated with a predictor.  Because the wave ages have so many more values than the other factors, this artificially inflates their importance in MDI.  The permutation importance is more intuitive.
+
+```{r fig.width = 10, fig.height = 12}
+plot_permute_var_imp(bs_rf_perm, metric = met)
+```
+
+
+## LASSO model
+In this step, we model the relation between the outcomes and the predictors using a linear regression with L2 regularization.  This drives the importance of unimportant and redudant features towards zero.
+
+
+```{r save/load lasso bootstrap model performance, include=FALSE}
+
+bs_lasso_perf = NULL
+  
+# get data files
+bs_lasso_perf = load_from_csv(bs_lasso_perf, results_directory, no_tasks)
+
+
+```
+
+```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
+mean_bs_lasso_perf <- bs_lasso_perf %>%
+  summarise_if(is.numeric, mean, na.rm=TRUE) %>% 
+  mutate(model='bs_lasso') %>%
+  dplyr::select(model, everything())
+
+mean_bs_lasso_perf
+```
+
+### Feature importances: LASSO
+#### Coefficient-based variable importance
+
+```{r save/load lasso bootstrap model mdi, include=FALSE}
+
+bs_lasso_mdi = NULL
+  
+# get data files
+bs_lasso_mdi = load_from_csv(bs_lasso_mdi, results_directory, no_tasks)
+
+```
+
+```{r show bs lasso normalized coefficients}
+boot_lasso_mdi <- list(bs_lasso_mdi) %>%
+  get_median_placement(use_base_var = TRUE) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, att_name, overall_rank)
+
+head(boot_lasso_mdi, 20)
+```
+
+```{r fig.width = 10, fig.height = 12}
+plot_placement_boxplot(list(bs_lasso_mdi))
+```
+
+#### Permutation importance
+
+```{r compute/save or load bs lasso model permutation, include=FALSE}
+
+bs_lasso_perm_plt = NULL
+  
+# get data files
+bs_lasso_perm_plt = load_from_csv(bs_lasso_perm_plt, results_directory, no_tasks)
+
+```
+
+
+```{r aggregate lasso permutations and get metrics}
+bs_lasso_perm <- bs_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>% #set in random forest section
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(bs_lasso_perm, 20)
+```
+
+```{r plot lasso permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(bs_lasso_perm, metric = met)
+```
+
+#### Coefficient vs. Permutation importance
+Now, we compare the feature importances generated by the two different approaches.  The traditional method of evaluating feature importance for regression methods is through analysis of the coefficients.
+```{r fig.width = 16, fig.height = 14}
+cbind(boot_lasso_mdi[1:20,], dplyr::select(bs_lasso_perm[1:20,], -met))
+```
+
+## Comparison: Model Type Mean Performance
+The following table compares the mean performance of bootstrapped random forests to the mean performance of bootstrapped LASSO methods.
+```{r compare bs mean performance}
+bs_comp_perfs <- bind_rows(mean_bs_rf_perf, mean_bs_lasso_perf) #changed
+bs_comp_perfs
+```
+
+## Comparison: Model Type Feature Importance
+Here, we look at the aggregated results of the bootstrapped predictors and compare the models generated to each other.
+```{r compre bs feature importance}
+joined_results <- bs_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
+  arrange(mean_rank)
+
+head(joined_results, 20)
+```
+
+The following visualization provides the intuition about the differences in the rankings between model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
+```{r bs feature importance plotly, fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+joined_results %>%
+  compare_feature_select(interactive = TRUE,
+                         top_n = 100,
+                         opacity = 0.50,
+                         plot_title = "Permutation Importance of Predictors by Model")
+```
+
+
+# Generation of final model {.tabset .tabset-fade .tabset-pills}
+
+## RF model
+In this step, we build the final model for the random forest.  We use slightly more values in order to come up with the best model, keeping in mind the number of combinations that are required to run to evaluate the grid.
+
+```{r save/load final rf model}
+
+final_rf_perf = NULL
+  
+# read file array
+final_rf_perfs = load_from_csv(final_rf_perf, results_directory, no_tasks)
+
+# get the index of the best performance and best performance
+final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met) %>% pull(met))
+final_rf_perf <- final_rf_perfs %>% slice(final_rfmodel_ind)
+
+# load the model of interest
+final_model_rf <- load_best_model('final_rf_model', results_directory, final_rfmodel_ind)
+
+```
+
+### Performance
+The final random forest performance metrics are shown below:
+```{r rf final model performance}
+# show model final performance
+print(final_rf_perf)
+```
+
+### Features: permutation importance
+
+```{r compute/save or load final rf model permutation}
+
+final_rf_perm_plt = NULL
+  
+# read best perm plt
+final_rf_perm_plt = load_from_csv(final_rf_perm_plt, results_directory, best_ind=final_rfmodel_ind)
+
+```
+
+
+```{r get metrics for final rf}
+final_rf_perm <- final_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_rf_perm, 20)
+```
+
+```{r plot rf final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_rf_perm, metric = met)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
+
+```{r compare rf final with bootstrap}
+rf_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(bs_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+  arrange(mean_rank)
+
+head(rf_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r plot final rf features plotly, fig.height=14, fig.width=16}
+# Comparison of top_n features
+rf_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
+
+## LASSO model
+Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.
+
+```{r save/load final lasso model}
+
+final_lasso_perf = NULL
+  
+# read file array
+final_lasso_perfs = load_from_csv(final_lasso_perf, results_directory, no_tasks)
+
+# get the index of the best performance and best performance
+final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met) %>% pull(met))
+final_lasso_perf <- final_lasso_perfs %>% slice(final_lassomodel_ind)
+
+# load the model of interest
+final_model_lasso <- load_best_model('final_lasso_model', results_directory, final_lassomodel_ind)
+
+```
+
+The final LASSO performance metrics are shown below:
+```{r lasso final model performance}
+# show model final performance
+print(final_lasso_perf)
+```
+
+### Features: permutation importance
+
+```{r compute/save or load final lasso model permutation}
+
+final_lasso_perm_plt = NULL
+
+#load best index permutation from file  
+final_lasso_perm_plt = load_from_csv(final_lasso_perm_plt, results_directory, best_ind=final_lassomodel_ind)
+
+
+```
+
+```{r get permute features for final lasso}
+final_lasso_perm <- final_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_lasso_perm, 20)
+```
+
+```{r plot lasso final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_lasso_perm, metric = met)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
+
+```{r compare lasso final with bootstrap}
+lasso_joined_results <- final_lasso_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(bs_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+  arrange(mean_rank)
+
+head(lasso_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r plot lasso feature comparison, fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+lasso_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
+
+## Comparison: Final model features
+Here, we compare the features generated by the permutation importance between the two final models.
+
+```{r compare lasso vs random forest features final}
+rf_lasso_final_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(final_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
+  arrange(mean_rank)
+
+head(rf_lasso_final_joined_results, 20)
+```
+
+The following visualization provides the intuition about the differences in the rankings between the final model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
+
+```{r plotly lasso v random forest features}
+# Comparison of top_n features
+rf_lasso_final_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Random Forest vs Lasso")
+```
+
+## Comparison: Final model performance
+With the final models generated, we're now able to compare their performance metrics.
+```{r final model comparison, fig.width = 10, fig.height = 12}
+# Comparison of performance metrics
+valid_perf <- get_metric_set_from_perfs(perf_list = list(final_rf_perf, final_lasso_perf)) %>%
+  mutate(model = c('rf', 'lasso'))
+
+testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf, final_model_lasso), out=outcome) %>%
+  mutate(model = c('rf', 'lasso'))
+```
+
+**Validation and selection.**
+The following table shows the comparison between models in terms of the validation set.  We can select our final model based on the best performing model according to the metric.
+```{r}
+print(valid_perf)
+```
+
+**Testing performance.**
+The following shows the performance of both the models on the test set.  Note that although we don't use this test set to evaluate the final models, we can still see how our selected method would have performed.
+```{r}
+print(testing_perf)
+```
+
+The following plots show a comparison between the performance of the models on the validation and test sets.  Again, we don't choose the model based on the test set, but curiosity dictates that we view this performance.
+
+```{r fig.width = 10, fig.height = 6}
+# Show plots side by side
+metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv', 'pr_auc', 'roc_auc')
+valid_plt <- plot_metric_set(dplyr::select(valid_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for validation set")
+test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for testing set")
+gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
+```
+
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
+```
