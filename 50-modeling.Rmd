@@ -325,7 +325,7 @@ get_aggregated_permute_imp <- function(mdl_list, newdata_df, outcome, h2o_port){
   #outcome: outcome of interest
   #returns: tibble of aggregated results
   agg_pi <- mdl_list %>%
-    map_dfr(~permute_var_imp(df_predict=newdata_df, outcome=outcome, model_h2o=.x, h2o_port_no=h2o_port)) %>%
+    future_map_dfr(~permute_var_imp(df_predict=newdata_df, outcome=outcome, model_h2o=.x, h2o_port_no=h2o_port)) %>%
     as_tibble()
   
   return(agg_pi)

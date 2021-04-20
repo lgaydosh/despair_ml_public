@@ -34,18 +34,19 @@ source("function_import.R")
 # Use pacman, which forces an install if the library isn't present on the running machine
 if (!require("pacman")) install.packages("pacman")
 #pacman::p_install(plotly)
-pacman::p_load(tidyverse, h2o, furrr)
+pacman::p_load(tidyverse, h2o, furrr, tictoc)
 
 ```
 
 ```{r initializations, include=FALSE}
 port_no <- start_h2o()
 h2o.no_progress()
-future::plan(multiprocess)
+future::plan(multicore)
 ```
 
 ```{r seeds for reproducibility}
 seed= 9384
+h2o_seed=-1
 set.seed(seed)
 ```
 
@@ -61,6 +62,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 ## set outcome variable of interest
 outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_dsi'
+results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date())
 
 #create data in specified form
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
@@ -165,16 +167,16 @@ The RF models are chosen based on a grid search using the following the paramete
   - categorical encoding: use one hot encoding to create straightforward comparison with LASSO
 
 ```{r feature selection rf, include=FALSE}
-
+tic()
 # Spans of hyper parameters for random forest
 rf_params <- list(max_depth = 50,
                   ntrees = 150,
                   mtries = c(-1, 20, by = 5),
-                  min_rows = c(2, 20, by = 2),
+                  min_rows = c(2, 20, by = 5))
                   #stopping_rounds = 4,
-                  balance_classes = c(TRUE, FALSE),
+                  #balance_classes = c(TRUE, FALSE),
                   #stopping_metric = 'AUCPR',
-                  categorical_encoding = 'one_hot_explicit')
+                  #categorical_encoding = 'one_hot_explicit')
 
 # rf_params <- list(max_depth = c(20, 50),
 #                   balance_classes = TRUE,
@@ -186,16 +188,24 @@ n_boot = 2
 boots_rf <- model_feature_selection("RF",training_frame = training_df,
                       validation_frame = validation_df,
                       hyper_params = rf_params,
-                      outcome = outcome, n = n_boot, seed=seed)
+                      outcome = outcome, n = n_boot, seed=seed, h2o_seed=h2o_seed)
+toc()
 
 ```
+
+```{r get bs seeds and performance}
+bs_rf_seeds <- get_model_seeds(boots_rf$models)
+
+bs_rf_perf <- get_metric_set_from_perfs(boots_rf$perfs) %>%
+  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
+```
+
 
 The following table displays the mean performance metrics for the bootstrapped models on the validation set, removing values for which there are NA.
 
 ```{r evaluate bootstrap model performance rf, warning=FALSE, message=FALSE}
-mean_bs_rf_perf <- get_metric_set_from_perfs(boots_rf$perfs) %>%
-  dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
-         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+mean_bs_rf_perf <- bs_rf_perf %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>%
   mutate(model = 'bs_rf') %>%
   dplyr::select(model, everything())
@@ -225,8 +235,10 @@ plot_placement_boxplot(boots_rf$mdi)
 Now, let's look at the permutation importance:
 
 ```{r get rf permutation importance, warning=FALSE, message=FALSE}
+tic()
 boot_rf_perm_plt <- boots_rf$models %>%
   get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
+toc()
 ```
 
 ```{r aggregate rf perm results}
@@ -247,7 +259,10 @@ cbind(boot_rf_mdi[1:20,], dplyr::select(boot_rf_perm[1:20,], -all_of(met)))
 As shown, the MDI importance suffers from imbalances due to the number of values associated with a predictor.  Because the wave ages have so many more values than the other factors, this artificially inflates their importance in MDI.  The permutation importance is more intuitive.
 
 ```{r fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_rf_perm, metric = pr_auc)
+plot_permute_var_imp(boot_rf_perm, metric = met)
+```
+```{r clear h2o for memory help}
+h2o.removeAll()
 ```
 
 
@@ -260,17 +275,26 @@ lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
 
 boots_lasso <- model_feature_selection( "Lasso",
-                                          training_frame = training_df,
-                                          validation_frame = validation_df,
-                                          hyper_params = lasso_params,
-                                          outcome = outcome, 
-                                          n = n_boot)
+                                        training_frame = training_df,
+                                        validation_frame = validation_df,
+                                        hyper_params = lasso_params,
+                                        outcome = outcome, 
+                                        n = n_boot,
+                                        seed=seed,
+                                        h2o_seed=h2o_seed)
 ```
 
-```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
-mean_bs_lasso_perf <- get_metric_set_from_perfs(boots_lasso$perfs) %>%
+```{r get lasso seeds and performance}
+bs_lasso_seeds <- get_model_seeds(boots_lasso$models)
+
+bs_lasso_perf <- get_metric_set_from_perfs(boots_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
-         tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything()) %>%
+                tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
+```
+
+
+```{r evaluate bootstrap model performance lasso, warning=FALSE, message=FALSE}
+mean_bs_lasso_perf <- bs_lasso_perf %>%
   summarise_if(is.numeric, mean, na.rm=TRUE) %>% 
   mutate(model='bs_lasso') %>%
   dplyr::select(model, everything())
@@ -309,7 +333,7 @@ head(boot_lasso_perm, 20)
 ```
 
 ```{r plot lasso permutation, fig.width = 10, fig.height = 12}
-plot_permute_var_imp(boot_lasso_perm, metric = pr_auc)
+plot_permute_var_imp(boot_lasso_perm, metric = met)
 ```
 
 #### Coefficient vs. Permutation importance
@@ -376,11 +400,17 @@ final_model_rf <- rf_model(outcome,
 
 ```
 
+```{r get final rf seeds and performance}
+final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
+
+final_rf_perf <- final_model_rf[[2]]
+```
+
 ### Performance
 The final random forest performance metrics are shown below:
 ```{r}
 # show model final performance
-print(final_model_rf[[2]])
+final_rf_perf
 ```
 
 ### Features: permutation importance
@@ -399,7 +429,7 @@ head(final_rf_perm, 20)
 ```
 
 ```{r plot rf final permutation, fig.width = 10, fig.height = 12}
-plot_permute_var_imp(final_rf_perm, metric = pr_auc)
+plot_permute_var_imp(final_rf_perm, metric = met)
 ```
 ### Comparison with bootstrap results
 This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
@@ -439,10 +469,17 @@ final_model_lasso <- lasso_model(training_frame = training_df,
                                  hyper_params = lasso_params)
 ```
 
+```{r get final lasso seeds and performance}
+final_lasso_seeds <- get_model_seeds(list(final_model_lasso[[1]]))
+
+final_lasso_perf <-final_model_lasso[[2]]
+```
+
+
 The final LASSO performance metrics are shown below:
-```{r}
+```{r show lasso final performance}
 # show model final performance
-print(final_model_lasso[[2]])
+final_lasso_perf
 ```
 
 ### Features: permutation importance
@@ -461,7 +498,7 @@ head(final_lasso_perm, 20)
 ```
 
 ```{r plot lasso final permutation, fig.width = 10, fig.height = 12}
-plot_permute_var_imp(final_lasso_perm, metric = pr_auc)
+plot_permute_var_imp(final_lasso_perm, metric = met)
 ```
 ### Comparison with bootstrap results
 This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
@@ -558,5 +595,32 @@ Here, the subject matter experts will comment on the the differences in the feat
 ```{r shutdown h2o instance}
 h2o.shutdown(FALSE)
 ```
+
+# Save data and models
+```{r}
+#data
+save_var_list <- c('bs_rf_perf',
+                   'bs_rf_mdi',
+                   'bs_rf_perm_plt',
+                   'bs_rf_seeds',
+                   'bs_lasso_perf',
+                   'bs_lasso_mdi',
+                   'bs_lasso_perm_plt',
+                   'bs_lasso_seeds',
+                   'final_rf_perf',
+                   'final_rf_perm_plt',
+                   'final_rf_seeds',
+                   'final_lasso_perf',
+                   'final_lasso_perm_plt',
+                   'final_lasso_seeds')
+
+save(list=save_var_list, file=str_c(results_directory, '/', 'experimental_results.RData'))
+
+#models
+save_h2o_model(final_rf_model, results_directory, 1)
+save_h2o_model(final_lasso_model, results_directory, 1)
+
+```
+
 
 
