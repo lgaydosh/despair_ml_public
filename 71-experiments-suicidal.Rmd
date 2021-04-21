@@ -261,6 +261,7 @@ As shown, the MDI importance suffers from imbalances due to the number of values
 ```{r fig.width = 10, fig.height = 12}
 plot_permute_var_imp(boot_rf_perm, metric = met)
 ```
+
 ```{r clear h2o for memory help}
 h2o.removeAll()
 ```
@@ -371,6 +372,9 @@ joined_results %>%
                          plot_title = "Permutation Importance of Predictors by Model")
 ```
 
+```{r clear memory after lasso perm imp}
+h2o.removeAll()
+```
 
 # Generation of final model {.tabset .tabset-fade .tabset-pills}
 
@@ -402,7 +406,7 @@ final_model_rf <- rf_model(outcome,
 
 ```{r get final rf seeds and performance}
 final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
-
+final_rf_model <- final_model_rf[[1]]
 final_rf_perf <- final_model_rf[[2]]
 ```
 
@@ -471,7 +475,7 @@ final_model_lasso <- lasso_model(training_frame = training_df,
 
 ```{r get final lasso seeds and performance}
 final_lasso_seeds <- get_model_seeds(list(final_model_lasso[[1]]))
-
+final_lasso_model <- final_model_lasso[[1]]
 final_lasso_perf <-final_model_lasso[[2]]
 ```
 
@@ -591,35 +595,37 @@ Here, the subject matter experts will comment on the the differences in the feat
 
 ```
 
-# Other cleanup
-```{r shutdown h2o instance}
-h2o.shutdown(FALSE)
-```
-
 # Save data and models
 ```{r}
 #data
 save_var_list <- c('bs_rf_perf',
-                   'bs_rf_mdi',
-                   'bs_rf_perm_plt',
+                   'mean_bs_rf_perf',
                    'bs_rf_seeds',
+                   'boot_rf_perm_plt',
+                   'boot_rf_mdi',
                    'bs_lasso_perf',
-                   'bs_lasso_mdi',
-                   'bs_lasso_perm_plt',
+                   'mean_bs_lasso_perf',
                    'bs_lasso_seeds',
+                   'boot_lasso_perm_plt',
+                   'boot_lasso_mdi',
                    'final_rf_perf',
                    'final_rf_perm_plt',
                    'final_rf_seeds',
                    'final_lasso_perf',
                    'final_lasso_perm_plt',
                    'final_lasso_seeds')
-
+dir_create(results_directory)
 save(list=save_var_list, file=str_c(results_directory, '/', 'experimental_results.RData'))
 
 #models
 save_h2o_model(final_rf_model, results_directory, 1)
 save_h2o_model(final_lasso_model, results_directory, 1)
 
+```
+
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
 ```
 
 
