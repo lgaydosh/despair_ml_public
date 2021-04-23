@@ -1,0 +1,322 @@
+---
+title: "71-experiments-final-model"
+output:
+  html_notebook:
+    code_folding: hide
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+  html_document:
+    df_print: paged
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files}
+source("function_import.R")
+```
+
+**Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
+
+**Subject inclusion.** For this investigation, we will omit the entirety of Wave 2.  This is commonly done in analyses of AddHealth data due the design of the original study.  Otherwise, our dataset will include only subjects who have predictor and outcome data in _all_ of the waves.
+
+**Outcome variables.** In this experiment, we assess _suicidal ideation_ at Wave 5.  
+
+**Predictor variables.** The predictors for these models are hand-picked, and based on previous work, relevance, and subject matter expertise. The set of predictors and the set of outcomes are disjoint.  Predictors from Waves 1-4 (excluding Wave 2, see above) are included, and will be detailed in the following analysis.
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr, tictoc)
+
+```
+
+```{r initializations, include=FALSE}
+port_no <- start_h2o()
+h2o.no_progress()
+future::plan(multicore)
+```
+
+```{r seeds for reproducibility}
+seed= 9384
+h2o_seed=-1
+set.seed(seed)
+```
+
+# Dataset generation
+
+The predictors we will be using will be the the variable `predictor_list` loaded from `10-import-data.Rmd` file. These initial set of predictors will be based of the list of variables that describe anxiety, depression, and optimism.
+
+```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
+## set outcome variable of interest
+outcome = 'h5mn8'
+filebase = '/scratch/p_gaydosh_dsi'
+results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date(), '/final-model')
+
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
+
+#parse out dataset components
+wave_data <- dataset_list$wave_data
+full_dataset <- dataset_list$full_dataset
+ds_raw <- dataset_list$ds_raw_outcome
+ds <- dataset_list$ds_final
+
+#ml splits of the data
+training_df <- dataset_list$training_df
+validation_df <- dataset_list$validation_df
+testing_df <- dataset_list$testing_df
+
+```
+
+# Generation of final model {.tabset .tabset-fade .tabset-pills}
+
+## RF model
+In this step, we build the final model for the random forest.  We use slightly more values in order to come up with the best model, keeping in mind the number of combinations that are required to run to evaluate the grid.
+```{r final model evaluation rf}
+
+# # Spans of hyper parameters for random forest
+rf_params <- list(max_depth = 50,
+                  ntrees = 150,
+                  mtries = seq(-1, 30, by=5),
+                  min_rows = seq(5, 60, by=5),
+                  balance_classes = c(TRUE, FALSE),
+                  stopping_metric = 'AUCPR',
+                  categorical_encoding = 'one_hot_explicit')
+
+# rf_params <- list(max_depth = seq(20, 50, 20),
+#                   balance_classes = TRUE,
+#                   categorical_encoding= 'one_hot_explicit')
+
+# Function parameters
+final_model_rf <- rf_model(outcome,
+                           training_frame = training_df,
+                           validation_frame = validation_df,
+                           nfolds = 5,
+                           hyper_params = rf_params, model_seed=seed)
+
+```
+
+```{r get final rf seeds and performance}
+final_rf_seeds <- get_model_seeds(list(final_model_rf[[1]]))
+final_rf_model <- final_model_rf[[1]]
+final_rf_perf <- final_model_rf[[2]]
+```
+
+### Performance
+The final random forest performance metrics are shown below:
+```{r}
+# show model final performance
+final_rf_perf
+```
+
+### Features: permutation importance
+```{r get plottable permutation importance, message=FALSE, warning=FALSE}
+final_rf_perm_plt <- c(final_model_rf[[1]]) %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
+```
+
+```{r get metrics for final rf}
+final_rf_perm <- final_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_rf_perm, 20)
+```
+
+```{r plot rf final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_rf_perm, metric = met)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
+
+```{r}
+rf_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+  arrange(mean_rank)
+
+head(rf_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r fig.height=14, fig.width=16}
+# Comparison of top_n features
+rf_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
+
+## LASSO model
+Now, we create the final model for LASSO.  There is no substantial difference between this method and the bootstrap methods, other than the data upon which the model is being built.
+```{r final model evaluation lasso, message=FALSE, warning=FALSE}
+# Function parameters
+lasso_params <- list(alpha = c(1))
+
+final_model_lasso <- lasso_model(training_frame = training_df,
+                                 validation_frame = validation_df,
+                                 outcome = outcome,
+                                 nfolds = 5,
+                                 hyper_params = lasso_params)
+```
+
+```{r get final lasso seeds and performance}
+final_lasso_seeds <- get_model_seeds(list(final_model_lasso[[1]]))
+final_lasso_model <- final_model_lasso[[1]]
+final_lasso_perf <-final_model_lasso[[2]]
+```
+
+
+The final LASSO performance metrics are shown below:
+```{r show lasso final performance}
+# show model final performance
+final_lasso_perf
+```
+
+### Features: permutation importance
+```{r get plottable permutation importance lasso, message=FALSE, warning=FALSE}
+final_lasso_perm_plt <- c(final_model_lasso[[1]]) %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
+```
+
+```{r get permute features for final lasso}
+final_lasso_perm <- final_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(final_lasso_perm, 20)
+```
+
+```{r plot lasso final permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(final_lasso_perm, metric = met)
+```
+### Comparison with bootstrap results
+This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
+
+```{r}
+lasso_joined_results <- final_lasso_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+  arrange(mean_rank)
+
+head(lasso_joined_results, 20)
+```
+
+The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
+
+```{r fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+lasso_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+```
+
+## Comparison: Final model features
+Here, we compare the features generated by the permutation importance between the two final models.
+
+```{r}
+rf_lasso_final_joined_results <- final_rf_perm %>%
+  dplyr::select(-met) %>%
+  full_join(dplyr::select(final_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.rf', '.lasso')) %>%
+  mutate(mean_rank = (overall_rank.rf+overall_rank.lasso)/2) %>%
+  arrange(mean_rank)
+
+head(rf_lasso_final_joined_results, 20)
+```
+
+The following visualization provides the intuition about the differences in the rankings between the final model types.  They're ordered by the overall mean importance, and for a given variable, the differences in rank are shown.
+
+```{r fig.width = 16, fig.height = 14}
+# Comparison of top_n features
+rf_lasso_final_joined_results %>%
+  compare_feature_select(sel_cols = c("overall_rank.rf", "overall_rank.lasso"),
+    interactive = TRUE,
+    top_n = 100,
+    opacity = 0.50,
+    plot_title = "Permutation Importance of Predictors: Random Forest vs Lasso")
+```
+
+## Comparison: Final model performance
+With the final models generated, we're now able to compare their performance metrics.
+```{r final model comparison, fig.width = 10, fig.height = 12}
+# Comparison of performance metrics
+valid_perf <- get_metric_set_from_perfs(perf_list = list(final_model_rf[[2]], final_model_lasso[[2]])) %>%
+  mutate(model = c('rf', 'lasso'))
+
+testing_perf <- get_metric_set_from_models(testing_df, list(final_model_rf[[1]], final_model_lasso[[1]]), out=outcome) %>%
+  mutate(model = c('rf', 'lasso'))
+```
+
+**Validation and selection.**
+The following table shows the comparison between models in terms of the validation set.  We can select our final model based on the best performing model according to the metric.
+```{r}
+print(valid_perf)
+```
+
+**Testing performance.**
+The following shows the performance of both the models on the test set.  Note that although we don't use this test set to evaluate the final models, we can still see how our selected method would have performed.
+```{r}
+print(testing_perf)
+```
+
+The following plots show a comparison between the performance of the models on the validation and test sets.  Again, we don't choose the model based on the test set, but curiosity dictates that we view this performance.
+
+```{r fig.width = 10, fig.height = 6}
+# Show plots side by side
+metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv', 'pr_auc', 'roc_auc')
+valid_plt <- plot_metric_set(dplyr::select(valid_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for validation set")
+test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for testing set")
+gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
+```
+
+# Outcome variable discussion
+Here, the subject matter experts will comment on the the differences in the features obtained between the studied outcomes variables and discuss the discrepancies and/or cohesion.
+
+```{r outcome variable comparison}
+# Show differences in features obtained
+
+```
+
+# Save data and models
+```{r}
+#data
+save_var_list <- c('final_rf_perf',
+                   'final_rf_perm_plt',
+                   'final_rf_seeds',
+                   'final_lasso_perf',
+                   'final_lasso_perm_plt',
+                   'final_lasso_seeds')
+dir_create(results_directory)
+save(list=save_var_list, file=str_c(results_directory, '/', 'experimental_results.RData'))
+
+#models
+save_h2o_model(final_rf_model, results_directory, 1)
+save_h2o_model(final_lasso_model, results_directory, 1)
+
+```
+
+# Other cleanup
+```{r shutdown h2o instance}
+h2o.shutdown(FALSE)
+```
+
+
+
