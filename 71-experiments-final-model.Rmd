@@ -41,7 +41,7 @@ pacman::p_load(tidyverse, h2o, furrr, tictoc)
 ```{r initializations, include=FALSE}
 port_no <- start_h2o()
 h2o.no_progress()
-future::plan(multicore)
+future::plan(multisession, workers=11)
 ```
 
 ```{r seeds for reproducibility}
@@ -88,8 +88,9 @@ rf_params <- list(max_depth = 50,
                   mtries = seq(-1, 30, by=5),
                   min_rows = seq(5, 60, by=5),
                   balance_classes = c(TRUE, FALSE),
-                  stopping_metric = 'AUCPR',
-                  categorical_encoding = 'one_hot_explicit')
+                  stopping_metric = 'AUCPR'
+                  #categorical_encoding = 'one_hot_explicit'
+                  )
 
 # rf_params <- list(max_depth = seq(20, 50, 20),
 #                   balance_classes = TRUE,

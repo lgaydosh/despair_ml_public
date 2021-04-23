@@ -41,7 +41,7 @@ pacman::p_load(tidyverse, h2o, furrr, tictoc)
 ```{r initializations, include=FALSE}
 port_no <- start_h2o()
 h2o.no_progress()
-future::plan(multicore)
+future::plan(multisession, workers=11)
 ```
 
 ```{r seeds for reproducibility}
@@ -59,7 +59,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 outcome = 'h5mn8'
 filebase = '/scratch/p_gaydosh_dsi'
 results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date(), '/lasso')
-n_boot = 2
+n_boot = 5
 
 #create data in specified form
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
@@ -80,7 +80,7 @@ testing_df <- dataset_list$testing_df
 ## LASSO model
 In this step, we model the relation between the outcomes and the predictors using a linear regression with L2 regularization.  This drives the importance of unimportant and redudant features towards zero.
 
-```{r feature selection lasso, message=FALSE, warning=FALSE}
+```{r feature selection lasso}
 # Function parameters
 lasso_params <- list(alpha = c(1))
 # Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
@@ -102,6 +102,7 @@ bs_lasso_seeds <- get_model_seeds(boots_lasso$models)
 bs_lasso_perf <- get_metric_set_from_perfs(boots_lasso$perfs) %>%
   dplyr::select(accuracy, mpce, sens, spec, ppv, npv, roc_auc, pr_auc,
                 tns, tps, fns, fps, no_n, no_p,  err_rate, bal_accuracy, everything())
+#bs_lasso_perf
 ```
 
 
