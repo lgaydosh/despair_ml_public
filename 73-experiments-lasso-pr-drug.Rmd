@@ -41,7 +41,7 @@ pacman::p_load(tidyverse, h2o, furrr, tictoc)
 ```{r initializations, include=FALSE}
 port_no <- start_h2o()
 h2o.no_progress()
-future::plan(multisession, workers=11)
+future::plan(multisession, workers=5)
 ```
 
 ```{r seeds for reproducibility}
