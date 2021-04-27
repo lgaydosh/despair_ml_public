@@ -59,7 +59,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 outcome = 'p_drug'
 filebase = '/scratch/p_gaydosh_dsi'
 results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date(), '/lasso')
-n_boot = 2
+n_boot = 100
 
 #create data in specified form
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
@@ -168,8 +168,8 @@ save_var_list <- c('bs_lasso_perf',
                    'boot_lasso_perm_plt',
                    'boot_lasso_mdi')
 
-dir_create('p_drug_results_directory')
-save(list=save_var_list, file=str_c('p_drug_results_directory', '/', 'experimental_lasso_results_2bs.RData'))
+dir_create('p_drug_lasso_4.27')
+save(list=save_var_list, file=str_c('p_drug_results_directory', '/', 'lasso_results_pt1.RData'))
 
 ```
 
