@@ -169,7 +169,7 @@ save_var_list <- c('bs_lasso_perf',
                    'boot_lasso_mdi')
 
 dir_create('p_drug_lasso_4.27')
-save(list=save_var_list, file=str_c('p_drug_results_directory', '/', 'lasso_results_pt1.RData'))
+save(list=save_var_list, file=str_c('p_drug_lasso_4.27', '/', 'lasso_results_pt1.RData'))
 
 ```
 
