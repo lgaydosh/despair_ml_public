@@ -101,7 +101,7 @@ start_h2o <- function(){
     
     tryCatch({
       #try to start h2o; this will fail if the port was never created
-      h2o.init(port=port_no)
+      h2o.init(port=port_no, min_mem_size = "128g")
       success=TRUE
     }, error = function(e){
       
