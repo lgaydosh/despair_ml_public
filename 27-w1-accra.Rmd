@@ -1,0 +1,207 @@
+---
+title: "31-w1-accra"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Purpose
+
+The purpose of this document is to perform EDA on the Wave 1 commerce research variables (2 used).
+
+These variables are: \ 
+
+'w1accol1', 'w1accpi1'
+
+
+#libraries
+```{r load libraries}
+# Load required libraries
+# librarian::shelf(DataExplorer, tictoc, quiet = TRUE) ---- does not work
+# install.packages("DataExplorer")
+library(DataExplorer)
+# install.packages("tictoc")
+library(tictoc)
+# install.packages("stringr")
+library(stringr)
+# Libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample,corrplot, correlationfunnel,gridExtra,graphics)
+```
+
+
+```{r read in data, cache=TRUE}
+#wave 4 and 5 data
+interview_files <- str_c("Z:/Gaydosh/Core Files/In Home Interview Files/wave"
+               ,c(4,5),
+               ".xpt")
+interview_data <- interview_files %>%
+  purrr::map(read_xpt)
+
+#contextual data
+context_file <- str_c("Z:/Gaydosh/ONE - Obesity and Neighborhood Environment Files/w1_ONE/Wave I ACCRA Data/w1accra.xpt")
+
+context_data <- context_file %>%
+  purrr::map(read_xpt)
+```
+
+
+
+```{r join data, cache=TRUE}
+# Join data into a single data frame with wave 5
+data_combined_all <- interview_data[[1]] %>%  #interview w4
+                      left_join(interview_data[[2]], by = "AID") %>% #interview w5
+                      inner_join(context_data[[1]], by = "AID") %>% #contextual
+  clean_names(case = "snake")
+# Determine if anything was not joined in, 5575 rows
+# not_joined_all <- anti_join(wave_data_all[[1]], wave_data_all[[2]], wave_data_all[[3]],wave_data_all[[4]],by = "AID")
+```
+
+
+# Selecting Variables
+
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
+# health behavior variables as listed above
+w1accra_list <- c(
+  'w1accol1', 'w1accpi1'
+)
+              
+
+```
+
+
+```{r select variables of interest, warning=FALSE, include=FALSE}
+# for all the four waves
+final_data_all <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(w1accra_list))
+```
+
+
+# Begin to understand the dataset with introductory plot
+
+```{r}
+final_data_all %>% 
+  plot_intro()
+```
+
+No missing observations
+
+
+
+# Missing value exploration- none missing
+
+```{r, fig.width=15,fig.height=15, eval=FALSE}
+# Overview of missing data
+final_data_all %>% 
+  plot_missing()
+```
+
+ 
+
+
+```{r how many people have missing values across multiple variables, eval=FALSE}
+# Gain insight into who has these missing values. 
+# Are these missing values the same people?
+# Get the actual values of missingness we care about
+missing_counts_all <- final_data_all %>%
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "var") %>%
+  filter(value > 1)%>%
+  arrange(value)
+# Names of variables with missingness we care about, 38 in total
+missing_vars_all <- missing_counts_all %>% pull(var)
+# Get total missingness by each individual across all variables
+total_missing_all <- final_data_all %>% 
+  dplyr::select(all_of(missing_vars_all)) %>% 
+  rowwise() %>% 
+  is.na() %>%
+  rowSums()
+# Bar plot of missingness for variables with more than 1 person missing
+final_data_all %>% 
+  mutate(tot_miss = total_missing_all) %>% 
+  dplyr::select(aid, tot_miss) %>% 
+  group_by(tot_miss) %>% 
+  summarise(counts = n()) %>% 
+  ggplot() +
+  geom_bar(aes(x = tot_miss, y = counts), stat = "identity", fill = "light blue") +
+  scale_x_continuous(breaks = seq(0,100,5)) +
+  scale_y_continuous(breaks = seq(0,11e3, 1e3)) +
+  ggtitle("Count of individuals with different numbers of missing variables") +
+  xlab("Number of variables with missing value") +
+  theme_dark()
+```
+
+
+
+Exploring correlation of all variables
+
+```{r}
+# replace all missing values with 99 for the sake of exploring correlation
+cor_dat_input <- final_data_all %>%
+  dplyr::select(-aid)
+  # dplyr::select(all_of(missing_vars_all)) %>%
+  # mutate_all(~replace_na(., 99)) #
+
+cor_dat_all <- cor_dat_input%>%
+  cor(method = "kendall")
+
+```
+```{r correlation plot among variables with high missingness, cache=TRUE, fig.width=15,fig.height=15}
+# Correlation plot of missing variables
+cor_dat_all %>% 
+  corrplot::corrplot(method = "color",
+                     type = "upper",
+                     order = "hclust",
+                     diag = FALSE,
+                     addCoef.col = "black")
+```
+
+
+
+# Look at correlation of predictor variables with outcome of interest (depression, anxiety, optimism)
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
+
+#WHY ONLY 3 VARS
+w1accra_and_outcomes <- c(w1accra_list, "h5ss0b", "h4pe6", "h4pe7") #depression, anxiety, optimism
+
+final_data_corr <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(w1accra_and_outcomes))
+
+# Plot correlation funnel. Note, all missing values are dropped.
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h5ss0b", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe6", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe7", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+```
+
+
+There are no particulalry notable correlations.
+
+
+
+<br><br><br><br><br><br>
