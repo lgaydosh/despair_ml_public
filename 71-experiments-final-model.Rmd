@@ -41,12 +41,12 @@ pacman::p_load(tidyverse, h2o, furrr, tictoc)
 ```{r initializations, include=FALSE}
 port_no <- start_h2o()
 h2o.no_progress()
-future::plan(multisession, workers=11)
+future::plan(multisession, workers=23)
 ```
 
 ```{r seeds for reproducibility}
 seed= 9384
-h2o_seed=-1
+h2o_seed=1234
 set.seed(seed)
 ```
 
@@ -56,7 +56,7 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 
 ```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-outcome = 'h5mn8'
+outcome = 'i_drug'
 filebase = '/scratch/p_gaydosh_dsi'
 results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date(), '/final-model')
 
@@ -98,7 +98,7 @@ rf_params <- list(max_depth = 50,
 
 # Function parameters
 final_model_rf <- rf_model(outcome,
-                           training_frame = training_df,
+                           training_frame = bind_rows(training_df, validation_df),
                            validation_frame = validation_df,
                            nfolds = 5,
                            hyper_params = rf_params, model_seed=seed)
@@ -125,6 +125,7 @@ final_rf_perm_plt <- c(final_model_rf[[1]]) %>%
 ```
 
 ```{r get metrics for final rf}
+met <- 'pr_auc'
 final_rf_perm <- final_rf_perm_plt %>%
   get_permute_placement(metric_oi=met) %>%
   add_attribute_names('predictor', full_dataset) %>%
@@ -140,13 +141,15 @@ plot_permute_var_imp(final_rf_perm, metric = met)
 This section investigates the differences in the bootstrap results vs the features generated from the random forest final model.  The following table shows the overall differences in rank.
 
 ```{r}
-rf_joined_results <- final_rf_perm %>%
-  dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
-  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
-  arrange(mean_rank)
+# Can only run comparison if import bootstraps first
 
-head(rf_joined_results, 20)
+# rf_joined_results <- final_rf_perm %>%
+#   dplyr::select(-met) %>%
+#   full_join(dplyr::select(boot_rf_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+#   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+#   arrange(mean_rank)
+# 
+# head(rf_joined_results, 20)
 ```
 
 The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
@@ -167,7 +170,7 @@ Now, we create the final model for LASSO.  There is no substantial difference be
 # Function parameters
 lasso_params <- list(alpha = c(1))
 
-final_model_lasso <- lasso_model(training_frame = training_df,
+final_model_lasso <- lasso_model(training_frame = bind_rows(training_df, validation_df),
                                  validation_frame = validation_df,
                                  outcome = outcome,
                                  nfolds = 5,
@@ -209,25 +212,29 @@ plot_permute_var_imp(final_lasso_perm, metric = met)
 This section investigates the differences in the bootstrap results vs the features generated from the LASSO final model.  The following table shows the overall differences in rank.
 
 ```{r}
-lasso_joined_results <- final_lasso_perm %>%
-  dplyr::select(-met) %>%
-  full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
-  mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
-  arrange(mean_rank)
+# Can only run if import lasso model first
 
-head(lasso_joined_results, 20)
+# lasso_joined_results <- final_lasso_perm %>%
+#   dplyr::select(-met) %>%
+#   full_join(dplyr::select(boot_lasso_perm, -met), by=c("predictor", "att_name"), suffix=c('.final', '.bootstrap')) %>%
+#   mutate(mean_rank = (overall_rank.final + overall_rank.bootstrap)/2) %>%
+#   arrange(mean_rank)
+# 
+# head(lasso_joined_results, 20)
 ```
 
 The following plot provides visualizations for the difference in the final model rankings vs the bootstrap.
 
 ```{r fig.width = 16, fig.height = 14}
-# Comparison of top_n features
-lasso_joined_results %>%
-  compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
-    interactive = TRUE,
-    top_n = 100,
-    opacity = 0.50,
-    plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
+# Can only run if import lasso model first
+
+# # Comparison of top_n features
+# lasso_joined_results %>%
+#   compare_feature_select(sel_cols = c("overall_rank.final", "overall_rank.bootstrap"),
+#     interactive = TRUE,
+#     top_n = 100,
+#     opacity = 0.50,
+#     plot_title = "Permutation Importance of Predictors: Final vs. Bootstrap")
 ```
 
 ## Comparison: Final model features
@@ -272,6 +279,65 @@ The following table shows the comparison between models in terms of the validati
 print(valid_perf)
 ```
 
+```{r selection of best rf}
+
+# # Spans of hyper parameters for random forest
+best_rf_params <- list(max_depth = final_rf_model@model$model_summary$max_depth,
+                  ntrees = final_rf_model@model$model_summary$number_of_trees,
+                  mtries = final_rf_model@parameters$mtries, #If you run into some strange errors, comment me out
+                  #mtries = seq(-1, 30, by=5), #uncomment me
+                  #min_rows = seq(5, 60, by=5), #uncomment me
+                  min_rows = final_rf_model@parameters$min_rows, #comment me out!!
+                  balance_classes = c(TRUE, FALSE),
+                  stopping_metric = 'AUCPR'
+                  #categorical_encoding = 'one_hot_explicit'
+                  )
+
+# rf_params <- list(max_depth = seq(20, 50, 20),
+#                   balance_classes = TRUE,
+#                   categorical_encoding= 'one_hot_explicit')
+
+# Function parameters
+best_model_rf <- rf_model(outcome,
+                           training_frame = bind_rows(training_df, validation_df),
+                           validation_frame = validation_df,
+                           nfolds = 5,
+                           hyper_params = best_rf_params, model_seed=seed)
+
+```
+
+```{r get best rf seeds and performance}
+best_rf_seeds <- get_model_seeds(list(best_model_rf[[1]]))
+best_rf_model <- best_model_rf[[1]]
+best_rf_perf <- best_model_rf[[2]]
+```
+
+### Performance
+The final random forest performance metrics are shown below:
+```{r}
+# show model final performance
+best_rf_perf
+```
+
+### Features: permutation importance
+```{r get best plottable permutation importance, message=FALSE, warning=FALSE}
+best_rf_perm_plt <- c(best_model_rf[[1]]) %>%
+  get_aggregated_permute_imp(training_df, outcome=outcome, h2o_port=port_no)
+```
+
+```{r get metrics for best rf}
+best_rf_perm <- best_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+
+head(best_rf_perm, 20)
+```
+
+```{r plot rf best permutation, fig.width = 10, fig.height = 12}
+plot_permute_var_imp(best_rf_perm, metric = met)
+```
+
 **Testing performance.**
 The following shows the performance of both the models on the test set.  Note that although we don't use this test set to evaluate the final models, we can still see how our selected method would have performed.
 ```{r}
@@ -284,8 +350,8 @@ The following plots show a comparison between the performance of the models on t
 # Show plots side by side
 metrics_of_interest = c('model', 'accuracy', 'bal_accuracy', 'mpce', 'sens', 'spec', 'ppv', 'npv', 'pr_auc', 'roc_auc')
 valid_plt <- plot_metric_set(dplyr::select(valid_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for validation set")
-test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for testing set")
-gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
+#test_plt <- plot_metric_set(dplyr::select(testing_perf, all_of(metrics_of_interest)), plot_title = "Model comparison for testing set")
+#gridExtra::grid.arrange(gridExtra::arrangeGrob(valid_plt, test_plt, ncol=2, nrow=1))
 ```
 
 # Outcome variable discussion
@@ -311,7 +377,11 @@ save(list=save_var_list, file=str_c(results_directory, '/', 'experimental_result
 #models
 save_h2o_model(final_rf_model, results_directory, 1)
 save_h2o_model(final_lasso_model, results_directory, 1)
+save_h2o_model(best_rf_model, results_directory, 1)
+```
 
+```{r clear h2o for memory help}
+h2o.removeAll()
 ```
 
 # Other cleanup
