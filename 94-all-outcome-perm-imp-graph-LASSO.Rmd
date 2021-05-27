@@ -1,0 +1,302 @@
+---
+title: "94-all-outcome-perm-imp-graph-LASSO"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files, include=FALSE}
+source("function_import.R")
+```
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
+```
+
+```{r}
+library(ggplot2)
+library(ROCR)
+library(reshape2)
+```
+
+
+
+#feature distribution across bootstrap
+
+```{r}
+load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = NULL){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #read_var: variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #notasks: total number of processes that have this file
+  #best_ind: specific process index to read.  If specified, `notasks` is ignored.
+  #Returns: the generated dataframe from all processes
+  
+  #get variable name as string
+  read_var_str <- deparse(substitute(read_var))
+  print(read_var_str)
+  
+  if(!is.null(best_ind))
+    inds_to_read = best_ind
+  else{
+    if(length(notasks)==1){
+      inds_to_read <- seq(1, notasks)
+      print(inds_to_read)
+    }
+    else{
+      inds_to_read <- notasks
+      print(inds_to_read)
+    }
+  }
+  
+  #generate file strings
+  read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))
+  print(read_fnames)
+  
+  #read the csvs
+  read_data <- map_dfr(read_fnames, read_csv)
+  
+  #return the data
+  return(read_data)
+}
+
+```
+
+
+# LASSO Model
+
+### 1.
+
+```{r seeds for reproducibility}
+outcome_p = 'p_drug'
+fbase_p = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory_p <- str_c(fbase_p, outcome_p, '/results_3.17')
+```
+
+```{r}
+
+  ran_files_p <- list.files(results_directory_p)
+```
+
+```{r}
+no_tasks_p <- get_good_task_ids(results_directory_p)
+
+bs_lasso_perm_plt = NULL
+
+# get data files
+bs_lasso_perm_plt_p = load_from_csv(bs_lasso_perm_plt, results_directory_p, no_tasks_p)
+```
+
+
+```{r}
+rank_group<-rep(c(116:1))
+df<-data.frame(rank_group)
+df
+
+```
+
+
+```{r}
+met <- 'pr_auc'
+
+bs_lasso_perm_p_perc_rank <- bs_lasso_perm_plt_p %>%
+  get_permute_placement(metric_oi=met)
+  
+bs_lasso_perm_p_perc_rank <- cbind(bs_lasso_perm_p_perc_rank, df)  
+```
+
+
+```{r}
+bs_lasso_perm_p_perc_rank <- bs_lasso_perm_p_perc_rank %>%
+  select(predictor, rank_group) %>%
+  dplyr::rename(p_drug = rank_group)
+
+bs_lasso_perm_p_perc_rank
+```
+
+### 2
+
+```{r seeds for reproducibility}
+outcome_h5mn8 = 'h5mn8'
+fbase_h5mn8 = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory_h5mn8 <- str_c(fbase_h5mn8, outcome_h5mn8, '/new_data_1')
+```
+
+
+```{r}
+no_tasks_h5mn8 <- get_good_task_ids(results_directory_h5mn8)
+
+
+bs_lasso_perm_plt = NULL
+
+# get data files
+bs_lasso_perm_plt_h5mn8 = load_from_csv(bs_lasso_perm_plt, results_directory_h5mn8, no_tasks_h5mn8)
+```
+
+```{r}
+bs_lasso_perm_h5mn8_perc_rank <- bs_lasso_perm_plt_h5mn8 %>%
+  get_permute_placement(metric_oi=met)
+  
+bs_lasso_perm_h5mn8_perc_rank <- cbind(bs_lasso_perm_h5mn8_perc_rank, df)  
+```
+
+```{r}
+bs_lasso_perm_h5mn8_perc_rank <- bs_lasso_perm_h5mn8_perc_rank %>%
+  select(predictor, rank_group) %>%
+  dplyr::rename(h5mn8 = rank_group)
+
+bs_lasso_perm_h5mn8_perc_rank
+```
+### 3
+
+```{r seeds for reproducibility}
+outcome = 'prob_drink'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory_pdrink <- str_c(fbase, outcome, '/results_run_0316_25')
+```
+
+
+```{r}
+no_tasks_pdrink <- get_good_task_ids(results_directory_pdrink)
+
+
+bs_lasso_perm_plt = NULL
+
+# get data files
+bs_lasso_perm_plt_pdrink = load_from_csv(bs_lasso_perm_plt, results_directory_pdrink, no_tasks_pdrink)
+```
+
+
+```{r}
+bs_lasso_perm_pdrink_perc_rank <- bs_lasso_perm_plt_pdrink %>%
+  get_permute_placement(metric_oi=met)
+  
+bs_lasso_perm_pdrink_perc_rank <- cbind(bs_lasso_perm_pdrink_perc_rank, df)  
+```
+
+```{r}
+bs_lasso_perm_pdrink_perc_rank <- bs_lasso_perm_pdrink_perc_rank %>%
+  select(predictor, rank_group) %>%
+  dplyr::rename(pdrink = rank_group)
+
+bs_lasso_perm_pdrink_perc_rank
+```
+
+### 4
+
+```{r seeds for reproducibility}
+outcome = 'i_drug'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory_idrug <- str_c(fbase, outcome, '/new_data_1')
+```
+
+
+```{r}
+no_tasks_idrug <- get_good_task_ids(results_directory_idrug)
+
+
+bs_lasso_perm_plt = NULL
+
+# get data files
+bs_lasso_perm_plt_idrug = load_from_csv(bs_lasso_perm_plt, results_directory_idrug, no_tasks_idrug)
+```
+
+```{r}
+bs_lasso_perm_idrug_perc_rank <- bs_lasso_perm_plt_idrug %>%
+  get_permute_placement(metric_oi=met)
+  
+bs_lasso_perm_idrug_perc_rank <- cbind(bs_lasso_perm_idrug_perc_rank, df)  
+```
+
+```{r}
+bs_lasso_perm_idrug_perc_rank <- bs_lasso_perm_idrug_perc_rank %>%
+  select(predictor, rank_group) %>%
+  dplyr::rename(idrug = rank_group)
+
+bs_lasso_perm_idrug_perc_rank
+```
+
+
+### 5
+```{r}
+combined_outcome_rank_group <- inner_join(bs_lasso_perm_pdrink_perc_rank, bs_lasso_perm_idrug_perc_rank)
+combined_outcome_rank_group <- inner_join(combined_outcome_rank_group, bs_lasso_perm_h5mn8_perc_rank)
+combined_outcome_rank_group <- inner_join(combined_outcome_rank_group, bs_lasso_perm_p_perc_rank)
+combined_outcome_rank_group
+```
+
+
+```{r}
+variable_labels <- read_xlsx("variables_labels.xlsx")
+variable_labels
+```
+
+```{r}
+library(plyr)
+```
+
+
+```{r}
+combined_outcome_rank_group_labeled <- join(combined_outcome_rank_group, variable_labels)
+combined_outcome_rank_group_labeled <- combined_outcome_rank_group_labeled %>%
+  select(-c("predictor")) %>%
+  dplyr::rename(predictor = label)
+combined_outcome_rank_group_labeled
+```
+
+```{r}
+combined_outcome_rank_group_labeled_graph <- combined_outcome_rank_group_labeled %>% dplyr::rename(`Prob. drink` = pdrink,
+                                                                                                   `Ill. drug` = idrug,
+                                                                                                   `Suic. idea.` = h5mn8,
+                                                                                                   `Rx abuse` = p_drug) 
+```
+
+
+
+```{r}
+combined_outcome_rank_group_labeled_graph2 <- combined_outcome_rank_group_labeled_graph
+```
+
+```{r}
+combined_outcome_rank_group_labeled_graph2 = reshape2::dcast(
+   dplyr::mutate(
+      reshape2::melt(combined_outcome_rank_group_labeled_graph,id.var="predictor"),
+      value=plyr::mapvalues(
+           value, c("A","B","C","D","E","F","G","H","I","J","K"),c(11,10,9,8,7,6,5,4,3,2,1))
+   ),predictor~variable)
+
+combined_outcome_rank_group_labeled_graph2[, 2:ncol(combined_outcome_rank_group_labeled_graph2)] <- lapply(2:ncol(combined_outcome_rank_group_labeled_graph2), function(x) as.numeric(combined_outcome_rank_group_labeled_graph2[[x]]))
+combined_outcome_rank_group_labeled_graph2 <- combined_outcome_rank_group_labeled_graph2 %>% arrange(`Prob. drink`)
+```
+
+```{r}
+combined_outcome_rank_group_labeled_graph2
+```
+
+
+
+```{r}
+#cols <- rainbow(nrow(combined_outcome_rank_group_labeled))
+
+dat3 <- melt(combined_outcome_rank_group_labeled_graph2, id.var = 'predictor')
+
+dat4 <- data.frame(predictor=factor(dat3$predictor,levels=unique(dat3$predictor)), variable = dat3$variable, value = dat3$value)
+```
+
+```{r}
+library(grDevices)
+```
+
+
+```{r, fig.width=8, fig.height=12}
+
+ggplot(dat4, aes(variable, predictor)) + geom_tile(aes(fill = as.numeric(value)), colour = "white") + scale_fill_gradientn("", colours = c("#fce7ac", "#db2c66", "#3d0438"),
+                        breaks=c(min(dat4$value),max(dat4$value)),
+                        labels=c("least Importance","most Importance")) + scale_x_discrete(name ="Outcomes") + scale_y_discrete(name ="Features")
+
+```

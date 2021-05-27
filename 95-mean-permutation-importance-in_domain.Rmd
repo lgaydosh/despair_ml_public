@@ -1,0 +1,264 @@
+---
+title: "95-mean-permutation-importance-in_domain"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    code_folding: hide
+    theme: lumen
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files, include=FALSE}
+source("function_import.R")
+```
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
+
+```
+
+```{r initializations, include=FALSE}
+port_no <- start_h2o()
+h2o.no_progress()
+future::plan(multiprocess)
+```
+
+
+```{r}
+library(ggplot2)
+library(ROCR)
+```
+
+
+
+#feature distribution across bootstrap
+
+```{r}
+load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = NULL){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #read_var: variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #notasks: total number of processes that have this file
+  #best_ind: specific process index to read.  If specified, `notasks` is ignored.
+  #Returns: the generated dataframe from all processes
+  
+  #get variable name as string
+  read_var_str <- deparse(substitute(read_var))
+  print(read_var_str)
+  
+  if(!is.null(best_ind))
+    inds_to_read = best_ind
+  else{
+    if(length(notasks)==1){
+      inds_to_read <- seq(1, notasks)
+      print(inds_to_read)
+    }
+    else{
+      inds_to_read <- notasks
+      print(inds_to_read)
+    }
+  }
+  
+  #generate file strings
+  read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))
+  print(read_fnames)
+  
+  #read the csvs
+  read_data <- map_dfr(read_fnames, read_csv)
+  
+  #return the data
+  return(read_data)
+}
+
+```
+
+```{r seeds for reproducibility}
+outcome = 'prob_drink'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_run_1108')
+```
+
+
+
+```{r}
+no_tasks <- get_good_task_ids(results_directory)
+
+bs_rf_perm_plt = NULL
+
+# get data files
+bs_rf_perm_plt = load_from_csv(bs_rf_perm_plt, results_directory, no_tasks)
+```
+
+
+```{r}
+bootstrap500_with_rank <- bs_rf_perm_plt %>%
+  group_by(variable) %>%
+  mutate(bootstrap_serial = row_number()) %>%
+  ungroup() %>%
+  group_by(bootstrap_serial) %>%
+  arrange(desc(pr_auc), .by_group = TRUE) %>%
+  mutate(placement = row_number()) %>%
+  ungroup()
+```
+
+
+```{r}
+bootstrap500_with_rank
+```
+
+
+```{r}
+bootstrap500_with_rank_for_join <- bootstrap500_with_rank %>%
+  select(variable, pr_auc, bootstrap_serial)
+
+
+bootstrap500_with_rank_for_join
+```
+
+# add domain variables groups
+```{r}
+library(readxl)
+Variables_of_Interest <- read_excel("Variables_of_Interest.xlsx", 
+    sheet = "Predictor Vars by File")
+```
+
+
+```{r}
+Variables_of_Interest <- Variables_of_Interest %>%
+  select(Category, `Variable Name`) %>%
+  mutate(`Variable Name` = tolower(`Variable Name`)) %>%
+  rename(variable=`Variable Name`)
+```
+
+```{r}
+Variables_of_Interest
+```
+
+
+#join data
+```{r}
+bootstrap500_with_rank_join_domain <- bootstrap500_with_rank_for_join %>%
+  left_join(Variables_of_Interest)
+
+
+bootstrap500_with_rank_join_domain$Category[is.na(bootstrap500_with_rank_join_domain$Category)] <- "Demographic"
+
+bootstrap500_with_rank_join_domain
+```
+
+```{r}
+sapply(bootstrap500_with_rank_join_domain, function(x) sum(is.na(x)))
+```
+
+
+#calculate mean permutation importance across domain
+```{r}
+bootstrap500_with_rank_join_domain_full <- bootstrap500_with_rank_join_domain %>%
+  group_by(bootstrap_serial, Category) %>%
+  summarise_at(vars(pr_auc), funs(mean(.))) %>%
+  arrange(desc(pr_auc)) %>%
+  mutate(overall_rank = row_number()) %>%
+  ungroup()
+
+
+bootstrap500_with_rank_join_domain_for_graph <- bootstrap500_with_rank_join_domain_full %>%
+  select(-c(pr_auc, bootstrap_serial))
+
+
+bootstrap500_with_rank_join_domain_for_graph
+```
+
+
+```{r, fig.width=5, fig.height=10}
+#dev.new(width=5000, height=4000)    
+
+ggplot(data=bootstrap500_with_rank_join_domain_for_graph, aes(x=overall_rank)) + 
+    geom_histogram(binwidth = 0.5) + 
+    facet_grid(Category ~ .,) +
+    theme(aspect.ratio=3/4) +   
+    theme(strip.text = element_text(size=5)) 
+# + 
+#     facet_wrap(vars(variable), nrow = 4)+   theme(strip.text = element_text(size=60)) + theme(axis.text.y = element_text(size = 50))
+  
+```
+
+
+
+
+# calculate mean permutation importance across bootstrap
+```{r}
+bootstrap500_with_rank_join_domain %>%
+  group_by(Category) %>%
+  summarise_at(vars(pr_auc), funs(mean(.))) %>%
+  arrange(desc(pr_auc)) %>%
+  ungroup()
+```
+
+
+
+
+
+Some ways to think about calculating how much each domain is controbuting for one outcome:
+
+1.
+
+sum up all the pr_auc from the dataframe (500*5),
+then sum up all the pr_auc values for each domain,
+and then use the smaller value to divide by the larger value to get a proportion
+```{r}
+pr_auc_total <- sum(bootstrap500_with_rank_join_domain$pr_auc)
+
+
+bootstrap500_with_rank_join_domain %>%
+  group_by(Category) %>%
+  summarise(pr_auc_prop = sum(pr_auc)) %>%
+  mutate_at(vars(pr_auc_prop), funs(./ pr_auc_total)) %>%
+  ungroup()
+```
+
+
+
+
+2.
+
+First, within each bootstrap, calculate the proportion of each domain,
+then we will have something like:
+
+| bootstrap_serial | domain        | proportion  |  domain   |  proportion   |
+| ---------------- |:-------------:| -----------:|:---------:|:-------------:|
+| 1                | A             | 50%         |   B       |   50%         |
+| 2                | A             | 60%         |   B       |   40%         |
+
+
+
+Then  we do average based on domain, so we will have:
+
+| bdomain          | avg_proportion        | domain  |  avg_proportion    |
+| ---------------- |:---------------------:| -------:|:------------------:|
+| A                | (50% + 60%)/2 = 55%   | B       |(50% + 40%)/2 = 45% |
+
+```{r}
+bootstrap500_with_rank_join_domain %>%
+  group_by(bootstrap_serial, Category) %>%
+  summarise(pr_auc = sum(pr_auc)) %>%
+  mutate(prop = pr_auc / sum(pr_auc)) %>%
+  ungroup() %>%
+  select(-c(bootstrap_serial, pr_auc)) %>%
+  group_by(Category) %>%
+  summarise_at(vars(prop), funs(mean(.))) %>%
+  ungroup()
+```
+
