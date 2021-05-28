@@ -1,0 +1,674 @@
+---
+title: "98-outcome-feature-graphs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files, include=FALSE}
+source("function_import.R")
+```
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
+
+```
+
+```{r initializations, include=FALSE}
+port_no <- start_h2o()
+h2o.no_progress()
+future::plan(multicore)
+```
+
+
+```{r}
+library(ggplot2)
+library(ROCR)
+```
+
+
+
+#feature distribution across bootstrap
+
+```{r}
+load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = NULL){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #read_var: variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #notasks: total number of processes that have this file
+  #best_ind: specific process index to read.  If specified, `notasks` is ignored.
+  #Returns: the generated dataframe from all processes
+  
+  #get variable name as string
+  read_var_str <- deparse(substitute(read_var))
+  print(read_var_str)
+  
+  if(!is.null(best_ind))
+    inds_to_read = best_ind
+  else{
+    if(length(notasks)==1){
+      inds_to_read <- seq(1, notasks)
+      print(inds_to_read)
+    }
+    else{
+      inds_to_read <- notasks
+      print(inds_to_read)
+    }
+  }
+  
+  #generate file strings
+  read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))
+  print(read_fnames)
+  
+  #read the csvs
+  read_data <- map_dfr(read_fnames, read_csv)
+  
+  #return the data
+  return(read_data)
+}
+
+```
+
+# RF
+```{r seeds for reproducibility}
+outcome = 'prob_drink'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_run_0316_25')
+```
+
+
+
+```{r}
+no_tasks <- get_good_task_ids(results_directory)
+
+bs_rf_perm_plt = NULL
+
+# get data files
+bs_rf_perm_plt = load_from_csv(bs_rf_perm_plt, results_directory, no_tasks)
+```
+
+```{r}
+bs_rf_perm_plt
+```
+
+```{r}
+bootstrap500_with_rank <- bs_rf_perm_plt %>%
+  group_by(variable) %>%
+  mutate(bootstrap_serial = row_number()) %>%
+  ungroup() %>%
+  group_by(bootstrap_serial) %>%
+  arrange(desc(pr_auc), .by_group = TRUE) %>%
+  mutate(placement = row_number()) %>%
+  ungroup()
+```
+
+
+```{r}
+bs_rf_perm_plt_rank <- bootstrap500_with_rank %>%
+  select(variable, placement)
+
+
+bs_rf_perm_plt_rank
+```
+## Overview
+
+```{r, fig.width=120, fig.height=300}
+#dev.new(width=5000, height=4000)    
+
+ggplot(data=bs_rf_perm_plt_rank, aes(x=placement)) + 
+    geom_histogram() + 
+    facet_grid(variable ~ .,) +
+    theme(aspect.ratio=3/4) + 
+    facet_wrap(vars(variable), nrow = 20)+   theme(strip.text = element_text(size=60)) 
+  
+```
+
+
+## Top 20
+
+If we want to check the first 20
+```{r}
+met <- 'pr_auc'
+
+bs_rf_perm_20 <- bs_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  top_n(20)
+
+
+bs_rf_perm_20_variable <- bs_rf_perm_20 %>%
+  select(predictor) %>%
+  rename(variable=predictor)
+```
+
+
+```{r}
+bs_rf_perm_20_variable
+```
+
+```{r}
+write.csv(bs_rf_perm_20_variable,"bs_rf_perm_20_variable_probdrinkDist.csv", row.names = FALSE)
+```
+
+
+
+```{r}
+bs_rf_perm_plt_rank_20 <- bs_rf_perm_plt_rank %>%
+  inner_join(bs_rf_perm_20_variable)
+
+bs_rf_perm_plt_rank_20
+```
+
+```{r}
+bs_rf_perm_plt_rank_20_graph <- bs_rf_perm_plt_rank_20 %>% 
+  arrange(placement) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+```{r}
+bs_rf_perm_plt_rank_20_graph
+```
+
+
+## final model permutation
+```{r}
+## set outcome variable of interest
+seed = 9384
+filebase = '/scratch/p_gaydosh_dsi'
+
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
+
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+```
+
+
+```{r compute/save or load final rf model permutation}
+final_rf_perf = NULL
+  
+# read file array
+final_rf_perfs = load_from_csv(final_rf_perf, results_directory, no_tasks)
+
+# get the index of the best performance and best performance
+final_rfmodel_ind <- which.max(dplyr::select(final_rf_perfs, met) %>% pull(met))
+
+final_rf_perm_plt = NULL
+  
+# read best perm plt
+final_rf_perm_plt = load_from_csv(final_rf_perm_plt, results_directory, best_ind=no_tasks[[final_rfmodel_ind]])
+
+final_rf_perm <- final_rf_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+```
+
+```{r}
+final_rf_perm_rank <- final_rf_perm %>%
+  select(predictor, overall_rank) %>%
+  rename(variable=predictor)
+
+
+final_rf_perm_rank
+```
+
+
+```{r}
+final_rf_perm_rank_graph <- bs_rf_perm_20_variable %>%
+  left_join(final_rf_perm_rank)
+
+final_rf_perm_rank_graph
+```
+
+## add highlight part to the graph
+
+```{r}
+bs_rf_perm_plt_rank_20_graph
+```
+
+```{r}
+rf_perm_for_graph <- bs_rf_perm_plt_rank_20_graph %>%
+  left_join(final_rf_perm_rank_graph) %>%
+  mutate(ToHighlight = ifelse(placement == overall_rank, "yes", "no")) %>%
+  select(-c(overall_rank))
+
+rf_perm_for_graph
+```
+
+```{r}
+rf_perm_for_graph <- rf_perm_for_graph %>% 
+  arrange(placement) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+
+Graph for the first 20
+
+```{r}
+library(ggridges)
+```
+
+add domain variables groups
+```{r}
+library(readxl)
+Variables_of_Interest <- read_excel("Variables_of_Interest.xlsx", 
+    sheet = "Predictor Vars by File")
+```
+
+
+```{r}
+Variables_of_Interest <- Variables_of_Interest %>%
+  select(Category, `Variable Name`) %>%
+  mutate(`Variable Name` = tolower(`Variable Name`)) %>%
+  rename(variable=`Variable Name`)
+
+Variables_of_Interest
+```
+
+
+```{r}
+rf_perm_in_domain_for_graph <- rf_perm_for_graph %>%
+  left_join(Variables_of_Interest)
+
+rf_perm_in_domain_for_graph$Category[is.na(rf_perm_in_domain_for_graph$Category)] <- "Demographic group"
+rf_perm_in_domain_for_graph$Category[rf_perm_in_domain_for_graph$Category == "Behavioral Despair"] <- "Behavioral despair"
+
+rf_perm_in_domain_for_graph
+```
+
+```{r}
+rf_perm_in_domain_for_graph <- rf_perm_in_domain_for_graph %>% 
+  arrange(desc(placement)) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+```{r}
+rf_perm_in_domain_for_graph
+```
+
+```{r}
+rf_perm_in_domain_for_graph <- rf_perm_in_domain_for_graph %>%
+  dplyr::rename(predictor = variable)
+
+rf_perm_in_domain_for_graph
+```
+
+
+```{r}
+variable_labels <- read_xlsx("variables_labels.xlsx")
+variable_labels
+```
+
+```{r}
+library(plyr)
+```
+
+```{r}
+rf_perm_in_domain_for_graph2 <- join(rf_perm_in_domain_for_graph, variable_labels)
+rf_perm_in_domain_for_graph2 <- rf_perm_in_domain_for_graph2 %>%
+  select(-c("predictor")) %>%
+  dplyr::rename(predictor = label)
+
+
+#rf_perm_in_domain_for_graph2 <- rf_perm_in_domain_for_graph2 %>% arrange(desc(placement))
+
+rf_perm_in_domain_for_graph2
+```
+
+```{r}
+rf_perm_in_domain_for_graph2 <- rf_perm_in_domain_for_graph2 %>% 
+  arrange(desc(placement)) %>% # sort
+  mutate_at(vars(predictor), funs(factor(., levels=unique(.))))
+```
+
+
+```{r}
+rf_perm_in_domain_for_graph2$Category <- factor(rf_perm_in_domain_for_graph2$Category, levels = c("Behavioral despair", "Biological despair", "Cognitive despair", "Emotional despair", "Demographic group"))
+```
+
+```{r}
+newdata <- rf_perm_in_domain_for_graph2[order(rf_perm_in_domain_for_graph2$placement, rf_perm_in_domain_for_graph2$predictor),]
+```
+
+
+```{r}
+write.csv(newdata,"data_for_graph_probdrinkDist.csv", row.names = FALSE)
+```
+
+
+```{r, fig.width=8, fig.height=20}
+ggplot(rf_perm_in_domain_for_graph2, aes(x = placement, y = predictor,height = stat(count), fill = factor(Category))) +
+  geom_density_ridges(data=subset(rf_perm_in_domain_for_graph2,ToHighlight == "yes"), fill="#d96473", stat="binline", bins = 20, binwidth = 1, scale = 2, draw_baseline = FALSE) +
+  geom_density_ridges(data=subset(rf_perm_in_domain_for_graph2,ToHighlight == "no"), stat="binline", bins = 20, binwidth = 1, scale = 2, draw_baseline = FALSE) +
+  scale_fill_manual(name = "Domains", values = c("#f2d5d5","#f2edd5","#dff2d5","#d5e2f2","#e9d5f2")) + scale_y_discrete(name ="Top 20 Predictors") + scale_x_discrete(name ="Placements on Prob. drink RF model")+ theme_linedraw()
+```
+
+
+
+
+
+
+# Lasso
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+```{r source files, include=FALSE}
+source("function_import.R")
+```
+
+```{r load libraries, include=FALSE}
+# Use pacman, which forces an install if the library isn't present on the running machine
+if (!require("pacman")) install.packages("pacman")
+#pacman::p_install(plotly)
+pacman::p_load(tidyverse, h2o, furrr)
+
+```
+
+```{r initializations, include=FALSE}
+port_no <- start_h2o()
+h2o.no_progress()
+future::plan(multiprocess)
+```
+
+
+```{r}
+library(ggplot2)
+library(ROCR)
+```
+
+
+
+#feature distribution across bootstrap
+
+```{r}
+load_from_csv <- function(read_var, read_dir = '.', notasks = NULL, best_ind = NULL){
+  #Function load_from_csv: loads dataframes from 'read_dir/[read_var]_[1:notasks].csv
+  #read_var: variable name, usually what the data is saved under
+  #read_dir (default '.'): string reflecting base directory;
+  #notasks: total number of processes that have this file
+  #best_ind: specific process index to read.  If specified, `notasks` is ignored.
+  #Returns: the generated dataframe from all processes
+  
+  #get variable name as string
+  read_var_str <- deparse(substitute(read_var))
+  print(read_var_str)
+  
+  if(!is.null(best_ind))
+    inds_to_read = best_ind
+  else{
+    if(length(notasks)==1){
+      inds_to_read <- seq(1, notasks)
+      print(inds_to_read)
+    }
+    else{
+      inds_to_read <- notasks
+      print(inds_to_read)
+    }
+  }
+  
+  #generate file strings
+  read_fnames <- str_c(read_dir, str_c('/', read_var_str, '_', inds_to_read, '.csv'))
+  print(read_fnames)
+  
+  #read the csvs
+  read_data <- map_dfr(read_fnames, read_csv)
+  
+  #return the data
+  return(read_data)
+}
+
+```
+
+```{r seeds for reproducibility}
+outcome = 'prob_drink'
+fbase = '/scratch/p_gaydosh_dsi/DSI/'
+results_directory <- str_c(fbase, outcome, '/results_run_0316_25')
+```
+
+```{r}
+no_tasks <- get_good_task_ids(results_directory)
+```
+
+
+
+```{r}
+bs_lasso_perm_plt = NULL
+
+# get data files
+bs_lasso_perm_plt = load_from_csv(bs_lasso_perm_plt, results_directory, no_tasks)
+```
+
+```{r}
+bs_lasso_perm_plt
+```
+
+```{r}
+bootstrap500_with_rank <- bs_lasso_perm_plt %>%
+  group_by(variable) %>%
+  mutate(bootstrap_serial = row_number()) %>%
+  ungroup() %>%
+  group_by(bootstrap_serial) %>%
+  arrange(desc(pr_auc), .by_group = TRUE) %>%
+  mutate(placement = row_number()) %>%
+  ungroup()
+```
+
+
+```{r}
+bs_lasso_perm_plt_rank <- bootstrap500_with_rank %>%
+  select(variable, placement)
+
+
+bs_lasso_perm_plt_rank
+```
+
+## Top 20
+
+If we want to check the first 20
+```{r}
+met <- 'pr_auc'
+
+bs_lasso_perm_20 <- bs_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  top_n(20)
+
+
+bs_lasso_perm_20_variable <- bs_lasso_perm_20 %>%
+  select(predictor) %>%
+  rename(variable=predictor)
+```
+
+
+```{r}
+bs_lasso_perm_plt_rank_20 <- bs_lasso_perm_plt_rank %>%
+  inner_join(bs_lasso_perm_20_variable)
+
+bs_lasso_perm_plt_rank_20
+```
+
+```{r}
+bs_lasso_perm_plt_rank_20_graph <- bs_lasso_perm_plt_rank_20 %>% 
+  arrange(placement) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+```{r}
+bs_lasso_perm_plt_rank_20_graph
+```
+
+
+# final model permutation
+```{r}
+## set outcome variable of interest
+seed = 9384
+filebase = '/scratch/p_gaydosh_dsi'
+
+#create data in specified form
+dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
+
+#parse out dataset components
+full_dataset <- dataset_list$full_dataset
+```
+
+
+```{r compute/save or load final rf model permutation}
+final_lasso_perf = NULL
+  
+# read file array
+final_lasso_perfs = load_from_csv(final_lasso_perf, results_directory, no_tasks)
+
+# get the index of the best performance and best performance
+final_lassomodel_ind <- which.max(dplyr::select(final_lasso_perfs, met) %>% pull(met))
+
+final_lasso_perm_plt = NULL
+  
+# read best perm plt
+final_lasso_perm_plt = load_from_csv(final_lasso_perm_plt, results_directory, best_ind=no_tasks[[final_lassomodel_ind]])
+
+final_lasso_perm <- final_lasso_perm_plt %>%
+  get_permute_placement(metric_oi=met) %>%
+  add_attribute_names('predictor', full_dataset) %>%
+  dplyr::select(predictor, everything())
+```
+
+```{r}
+final_lasso_perm_rank <- final_lasso_perm %>%
+  select(predictor, overall_rank) %>%
+  rename(variable=predictor)
+
+
+final_lasso_perm_rank
+```
+
+
+```{r}
+final_lasso_perm_rank_graph <- bs_lasso_perm_20_variable %>%
+  left_join(final_lasso_perm_rank)
+
+final_lasso_perm_rank_graph
+```
+
+## add highlight part to the graph
+
+```{r}
+bs_lasso_perm_plt_rank_20_graph
+```
+
+```{r}
+lasso_perm_for_graph <- bs_lasso_perm_plt_rank_20_graph %>%
+  left_join(final_lasso_perm_rank_graph) %>%
+  mutate(ToHighlight = ifelse(placement == overall_rank, "yes", "no")) %>%
+  select(-c(overall_rank))
+
+lasso_perm_for_graph
+```
+
+```{r}
+lasso_perm_for_graph <- lasso_perm_for_graph %>% 
+  arrange(placement) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+
+Graph for the first 20
+
+```{r}
+library(ggridges)
+```
+
+add domain variables groups
+```{r}
+library(readxl)
+Variables_of_Interest <- read_excel("Variables_of_Interest.xlsx", 
+    sheet = "Predictor Vars by File")
+```
+
+
+```{r}
+Variables_of_Interest <- Variables_of_Interest %>%
+  select(Category, `Variable Name`) %>%
+  mutate(`Variable Name` = tolower(`Variable Name`)) %>%
+  rename(variable=`Variable Name`)
+
+Variables_of_Interest
+```
+
+
+```{r}
+lasso_perm_in_domain_for_graph <- lasso_perm_for_graph %>%
+  left_join(Variables_of_Interest)
+
+lasso_perm_in_domain_for_graph$Category[is.na(lasso_perm_in_domain_for_graph$Category)] <- "Demographic group"
+lasso_perm_in_domain_for_graph$Category[lasso_perm_in_domain_for_graph$Category == "Behavioral Despair"] <- "Behavioral despair"
+
+lasso_perm_in_domain_for_graph
+```
+
+```{r}
+lasso_perm_in_domain_for_graph <- lasso_perm_in_domain_for_graph %>% 
+  arrange(desc(placement)) %>% # sort
+  mutate_at(vars(variable), funs(factor(., levels=unique(.))))
+```
+
+```{r}
+lasso_perm_in_domain_for_graph
+```
+
+```{r}
+lasso_perm_in_domain_for_graph <- lasso_perm_in_domain_for_graph %>%
+  dplyr::rename(predictor = variable)
+
+lasso_perm_in_domain_for_graph
+```
+
+
+```{r}
+variable_labels <- read_xlsx("variables_labels.xlsx")
+variable_labels
+```
+
+```{r}
+library(plyr)
+```
+
+```{r}
+lasso_perm_in_domain_for_graph2 <- join(lasso_perm_in_domain_for_graph, variable_labels)
+lasso_perm_in_domain_for_graph2 <- lasso_perm_in_domain_for_graph2 %>%
+  select(-c("predictor")) %>%
+  dplyr::rename(predictor = label)
+
+
+#rf_perm_in_domain_for_graph2 <- rf_perm_in_domain_for_graph2 %>% arrange(desc(placement))
+
+lasso_perm_in_domain_for_graph2
+```
+
+```{r}
+lasso_perm_in_domain_for_graph2 <- lasso_perm_in_domain_for_graph2 %>% 
+  arrange(desc(placement)) %>% # sort
+  mutate_at(vars(predictor), funs(factor(., levels=unique(.))))
+```
+
+
+```{r}
+lasso_perm_in_domain_for_graph2$Category <- factor(lasso_perm_in_domain_for_graph2$Category, levels = c("Behavioral despair", "Biological despair", "Cognitive despair", "Emotional despair", "Demographic group"))
+```
+
+
+
+```{r, fig.width=8, fig.height=20}
+ggplot(lasso_perm_in_domain_for_graph2, aes(x = placement, y = predictor,height = stat(count), fill = factor(Category))) +
+  geom_density_ridges(data=subset(lasso_perm_in_domain_for_graph2,ToHighlight == "yes"), fill="#d96473", stat="binline", bins = 20, binwidth = 1, scale = 2, draw_baseline = FALSE) +
+  geom_density_ridges(data=subset(lasso_perm_in_domain_for_graph2,ToHighlight == "no"), stat="binline", bins = 20, binwidth = 1, scale = 2, draw_baseline = FALSE) +
+  scale_fill_manual(name = "Domains", values = c("#f2d5d5","#f2edd5","#dff2d5","#d5e2f2","#e9d5f2")) + scale_y_discrete(name ="Top 20 Predictors") + scale_x_discrete(name ="Placements on Prob. drink LASSO model")+ theme_linedraw()
+```
+
+
+
