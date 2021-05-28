@@ -254,6 +254,21 @@ plot_permute_var_imp <- function(df_permute_var_imp, metric){
 
 ```
 
+```{r wrapper for accelerated bootstrap speed}
+permute_get_performance <- function(test_dat, test_mod, var_out, h2o_port_num){
+  #test_dat: dataframe to predict with get_performance
+  #test_mod: h2o model for prediction
+  #var_out: outcome variable
+  #h2o_port_num: port number for h2o
+
+  #start h2o
+  h2o.connect(port=h2o_port_num)
+  
+  #return the calculation
+  return(get_performance(test_data=test_dat, test_model=test_mod, outcome=var_out))
+}
+```
+
 
 ```{r permutation variable importance function}
 # Note, make sure that factors are factors!
@@ -263,7 +278,7 @@ permute_var_imp <- function(df_predict, outcome, model_h2o, h2o_port_no){
   # model_h2o: h2o model object
   # return: data frame of permutation importances
   
-  # h2o.connect(port=h2o_port_no)
+  h2o.connect(port=h2o_port_no)
   
   # make permuted data frames h2o objects
   permute_list_h2o <- permute_columns(df = df_predict, outcome = outcome)
@@ -276,7 +291,7 @@ permute_var_imp <- function(df_predict, outcome, model_h2o, h2o_port_no){
   
   # get metrics for permuted data sets
   permuted_models_metric <- permute_list_h2o %>% 
-    map(~get_performance(test_data = .x, test_model = model_h2o, outcome = outcome))
+    future_map(~permute_get_performance(test_dat = .x, test_mod = model_h2o, var_out = outcome, h2o_port_num=h2o_port_no))
   
   # calculate permutation importance (dif. between permuted and non-permuted predictions)
   out <- permuted_models_metric %>%

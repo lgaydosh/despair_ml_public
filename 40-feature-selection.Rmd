@@ -87,7 +87,7 @@ rf_model <- function(outcome,
                          fold_assignment = "Stratified",
                          score_each_iteration = T,
                          seed = model_seed,
-                         parallelism = 1,
+                         parallelism = 0,
                          hyper_params = hyper_params)
   
   #Remove fold column if it is null.  Otherwise, use fold_column and remove nfolds and fold_assignment
@@ -192,7 +192,7 @@ lasso_model <- function(outcome,
                             fold_column = fold_column,
                             fold_assignment = "Stratified",
                             seed = model_seed,
-                            parallelism = 1,
+                            parallelism = 0,
                             hyper_params = hyper_params)
   
   #Remove fold column if it is null.  Otherwise, use fold_column and remove nfolds and fold_assignment
