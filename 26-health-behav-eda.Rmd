@@ -1,0 +1,272 @@
+---
+title: "26-health-behav"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Purpose
+
+The purpose of this document is to perform EDA on the health behavior variables (25 used).
+The health behavior variables are: \ 
+
+  **Wave 1**:\
+    1. `h1to3`: regular smoking (1 per day last 30 days) \
+    2. `h1to7`: cigarettes per day \
+    3. `h1gh1`: self-rated health \
+    \
+  **Wave 3**:\
+    1. `h3to4`: regular smoking (1 per day last 30 days) \
+    2. `h3to10`: cigarettes per day \
+    3. `h3gh18`: fast food \
+    4. `h3gh1`:  self-rated health \
+    5. `h3hs1`: health insurance \
+    \   
+  **Wave 4**:\
+    1. `h4to3`: regular smoking (1 per day last 30 days) \
+    2. `h4to6`: cigarettes per day \
+    3. `h4id7`: injury \
+    4. `h4id9c`: injury \
+    5. `h4gh8`: fast food \
+    6. `h4gh9`: sugar sweetened beverages \
+    7. `h4gh1`: self-rated health \
+    8. `h4hs3`: health insurance \
+    \
+  **Wave 5**:\
+    1. `h5to1`: regular smoking (1 per day last 30 days)  \
+    2. `h5to3`: cigarettes per day \
+    3. `h5id4`: injury \
+    4. `h5da2`: injury \
+    5. `h5id21`: fast food \
+    6. `h5id22`: sugar sweetened beverages \
+    7. `h5id1`: self-rated health \
+    8. `h5lm3a`: health insurance \
+    9. `h5id9`: health insurance \
+    \
+  **Other (omitted for now)**:\
+    1. `C4VAR036`: constructed var for injury
+    2. `PC21_1-7`: parental health insurance
+
+#libraries
+```{r load libraries}
+# Load required libraries
+# librarian::shelf(DataExplorer, tictoc, quiet = TRUE) ---- does not work
+# install.packages("DataExplorer")
+library(DataExplorer)
+# install.packages("tictoc")
+library(tictoc)
+# install.packages("stringr")
+library(stringr)
+# Libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample,corrplot, correlationfunnel,gridExtra,graphics)
+```
+
+
+```{r read in data, cache=TRUE}
+wave_files_all <- str_c("/scratch/p_gaydosh_dsi/Gaydosh/Core Files/In Home Interview Files/wave"
+               ,c(1, 3:5),
+               ".xpt")
+# read in files with map and time it
+# About 1 minute to read in data
+wave_data_all <- wave_files_all %>%
+  purrr::map(read_xpt)
+```
+
+
+
+```{r join data, cache=TRUE}
+# Join data into a single data frame with wave 5
+data_combined_all <- wave_data_all[[1]] %>% 
+                      left_join(wave_data_all[[2]], by = "AID") %>%
+                      left_join(wave_data_all[[3]], by = "AID") %>%
+                      #left_join(wave_data_all[[4]], by = "AID") %>%
+                      inner_join(wave_data_all[[4]], by = "AID") %>%
+  clean_names(case = "snake")
+# Determine if anything was not joined in, 5575 rows
+not_joined_all <- anti_join(wave_data_all[[1]], wave_data_all[[2]], wave_data_all[[3]],wave_data_all[[4]],by = "AID")
+```
+
+
+# Selecting Variables
+
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
+# health behavior variables as listed above
+hb_list <- c(
+                     'h1to3', 'h1to7', 'h1gh1',  # Wave 1 
+                     'h3to4', 'h3to10', 'h3gh18', 'h3gh1', 'h3hs1',  # Wave 3
+                     'h4to3', 'h4to6', 'h4id7', 'h4id9c', 'h4gh8', 'h4gh9', 'h4gh1', 'h4hs3',  # Wave 4 
+                     'h5to1', 'h5to3', 'h5id4', 'h5da2', 'h5id21', 'h5id22', 'h5id1', 'h5lm13a' , 'h5id9') # Wave 5
+
+```
+
+
+```{r select variables of interest, warning=FALSE, include=FALSE}
+# for all the four waves
+final_data_all <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(hb_list))
+```
+
+
+
+# Begin to understand the dataset with introductory plot
+
+```{r}
+final_data_all %>% 
+  plot_intro()
+```
+
+About 7% missing observations
+
+
+
+# Missing value exploration
+
+```{r, fig.width=15,fig.height=10}
+# Overview of missing data
+final_data_all %>% 
+  plot_missing()
+```
+
+From `plot_missing()` we see that wave 3 has the most missingness, followed by 4, 5, and 1.
+
+Then, how many people have missing values across multiple variables? 
+
+
+```{r how many people have missing values across multiple variables}
+# Gain insight into who has these missing values. 
+# Are these missing values the same people?
+# Get the actual values of missingness we care about
+missing_counts_all <- final_data_all %>%
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "var") %>%
+  filter(value > 1)%>%
+  arrange(value)
+# Names of variables with missingness we care about, 38 in total
+missing_vars_all <- missing_counts_all %>% pull(var)
+# Get total missingness by each individual across all variables
+total_missing_all <- final_data_all %>% 
+  dplyr::select(all_of(missing_vars_all)) %>% 
+  rowwise() %>% 
+  is.na() %>%
+  rowSums()
+# Bar plot of missingness for variables with more than 1 person missing
+final_data_all %>% 
+  mutate(tot_miss = total_missing_all) %>% 
+  dplyr::select(aid, tot_miss) %>% 
+  group_by(tot_miss) %>% 
+  summarise(counts = n()) %>% 
+  ggplot() +
+  geom_bar(aes(x = tot_miss, y = counts), stat = "identity", fill = "light blue") +
+  scale_x_continuous(breaks = seq(0,38,1)) +
+  scale_y_continuous(breaks = seq(0,11e3, 1e3)) +
+  ggtitle("Count of individuals with different numbers of missing variables") +
+  xlab("Number of variables with missing value") +
+  theme_dark()
+```
+
+From the barplot we see that about 1500 people have 5 variables missing (wave 3 has 4 variables), about 1000 people have 8 variables missing (wave 4 has 8 variables), and about 500 have 13 bariables missing (wave 4 and 3 together has 13 variables). Besides, about 9000 have no missing values which means that they participated into all the wave1, wave3, wave4, and wave5. Using `drop_na()` will result in too much missing information without explanation for why those people are missing those variables.
+
+
+Additional questions possible to answer in iteration: \
+
+  1. Are these variables redundant to each other? \
+  2. Do they cluster together? If so, how? \
+  3. Are they predictive of each other? \
+  4. Are they correlated?
+
+
+```{r}
+# replace all missing values with 99 for the sake of exploring correlation
+cor_dat_input <- final_data_all %>%
+  dplyr::select(all_of(missing_vars_all)) %>%
+  mutate_all(~replace_na(., 99)) #
+
+cor_dat_all <- cor_dat_input%>%
+  cor(method = "kendall")
+
+```
+```{r correlation plot among variables with high missingness, cache=TRUE, fig.width=15,fig.height=12}
+# Correlation plot of missing variables
+cor_dat_all %>% 
+  corrplot::corrplot(method = "color",
+                     type = "upper",
+                     order = "hclust",
+                     diag = FALSE,
+                     addCoef.col = "black")
+```
+
+
+# Explore change over time
+
+```{r assess change over time of selected health behaviors, warning = FALSE}
+
+# function for histograms
+hist_by_var <-function(df, vars, max_val, title = title){
+  ggplot(gather(df[,which(colnames(df) %in% vars)]), aes(x= value)) + 
+    geom_bar(stat = 'count') + 
+    facet_wrap(~key, scales = 'free_x')+
+    ggtitle(title)+
+    theme_minimal()+
+    theme(plot.title=element_text(hjust=0.5))+
+    xlim(NA ,max_val)
+}
+
+#these questions were asked basically in the same way across waves
+q1_hb <- hist_by_var(final_data_all, c('h1to3',"h3to4","h4to3", "h5to1"),2, "regular smoking")
+q2_hb <- hist_by_var(final_data_all, c("h1to7","h3to10","h4to6","h5to3"), 30,"cigarettes per day") #based on wave 1*
+q3_hb <- hist_by_var(final_data_all, c("h4gh8",	"h5id21"), 15, "fast food days frequency")
+q4_hb <- hist_by_var(final_data_all, c("h1gh1", "h3gh1","h4gh1","h5id1"), 5, "self-rated health")
+
+grid.arrange(q1_hb, q2_hb, q3_hb, q4_hb, nrow = 2)
+ 
+```
+
+
+Here is the visualization of how answers change for the same question over different waves. Smoking appears to increase and then decrease. Fast food consumption distribution shape is roughly the same over time. Self-rated health declines over time.
+
+
+# Look at correlation of predictor variables with outcome of interest (depression, anxiety, optimism)
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
+hb_and_outcomes <- c(hb_list, "h5ss0b", "h4pe6", "h4pe7") #depression, anxiety, optimism
+
+final_data_corr <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(hb_and_outcomes))
+
+# Plot correlation funnel h5ss0b:felt depressed variable. Note, all missing values are dropped.
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h5ss0b", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe6", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe7", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+```
+
+
+There are no particulalry notable correlations.
+
+
+
+<br><br><br><br><br><br>

@@ -1,0 +1,287 @@
+---
+title: "21-risky-criminal"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Purpose
+
+
+The purpose of this document is to perform EDA on the risky or criminal behavior variables (36 used).
+The risky or criminal behavior variables are: \ 
+
+  **Wave 1**:\
+    1. `h1ds14`: Take part in fight \
+    2. `h1ed9`: Expelled from school \
+    3. `h1ed7`: Suspended from school \
+    4. `h1ds3`: Lie to parents \
+    5. `h1ed2`: Skipped school \
+    6. `h1fv7`: Pulled a knife on someone \
+    7. `h1fv1`: Saw someone stabbed or shot \
+    8. `h1fv8`: Shot or stabbed someone \
+    9. `h1jo9`: Drunk driving \
+    10. `h1ds13`: Small theft
+    11. `h1ds12`: Sell drugs \
+    12. `h1ds11`: Use weapon \
+    \
+  **Wave 3**:\
+    1. `h3ds7`: Take part in fight \
+    2. `h3ed33`: Expelled from school \
+    3. `h3ds18h`: Pulled a knife on someone \
+    4. `h3ds18a`:  Saw someone stabbed or shot \
+    5. `h3ds18i`: Shot or stabbed someone \
+    6. `h3to49`: Drunk driving \
+    7. `h3ds6`: Small theft \
+    8. `h3ds5`: Sell drugs \
+    9. `h3ds4`: Use weapon \
+    \   
+  **Wave 4**:\
+    1. `h4ds7`: Take part in fight \
+    2. `h4ds19`: Pulled a knife on someone \
+    3. `h4ds14`: Saw someone stabbed or shot \
+    4. `h4ds20`: Shot or stabbed someone \
+    5. `h4ds6`: Small theft  \
+    6. `h4ds5`: Sell drugs \
+    7. `h4ds4`: Use weapon \
+    8. `h4cj17`: self-rated health \
+    \
+  **Wave 5**:\
+    1. `h5cj1d`: Take part in fight  \
+    2. `h5cj1e`: Pulled a knife on someone \
+    3. `h5cj2b`: Saw someone stabbed or shot \
+    4. `h5cj1f`: Shot or stabbed someone \
+    5. `h5cj1b`: Larger theft \
+    6. `h5cj1c`: Sell drugs \
+    7. `h5cja`: Property damage \
+    \
+  **Other (omitted for now)**:\
+    1. `c4var013`: constructed var for ever arrested
+
+# Libraries and data import
+
+```{r load libraries}
+# Load required libraries
+# librarian::shelf(DataExplorer, tictoc, quiet = TRUE) ---- does not work
+# install.packages("DataExplorer")
+library(DataExplorer)
+# install.packages("tictoc")
+library(tictoc)
+# install.packages("stringr")
+library(stringr)
+# Libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample,corrplot, correlationfunnel,gridExtra,graphics)
+```
+
+
+```{r read in data, cache=TRUE}
+# Create path names - we need all waves for exploring depression
+wave_files_all <- str_c("/scratch/p_gaydosh_dsi/Gaydosh/Core Files/In Home Interview Files/wave"
+               ,c(1, 3:5),
+               ".xpt")
+# read in files with map and time it
+# About 1 minute to read in data
+wave_data_all <- wave_files_all %>%
+  purrr::map(read_xpt)
+```
+
+
+
+```{r join data, cache=TRUE}
+# Join data into a single data frame with wave 5
+data_combined_all <- wave_data_all[[1]] %>% 
+                      left_join(wave_data_all[[2]], by = "AID") %>%
+                      left_join(wave_data_all[[3]], by = "AID") %>%
+                      #left_join(wave_data_all[[4]], by = "AID") %>%
+                      inner_join(wave_data_all[[4]], by = "AID") %>%
+  clean_names(case = "snake")
+# Determine if anything was not joined in, 5575 rows
+not_joined_all <- anti_join(wave_data_all[[1]], wave_data_all[[2]], wave_data_all[[3]],wave_data_all[[4]],by = "AID")
+```
+
+
+
+
+# Selecting Variables
+
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
+# health behavior variables as listed above
+rc_list <- c(
+                'h1ds14', 'h1ed9', 'h1ed7', 'h1ds3', 'h1ed2', 'h1fv7', 'h1fv1', 'h1fv8', 
+                'h1jo9', 'h1ds13', 'h1ds12', 'h1ds11', #wave 1
+                'h3ds7', 'h3ed33', 'h3ds18h', 'h3ds18a', 'h3ds18i', 'h3to49', 'h3ds6', 
+                'h3ds5', 'h3ds4', #wave 3
+                'h4ds7', 'h4ds19', 'h4ds14', 'h4ds20', 'h4ds6', 'h4ds5', 'h4ds4', 'h4cj17', #Wave 4
+                'h5cj1d', 'h5cj1e', 'h5cj2b', 'h5cj1f', 'h5cj1b', 'h5cj1c', 'h5cj1a') # Wave 5
+
+```
+
+
+```{r select variables of interest, warning=FALSE, include=FALSE}
+# for all the four waves
+final_data_all <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(rc_list))
+```
+
+
+# Begin to understand the dataset with introductory plot
+
+```{r}
+final_data_all %>% 
+  plot_intro()
+```
+
+About 8% missing observations 
+
+
+
+# Missing value exploration
+
+```{r, fig.width=15,fig.height=10}
+# Overview of missing data
+final_data_all %>% 
+  plot_missing()
+```
+
+From `plot_missing()` we see that wave 4 generally has the most missingness, followed by 3, 5, and 1.
+
+Then, how many people have missing values across multiple variables? 
+
+
+```{r how many people have missing values across multiple variables}
+# Gain insight into who has these missing values. 
+# Are these missing values the same people?
+# Get the actual values of missingness we care about
+missing_counts_all <- final_data_all %>%
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "var") %>%
+  filter(value > 1)%>%
+  arrange(value)
+# Names of variables with missingness we care about, 38 in total
+missing_vars_all <- missing_counts_all %>% pull(var)
+# Get total missingness by each individual across all variables
+total_missing_all <- final_data_all %>% 
+  dplyr::select(all_of(missing_vars_all)) %>% 
+  rowwise() %>% 
+  is.na() %>%
+  rowSums()
+# Bar plot of missingness for variables with more than 1 person missing
+final_data_all %>% 
+  mutate(tot_miss = total_missing_all) %>% 
+  dplyr::select(aid, tot_miss) %>% 
+  group_by(tot_miss) %>% 
+  summarise(counts = n()) %>% 
+  ggplot() +
+  geom_bar(aes(x = tot_miss, y = counts), stat = "identity", fill = "light blue") +
+  scale_x_continuous(breaks = seq(0,38,1)) +
+  scale_y_continuous(breaks = seq(0,11e3, 1e3)) +
+  ggtitle("Count of individuals with different numbers of missing variables") +
+  xlab("Number of variables with missing value") +
+  theme_dark()
+```
+
+From the barplot we see that about 1500 people have 9 variables missing. Besides, about 9000 have no missing values which means that they participated into all the wave1, wave3, wave4, and wave5. Using `drop_na()` will result in too much missing information without explanation for why those people are missing those variables.
+
+
+Additional questions possible to answer in iteration: \
+
+  1. Are these variables redundant to each other? \
+  2. Do they cluster together? If so, how? \
+  3. Are they predictive of each other? \
+  4. Are they correlated?
+
+
+```{r}
+# replace all missing values with 99 for the sake of exploring correlation
+cor_dat_input <- final_data_all %>%
+  dplyr::select(all_of(missing_vars_all)) %>%
+  mutate_all(~replace_na(., 99)) #
+
+cor_dat_all <- cor_dat_input%>%
+  cor(method = "kendall")
+
+```
+```{r correlation plot among variables with high missingness, cache=TRUE, fig.width=15,fig.height=12}
+# Correlation plot of missing variables
+cor_dat_all %>% 
+  corrplot::corrplot(method = "color",
+                     type = "upper",
+                     order = "hclust",
+                     diag = FALSE,
+                     addCoef.col = "black")
+```
+
+
+# Explore change over time
+
+```{r assess change over time of selected health behaviors, warning = FALSE}
+
+# function for histograms
+hist_by_var <-function(df, vars, max_val, title = title){
+  ggplot(gather(df[,which(colnames(df) %in% vars)]), aes(x= value)) + 
+    geom_bar(stat = 'count') + 
+    facet_wrap(~key, scales = 'free_x')+
+    ggtitle(title)+
+    theme_minimal()+
+    theme(plot.title=element_text(hjust=0.5))+
+    xlim(NA ,max_val)
+}
+
+#these questions were asked basically in the same way across waves
+q1_rc <- hist_by_var(final_data_all, c('h1ds14', 'h3ds7', 'h4ds7', 'h5cj1d'),4, "physical fight frequency")
+q2_rc <- hist_by_var(final_data_all, c('h1fv7', 'h3ds18h', 'h4ds19', 'h5cj1e'), 2,"Pulled a knife or gun")
+q3_rc <- hist_by_var(final_data_all, c('h1fv1', 'h3ds18a', 'h4ds14', 'h5cj2b'), 3, "Saw someone stabbed or shot")
+q4_rc <- hist_by_var(final_data_all, c('h1fv8', 'h3ds18i', 'h4ds20', 'h5cj1f'), 3, "Shot or stabbed someone")
+q5_rc <- hist_by_var(final_data_all, c('h1ds12', 'h3ds5', 'h4ds5', 'h5cj1c'), 6, "Sold drugs")
+q6_rc <- hist_by_var(final_data_all, c('h1ds11', 'h3ds4', 'h4ds4'), 4, "Use weapon for coercion")
+
+grid.arrange(q1_rc, q2_rc, q3_rc, q4_rc,q5_rc,q6_rc, nrow = 2)
+ 
+```
+
+
+Relative distributions between categories in each question appear fairly constant
+
+# Look at correlation of predictor variables with outcome of interest (depression, anxiety, optimism)
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
+rc_and_outcomes <- c(rc_list, "h5ss0b", "h4pe6", "h4pe7") #depression, anxiety, optimism
+
+final_data_corr <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(rc_and_outcomes))
+
+# Plot correlation funnel h5ss0b:felt depressed variable. Note, all missing values are dropped.
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h5ss0b", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe6", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe7", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+```
+
+
+There are no particulalry notable correlations.
+
+
+
+<br><br><br><br><br><br>

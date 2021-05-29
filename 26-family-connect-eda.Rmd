@@ -1,0 +1,250 @@
+---
+title: "21-family-connect"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+    theme: lumen
+    code_folding: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Purpose
+
+The purpose of this document is to perform EDA on the family connectedness variables (89 used).
+The family connectedness variables are: \ 
+'h1wp9', 'h1wp10', 'h1wp13', 'h1wp14', 'h1wp17f', 'h1wp18f', 'h1pf1', 'h1pf4', 'h1pf5', 'h1pf23', 'h1pf24', 'h1pf25', 'h1nm12f', 'h1nm14', 'h1nf12f', 'h1nf14', 'h1pr3', 'h1pr5', 'h1pr7', 'h1pr8', 'h1ws3a', 'h1ws3b', 'h1ws3c', 'h1ws3d', 'h1ws3e', 'h1ws3f', 'h1ws3g', 'h1wp11', 'h1wp12', 'h1wp15', 'h1wp16',
+'h3wp20', 'h3wp32', 'h3wp46', 'h3wp64', 'h3wp21', 'h3wp22', 'h3wp33', 'h3wp34', 'h3wp47', 'h3wp48', 'h3wp25', 'h3wp39', 'h3wp53', 'h3wp26', 'h3wp27', 'h3wp40', 'h3wp41', 'h3wp54', 'h3wp55', 'h3wp26', 'h3wp27', 'h3wp19', 'h3wp31', 'h3wp45', 'h3wp63', 'h3wp24', 'h3wp38', 'h3wp52', 'h3ws7a', 'h3ws7b', 'h3ws7c', 'h3ws7d', 'h3ws5a', 'h3ws5b', 'h3ws5c', 'h3ws5d', 'h3ws6a', 'h3ws6b', 'h3ws6c', 'h3ws6d', 'h3ma4', 'h3ma3', 'h3ma5', 'h3ma6',
+'h4wp24', 'h4wp25', 'h4wp38', 'h4wp39', 'h4wp23', 'h4wp37', 'h4ma1', 'h4ma5', 'h4ma3',
+'h5wp14', 'h5wp13', 'h5wp28', 'h5wp29', 'h5wp27'
+
+
+# Libraries and data import
+
+```{r load libraries}
+# Load required libraries
+# librarian::shelf(DataExplorer, tictoc, quiet = TRUE) ---- does not work
+# install.packages("DataExplorer")
+library(DataExplorer)
+# install.packages("tictoc")
+library(tictoc)
+# install.packages("stringr")
+library(stringr)
+# Libraries
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(SASxport, haven, dplyr, tidyr, janitor, naniar, ggplot2, Hmisc, purrr, scales, reshape, HH, tibble, likert, reshape2,forcats,splitstackshape,rsample,corrplot, correlationfunnel,gridExtra,graphics)
+```
+
+
+```{r read in data, cache=TRUE}
+# Create path names - we need all waves for exploring depression
+wave_files_all <- str_c("/scratch/p_gaydosh_dsi/Gaydosh/Core Files/In Home Interview Files/wave"
+               ,c(1, 3:5),
+               ".xpt")
+# read in files with map and time it
+# About 1 minute to read in data
+wave_data_all <- wave_files_all %>%
+  purrr::map(read_xpt)
+```
+
+
+
+```{r join data, cache=TRUE}
+# Join data into a single data frame
+data_combined_all <- wave_data_all[[1]] %>% 
+                      left_join(wave_data_all[[2]], by = "AID") %>%
+                      left_join(wave_data_all[[3]], by = "AID") %>%
+                      left_join(wave_data_all[[4]], by = "AID") %>% 
+  clean_names(case = "snake")
+# Determine if anything was not joined in, 5575 rows
+not_joined_all <- anti_join(wave_data_all[[1]], wave_data_all[[2]], wave_data_all[[3]],wave_data_all[[4]],by = "AID")
+```
+
+
+
+
+# Selecting Variables
+
+```{r brief exploration of variable sets, eval=TRUE, include=FALSE, echo=FALSE}
+# health behavior variables as listed above
+fc_list <- c(
+                     'h1wp9', 'h1wp10', 'h1wp13', 'h1wp14', 'h1wp17f', 'h1wp18f', 'h1pf1', 'h1pf4', 'h1pf5', 
+                     'h1pf23', 'h1pf24', 'h1pf25', 'h1nm12f', 'h1nm14', 'h1nf12f', 'h1nf14', 'h1pr3', 'h1pr5', 
+                     'h1pr7', 'h1pr8', 'h1ws3a', 'h1ws3b', 'h1ws3c', 'h1ws3d', 'h1ws3e', 'h1ws3f', 'h1ws3g', 
+                     'h1wp11', 'h1wp12', 'h1wp15', 'h1wp16', #wave 1
+                     'h3wp20', 'h3wp32', 'h3wp46', 'h3wp64', 'h3wp21', 'h3wp22', 'h3wp33', 'h3wp34', 'h3wp47', 
+                     'h3wp48', 'h3wp25', 'h3wp39', 'h3wp53', 'h3wp26', 'h3wp27', 'h3wp40', 'h3wp41', 'h3wp54', 
+                     'h3wp55', 'h3wp26', 'h3wp27', 'h3wp19', 'h3wp31', 'h3wp45', 'h3wp63', 'h3wp24', 'h3wp38', 
+                     'h3wp52', 'h3ws7a', 'h3ws7b', 'h3ws7c', 'h3ws7d', 'h3ws5a', 'h3ws5b', 'h3ws5c', 'h3ws5d', 
+                     'h3ws6a', 'h3ws6b', 'h3ws6c', 'h3ws6d', 'h3ma4', 'h3ma3', 'h3ma5', 'h3ma6', #wave 3
+                     'h4wp24', 'h4wp25', 'h4wp38', 'h4wp39', 'h4wp23', 'h4wp37', 'h4ma1', 'h4ma5', 'h4ma3', #wave 4
+                      'h5wp14', 'h5wp13', 'h5wp28', 'h5wp29', 'h5wp27') # Wave 5
+
+```
+
+
+```{r select variables of interest, warning=FALSE, include=FALSE}
+# for all the four waves
+final_data_all <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(fc_list))
+```
+
+
+
+# Begin to understand the dataset with introductory plot
+
+```{r}
+final_data_all %>% 
+  plot_intro()
+```
+
+About 9% missing observations which remind us to be careful when deciding to drop NA.
+
+
+
+# Missing value exploration
+
+```{r, fig.width=15,fig.height=15}
+# Overview of missing data
+final_data_all %>% 
+  plot_missing()
+```
+
+From `plot_missing()` we see that wave 3 has the most missingness, followed by 4, 5, and 1.
+
+Then, how many people have missing values across multiple variables? 
+
+
+```{r how many people have missing values across multiple variables}
+# Gain insight into who has these missing values. 
+# Are these missing values the same people?
+# Get the actual values of missingness we care about
+missing_counts_all <- final_data_all %>%
+  map_df(~sum(is.na(.))) %>% 
+  pivot_longer(cols = everything(),
+               names_to = "var") %>%
+  filter(value > 1)%>%
+  arrange(value)
+# Names of variables with missingness we care about, 38 in total
+missing_vars_all <- missing_counts_all %>% pull(var)
+# Get total missingness by each individual across all variables
+total_missing_all <- final_data_all %>% 
+  dplyr::select(all_of(missing_vars_all)) %>% 
+  rowwise() %>% 
+  is.na() %>%
+  rowSums()
+# Bar plot of missingness for variables with more than 1 person missing
+final_data_all %>% 
+  mutate(tot_miss = total_missing_all) %>% 
+  dplyr::select(aid, tot_miss) %>% 
+  group_by(tot_miss) %>% 
+  summarise(counts = n()) %>% 
+  ggplot() +
+  geom_bar(aes(x = tot_miss, y = counts), stat = "identity", fill = "light blue") +
+  scale_x_continuous(breaks = seq(0,60,5)) +
+  scale_y_continuous(breaks = seq(0,11e3, 1e3)) +
+  ggtitle("Count of individuals with different numbers of missing variables") +
+  xlab("Number of variables with missing value") +
+  theme_dark()
+```
+
+From the barplot we see that about 1500 people are missing  44 variables (wave 3 has 44 variables). Besides, about 9000 have no missing values which means that they participated into all the wave1, wave3, wave4, and wave5. Using `drop_na()` will result in too much missing information without explanation for why those people are missing those variables.
+
+
+Additional questions possible to answer in iteration: \
+
+  1. Are these variables redundant to each other? \
+  2. Do they cluster together? If so, how? \
+  3. Are they predictive of each other? \
+  4. Are they correlated?
+
+
+```{r}
+# replace all missing values with 99 for the sake of exploring correlation
+cor_dat_input <- final_data_all %>%
+  dplyr::select(all_of(missing_vars_all)) %>%
+  mutate_all(~replace_na(., 99)) #
+
+cor_dat_all <- cor_dat_input%>%
+  cor(method = "kendall")
+
+```
+```{r correlation plot among variables with high missingness,  cache=TRUE, fig.width=20,fig.height=20}
+# Correlation plot of missing variables
+cor_dat_all %>% 
+  corrplot::corrplot(method = "color",
+                     type = "upper",
+                     order = "hclust",
+                     diag = FALSE,
+                     addCoef.col = "black")
+```
+
+
+# Explore change over time
+
+```{r assess change over time of selected health behaviors, warning = FALSE}
+
+# function for histograms
+hist_by_var <-function(df, vars, max_val, title = title){
+  ggplot(gather(df[,which(colnames(df) %in% vars)]), aes(x= value)) + 
+    geom_bar(stat = 'count') + 
+    facet_wrap(~key, scales = 'free_x')+
+    ggtitle(title)+
+    theme_minimal()+
+    theme(plot.title=element_text(hjust=0.5))+
+    xlim(NA ,max_val)
+}
+
+#these questions were asked basically in the same way across waves
+q1_fc <- hist_by_var(final_data_all, c('h1wp9', 'h3wp20', 'h4wp24', 'h5wp14'),6, "closeness to mother")
+q2_fc <- hist_by_var(final_data_all, c('h1wp13', 'h3wp25', 'h4wp38', 'h5wp28'), 6,"closeness to father") 
+q3_fc <- hist_by_var(final_data_all, c('h1ws3a', 'h3ws7a'), 5, "quarrel with sibling 1")
+
+grid.arrange(q1_fc, q2_fc, q3_fc, nrow = 2)
+ 
+```
+
+
+Here is the visualization of how answers change for the same question over different waves. 
+For closeness to parents, wave 1, 4, and5 scale are from least to most while wave 3 is from most to least.
+For fighting, wave 1 is on 1-5 scale while wave 3 is 0-4 (with 5 indicating question not asked).
+
+
+# Look at correlation of predictor variables with outcome of interest (depression, anxiety, optimism)
+```{r correlation funnel for variables most of interest, warning=FALSE, cache=TRUE}
+fc_and_outcomes <- c(fc_list, "h5ss0b", "h4pe6", "h4pe7") #depression, anxiety, optimism
+
+final_data_corr <- data_combined_all %>%
+  dplyr::select(aid, tidyselect::all_of(fc_and_outcomes))
+
+# Plot correlation funnel h5ss0b:felt depressed variable. Note, all missing values are dropped.
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h5ss0b", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe6", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+final_data_corr %>% 
+  dplyr::select(-aid) %>% 
+  drop_na() %>%
+  correlationfunnel::correlate("h4pe7", method = "kendall") %>% 
+  correlationfunnel::plot_correlation_funnel()
+
+```
+
+
+There are no particulalry notable correlations.
+
+
+<br><br><br><br><br><br>
