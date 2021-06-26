@@ -508,6 +508,9 @@ recode_missing_numeric<-function(df, na_levels){
   print("Numeric variables being recoded : ")
   print(var_names)
   
+  if (length(var_names) == 0) {
+    return(df)
+  }
   
   for (i in 1:length(var_names)){
 
