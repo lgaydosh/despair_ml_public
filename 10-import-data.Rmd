@@ -1040,9 +1040,9 @@ alcohol_benchmark <- c("h5to16", "h5to17", "h5to18", "h5to19", "h5cj4a", "h5cj4a
 
 suicide_benchmark <- c("h5mn11", "h5mn12", "h5id6h", "h5id6i", "hv_drink")
 
-idrug_benchmark <- c("h5cj1d", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+idrug_benchmark <- c("h5cj1c", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
 
-pdrug_benchmark <- c("h5cj1d", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+pdrug_benchmark <- c("h5cj1c", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
 
 benchmark_all <-c(alcohol_benchmark, suicide_benchmark, idrug_benchmark)
 ```
