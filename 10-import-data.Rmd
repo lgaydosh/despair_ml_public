@@ -508,6 +508,9 @@ recode_missing_numeric<-function(df, na_levels){
   print("Numeric variables being recoded : ")
   print(var_names)
   
+  if (length(var_names) == 0) {
+    return(df)
+  }
   
   for (i in 1:length(var_names)){
 
@@ -1031,3 +1034,16 @@ ind_vars_ses <- c(ind_vars_education, ind_vars_poverty, ind_vars_employ, ind_var
 ind_vars_all <- c(parent_vars, w1_ind_vars, w3_ind_vars, w4_ind_vars, w5_ind_vars)
 
 ```
+
+```{r Wave V risk screening predictors}
+alcohol_benchmark <- c("h5to16", "h5to17", "h5to18", "h5to19", "h5cj4a", "h5cj4ac", "h5cj4ag", "h5cj4b", "h5cj4bc", "h5cj4bg")
+
+suicide_benchmark <- c("h5mn11", "h5mn12", "h5id6h", "h5id6i", "hv_drink")
+
+idrug_benchmark <- c("h5cj1c", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+
+pdrug_benchmark <- c("h5cj1c", "h5cj4c", "h5cj4cc", "h5cj4cg", "h5cj4d", "h5cj4dc", "h5cj4dg", "h5to22", "h5to23", "h5to24")
+
+benchmark_all <-c(alcohol_benchmark, suicide_benchmark, idrug_benchmark)
+```
+
