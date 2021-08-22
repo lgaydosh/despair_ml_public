@@ -200,7 +200,7 @@ mean_bs_rf_perf <- get_metric_set_from_perfs(pr_drug_rf$perfs) %>%
 
 mean_bs_rf_perf
 ```
-As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with suicidal ideation.
+As shown, the bootstrapped models tend to have high specificity but low sensitivity, indicating that there is a challenge in identifying subjects with prescription drug abuse.
 
 ### Feature importances: Random Forest
 #### Mean decrease in impurity (MDI)
