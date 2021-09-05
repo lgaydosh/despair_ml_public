@@ -34,11 +34,11 @@ generate_datasets <- function(outcome_var, binarize_outcome,
     add_constructed_outcomes() %>%
     dplyr::select(aid, outcome, all_of(c(predictor_list, demographic_age_list, demographic_list))) %>%
     #dplyr::select(-c(h5waist, h5bmi, h5dbp, h5htenjc, h5bpcls4, h5sbp)) %>%
-    recode_variables(sheet_num = 4)
+    recode_variables(sheet_num = 2)
   
   # binarize outcome variable and drop NAs
   ds_final <- ds_raw_outcome %>%
-    recode_variables(outcome=outcome, sheet_num=2, binarize=binarize_outcome)
+    recode_variables(outcome=outcome, sheet_num=1, binarize=binarize_outcome)
   
   # make sure the rng is initialized to our seed value of interest
   set.seed(seed_val)
@@ -97,11 +97,11 @@ generate_datasets_benchmark <- function(outcome_var, binarize_outcome,
     add_bio_despair(filebase=filebase) %>% 
     add_constructed_outcomes() %>%
     dplyr::select(aid, outcome, all_of(c(outcome_benchmark, demographic_age_list, demographic_list))) %>%
-    recode_variables(sheet_num = 10)
+    recode_variables(sheet_num = 3)
 
   # binarize outcome variable and drop NAs
   ds_final <- ds_raw_outcome %>%
-    recode_variables(outcome=outcome, sheet_num=2, binarize=binarize_outcome)
+    recode_variables(outcome=outcome, sheet_num=1, binarize=binarize_outcome)
 
   # make sure the rng is initialized to our seed value of interest
   set.seed(seed_val)
