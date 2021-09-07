@@ -1,97 +1,24 @@
-# despair
-Prediction of behaviors associated with despair, hypothesized to be responsible for decline of life expectancy in the US
+# Objective
 
-## Background
+This project accompanies Dr. Gaydosh's manuscript titled American Despair? A Machine Learning Approach to Predicting Self-Destructive Behaviors and provides all code necessary to replicate the experimental results. 
 
-Prediction of behaviors associated with despair, including suicidal ideation, drug abuse, illicit drug use, opioid use, problematic drinking. The behaviors are associated with despair, which may be responsible for the drop in life expectancy in the US over the last few years. 
+## Overview
 
-## Data
+Files 10 through 60 set the groundwork for generating the datasets, setting up H2O, running the experiments and evaluating the results.
 
-All data is structured. Source files are all SAS export files. This is a large dataset, collected in waves. The most recent is Wave 5, which includes the outcomes. The goal is to predict Wave 5. Note that Wave 5 was carried out in three random samples. Each sample is nationally representative, and are roughly even. These were done sequentially, with one period collected prior to the 2016 election, so their might be some important diffences. 
+Variables_of_Interest.xlsx is a spreadsheet used to refactor all of the variables used in the experiment. 
 
-Extension: Other PIs have smaller datasets with not all of the variables as in the larger dataset, but their is an interest in perhaps applying the model to the other datasets from other PIs. There is also an interest in harmonizing the datasets. One option to build model on the larger set, using only the features in common, the applying to the other. Another possibility is to pretrain a DNN, and use transfer learning.
+h2o-credential.Rmd need only run once before running the experiments. It genererates private H2O credentials that are necessary when using a shared 'super computer' like Vanderbilt's ACCRE to prevent different users sharing the same H2O portal and running into interference.
 
+File 70-experiments-suicidal.Rmd is the only file that needs to be run. This file serves as an example and the variable can be changed from 'h5mn8' (suicidal ideation) to p_drug (prescription drug use), i_drug (illegal drug use) and hv_drink (our heavy drinking metric). For line #70, use function generate_datasets when running full experiment or function generate_datasets_benchmark when running clinical benchmark experiment with shortened variable list.
 
-### Counts
+The LASSO and Random Forest models are saved as H2O models, and the results lists are saved in an .RData file. The generated graphs can be manually saved by knitting the file to an HTML after the experiment has finished. 
 
-There are approximately 12,000 cases total. 
+## Steps
 
-*Incidence Rates*
-
-Problematic drinking ~50%
-
-Opioid use ~10%-12%
-
-Illicit drug use ~6%
-
-Suicidal ideation ~10%
-
-## Models
-
-Build predictive models for each of the predictors: 
-
-1. suicidal ideation
-2. drug abuse
-3. illicit drup use
-4. opioid use
-5. problematic drinking
-
-Engineer features as necessary, explore possible embeddings. 
-
-Examine predictive features for relative importance.
-
-### Additional analysis
-
-Examine relationship of behaviors to *domains of despair*:
-
-Cognitive despair
-
-Emotional despair
-
-Behavioral despair
-
-Biological despair (allostatic load)
-
-Given a diagnosis are assessment of the domain, does this improve the predictive power of the models?
-
-Machine learning may provide a different way to test, and to determine if despair really related to these behaviors.
-
-## Data Security Protocols
-
-Data protocols are strict. Confidentiality and security must be ensured. IT department has set up server, and users must be approved before being added. Security protocols and agreements can be found here.  
-
-Todd Dotson is the IT consultant. 
-
-## Timeline
-
-Ideally, models be available by the end of the semester, and a paper written by the end of the spring. 
-
-Note: the data has been reviewed, and has passed through a first round of examination and cleaning.
-
-*NOTE*
-Subset of data is publicly available. We'll want to consider, for later application of software to the public data. 
-
-A longer-term goal is to provide interactive data and reproducible code.
-
-## Project Logistics
-**Sprint planning and updates**: Thursdays, from 3-4:30pm; January through April  
-**Demos**: Fridays at 2:30pm
-
-**Slack Channel**: Data Science TIP/despair-project  
-**Zoom Link**: TBD
-
-**Contact Info**:  
-Lauren Gaydosh (PI) 
-  + Office: 321 Calhoun Hall
-  + Phone: 615-343-7683
-  + Email: [lauren.m.gaydosh@vanderbilt.edu](lauren.m.gaydosh@vanderbilt.edu)
-  
-Jesse Spencer-Smith  
-  + Office: Vanderbilt Data Science Institute, Engineering Science Building, Office 315
-  + Phone: 615-343-4793 o | 217-377-2867 m
-  + Email: [jesse.spencer-smith@vanderbilt.edu](jesse.spencer-smith@vanderbilt.edu)
-
-Charreau Bell  
-   + Office: Vanderbilt Data Science Institute, Engineering Science Building, Office 314
-   + Phone: 615-343-6626
-   + Email: [c.bell@vanderbilt.edu](c.bell@vanderbilt.edu)
+1. Generage H2O credentials using h2o-credentials.Rmd (Need to do once)
+2. Edit 71-experiments-suicidal.Rmd
+      a. Change variable
+      b. Change dataset
+3. Run 71-experiments-suicidal.Rmd
+4. Save HTML file
