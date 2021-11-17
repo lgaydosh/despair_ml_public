@@ -60,11 +60,13 @@ The predictors we will be using will be the the variable `predictor_list` loaded
 
 ```{r load raw data and formulate dataset, warning=TRUE, message=TRUE}
 ## set outcome variable of interest
-outcome = 'h5mn8'
+outcome = 'h5mn8' # i_drug, p_drug, hv_drink
 filebase = '/scratch/p_gaydosh_dsi'
 results_directory = str_c(filebase, '/DSI/', outcome, '/', Sys.Date())
 
 #create data in specified form
+#use generate_datasets for regular experiment
+#use generate_datasets_benchmark for clinical benchmark experiment with limited variables
 dataset_list <- generate_datasets(outcome, binarize=FALSE, filebase=filebase, seed_val=seed)
 
 #parse out dataset components

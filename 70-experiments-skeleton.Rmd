@@ -1,0 +1,132 @@
+---
+title: "70-experiments"
+output: 
+  html_document:
+    code_folding: 'show'
+    toc: true
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, purl=FALSE}
+source("function_import.R")
+```
+
+# Experiments Template
+
+**Purpose.** The purpose of this document is to serve as a template for the future experiments that will be conducted using the code in this repo.  To generate the desired document, you may erase this and the above lines so that the experiment name directly follows the document title.
+
+# Experiment name
+
+**Purpose.** In this work, we will explore the relation between identified measures of despair of interest (e.g., personality measures of self-consciousness, individual and composite item scores from the CES-D assessment) and descriptors of diseases of despair.  We will achieve this goal through modeling the outcomes based on the included predictors, and robustly assess the importance of the included features in predicting the outcomes via bootstrapping.  We will use two well-known machine learning models, random forests and LASSO, which are both frequently used to measure the relative importance of the predictors included in the models.  Lastly, we'll generate trained and tuned models using this reduced feature set which can be used by others wish to predict the identified outcomes.
+
+**Subject inclusion.** For this investigation, we will omit the entirety of Wave 2.  This is commonly done in analyses of AddHealth data due the design of the original study.  Otherwise, our dataset will include only subjects who have predictor and outcome data in _all_ of the waves.
+
+**Outcome variables.** Specifically, we will model two binary outcomes variables: _suicidal ideation_ and _marijuana use_, assessed at Wave 5.  
+
+**Predictor variables.** The predictors for these models are hand-picked, and based on previous work, relevance, and subject matter expertise. The set of predictors and the set of outcomes are disjoint.  Predictors from Waves 1-4 (excluding Wave 2, see above) are included, and will be detailed in the following analysis.
+
+```{r load libraries, purl=FALSE}
+# Load required libraries and import *0-functions.
+
+```
+
+```{r h2o initialization, purl=FALSE}
+#initialize h2o
+```
+
+# Dataset generation
+Here, we comment on the general size and shape of the data and provide justification if necessary.
+```{r load data, purl=FALSE}
+# Loading of joined data parameter list here (e.g., join type, predictor list, outcomes list)
+join_type <- 'inner'
+preds_list <-  c("h4id5j", "h4pe6", "h4pe14") #change to be explicit
+out_list <- c('h5mn8')
+
+# Load joined data based on desired manner of join, predictor list, and outcome variable
+
+# Report about the characteristics of the subjects left out of the join
+
+# Validate the generated dataset using asserts
+```
+
+# Data exploration and visualization
+Here, we comment about the general characteristics of the data based on the provided visualizations.  We comment on missingness of data, any strange or unusual behavior (e.g., strong imbalances), and any correlation that sticks out.
+```{r eda, purl=FALSE}
+# Visualize distributions of variables of interest
+
+# Visualize missingness
+
+# Visualize correlation among predictors
+```
+
+# Robust feature selection {.tabset .tabset-fade .tabset-pills}
+- Here, we will justify the feature selection based on performance metrics; we assert that because of good model performance, we can expect that the features selected are reasonable because the models fit the data well (without being overtrained)
+- Here, the subject matter experts will comment on the selected features and their general applicability to the outcomes of interest.
+- Lastly, we will comment on differences in results between RF and LASSO
+
+## RF model
+Here, we will comment on the features selected by the random forest, its training/validation performance, and the parameters resulting in the best model.
+```{r feature selection rf, purl=FALSE}
+# Function parameters
+
+# Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report average performance metrics.
+
+```
+
+## LASSO model
+Here, we will comment on the features selected by LASSO, its training/validation performance, and the parameter resulting in the best model.
+```{r feature selection lasso, purl=FALSE}
+# Function parameters
+
+# Call modeling function using function parameters and show visualization of results.  Recommend the number of features that should be used.  Report performance metric stats.
+
+```
+
+## Model comparison
+Here, we will comment in depth about the differences between these selected features
+```{r feature selection comparison, purl=FALSE}
+# Comparison of performance metrics
+
+# Comparison of top_n features
+```
+
+# Generation of final model {.tabset .tabset-fade .tabset-pills}
+Here, we will discuss the performance of the final models, including performance metrics.  We will comment on the most important features that it selected.
+The subject matter experts will comment on the relevance of these features to the outcomes of interest.
+
+## RF model
+Here, we will comment on the behavior and performance of the final rf model.
+```{r final model evaluation rf, purl=FALSE}
+# Function parameters
+
+# Call final modeling function and show visualization of results.  Report performance metric stats.
+```
+
+## LASSO model
+Here, we'll comment on the behavior and performance of the final lasso model.
+```{r final model evaluation lasso, purl=FALSE}
+# Function parameters
+
+# Call final modeling function and show visualization of results.  Report performance metric stats.
+```
+
+## Final model comparison
+Here, we'll describe the differences between the final models.
+```{r final model comparison, purl=FALSE}
+# Comparison of performance metrics
+
+# Comparison of top_n features
+```
+
+# Outcome variable discussion
+Here, the subject matter experts will comment on the the differences in the features obtained between the studied outcomes variables and discuss the discrepancies and/or cohesion.
+```{r outcome variable comparison, purl=FALSE}
+# Show differences in features obtained
+
+```
+
